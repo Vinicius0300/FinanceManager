@@ -56,14 +56,16 @@ docs/  scripts/
 
 | Tarefa | Comando |
 |---|---|
-| Dev (front + Tauri + backend com reload) | `npm run tauri dev` (em `apps/desktop` ou na raiz, conforme o README) |
-| Testes backend | `cd backend && pytest` |
-| Lint/tipos backend | `cd backend && ruff check . && ruff format --check . && mypy app` |
-| Testes frontend | `cd apps/web && npm run test` |
-| Lint/format frontend | `cd apps/web && npm run lint && npm run format:check` |
-| Migrações | `cd backend && alembic upgrade head` |
-| Gerar contrato OpenAPI + cliente TS | script em `scripts/` (ver README); o build falha se estiver desatualizado |
-| Build do instalador | script único em `scripts/` (checa contrato e testes antes) |
+| Dev (front + Tauri + backend com reload) | `npm run dev` (raiz) |
+| Testes backend | `cd backend && .venv\Scripts\python -m pytest` |
+| Lint/tipos backend | `cd backend && .venv\Scripts\ruff check . && .venv\Scripts\ruff format --check . && .venv\Scripts\mypy app entrypoint.py tests` |
+| Testes frontend | `npm test` (raiz) |
+| Lint/tipos/format frontend | `npm run lint && npm run typecheck && npm run format:check` (raiz) |
+| Checar o Rust | `cd apps/desktop/src-tauri && cargo check` |
+| Migrações (a partir da Parte 2) | `cd backend && alembic upgrade head` |
+| Gerar contrato OpenAPI + tipos TS | `npm run contrato` (raiz; `scripts/contrato.py`) |
+| Verificar contrato (CI/build) | `npm run contrato:verificar` (falha se desatualizado) |
+| Build do instalador (Parte 5) | script único em `scripts/` (checa contrato e testes antes) |
 | Preparar nova máquina | `scripts/1_instalar_ferramentas.bat` (admin), reabrir o terminal, `scripts/2_preparar_projeto.bat` |
 
 ## Definição de pronto (qualquer mudança)

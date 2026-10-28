@@ -1,0 +1,37 @@
+[package]
+name = "financas"
+version = "0.1.0"
+description = "Finanças: app desktop local de finanças pessoais"
+edition = "2021"
+rust-version = "1.80"
+
+[lib]
+name = "financas_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+tauri = { version = "2.12", features = [] }
+tauri-plugin-dialog = "2.8"
+tauri-plugin-single-instance = "2.5"
+tauri-plugin-window-state = "2.5"
+serde = { version = "1", features = ["derive"] }
+getrandom = "0.4"
+tokio = { version = "1", features = ["time"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

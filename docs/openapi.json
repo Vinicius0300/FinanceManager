@@ -1,0 +1,173 @@
+{
+  "components": {
+    "schemas": {
+      "DetalheErro": {
+        "properties": {
+          "campo": {
+            "title": "Campo",
+            "type": "string"
+          },
+          "mensagem": {
+            "title": "Mensagem",
+            "type": "string"
+          }
+        },
+        "required": [
+          "campo",
+          "mensagem"
+        ],
+        "title": "DetalheErro",
+        "type": "object"
+      },
+      "ErroApi": {
+        "properties": {
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "detalhes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DetalheErro"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detalhes"
+          },
+          "mensagem": {
+            "title": "Mensagem",
+            "type": "string"
+          }
+        },
+        "required": [
+          "codigo",
+          "mensagem"
+        ],
+        "title": "ErroApi",
+        "type": "object"
+      },
+      "RespostaHealth": {
+        "properties": {
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
+          },
+          "versao": {
+            "title": "Versao",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "versao"
+        ],
+        "title": "RespostaHealth",
+        "type": "object"
+      },
+      "RespostaPing": {
+        "properties": {
+          "horario": {
+            "format": "date-time",
+            "title": "Horario",
+            "type": "string"
+          },
+          "mensagem": {
+            "title": "Mensagem",
+            "type": "string"
+          },
+          "versao": {
+            "title": "Versao",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mensagem",
+          "horario",
+          "versao"
+        ],
+        "title": "RespostaPing",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "description": "Token de sessão gerado pelo app.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "API local do app Finanças. Acessível apenas em 127.0.0.1.",
+    "title": "Finanças API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/ping": {
+      "get": {
+        "description": "Confirma que o token de sessão é aceito. Devolve o horário do servidor (UTC).",
+        "operationId": "ping",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespostaPing"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rota protegida de exemplo",
+        "tags": [
+          "sistema"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Não exige token. Responde assim que o servidor aceita requisições.",
+        "operationId": "obter_health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespostaHealth"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Verifica se o backend está no ar",
+        "tags": [
+          "sistema"
+        ]
+      }
+    }
+  }
+}

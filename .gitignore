@@ -1,0 +1,41 @@
+# Dependências e builds
+node_modules/
+dist/
+target/
+.venv/
+*.egg-info/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage/
+build/
+
+# Tauri: schemas gerados e binários do sidecar empacotado
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/binaries/
+
+# Dados do usuário (nunca versionar)
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+backups/
+*.bak
+logs/
+*.log
+
+# Editor / sistema
+.vscode/*
+!.vscode/extensions.json
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.local
+.env
+.env.*

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Permissões mínimas da janela principal. O front só usa invoke dos comandos do app (conexao_backend, reiniciar_backend), que não exigem permissões de core/plugins. Adicione permissões aqui apenas quando uma tela precisar (ex.: dialog:allow-open para restaurar backup).",
+  "windows": ["main"],
+  "permissions": []
+}

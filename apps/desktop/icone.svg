@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Ícone provisório (o visual final vem na Parte 5). -->
+  <rect width="512" height="512" rx="112" fill="#1f2937"/>
+  <rect x="104" y="296" width="72" height="112" rx="14" fill="#34d399"/>
+  <rect x="220" y="216" width="72" height="192" rx="14" fill="#34d399"/>
+  <rect x="336" y="120" width="72" height="288" rx="14" fill="#34d399"/>
+</svg>

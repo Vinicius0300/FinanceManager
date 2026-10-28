@@ -1,0 +1,11 @@
+node_modules
+dist
+target
+.venv
+backend
+apps/desktop/src-tauri
+apps/web/src/api
+docs/openapi.json
+package-lock.json
+.claude
+*.md
