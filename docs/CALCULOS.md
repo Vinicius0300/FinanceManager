@@ -9,6 +9,15 @@ Regras de cálculo do backend, decididas com o dono na Parte 2. O código fica e
   - `arredondar_moeda`: 2 casas;
   - `arredondar_quantidade`: 8 casas (cripto);
   - `percentual`: converte a razão em % com 2 casas.
+- **Exceção:** o movimento de caixa de uma compra ou venda é arredondado a centavos, como no extrato da corretora (ver seção 5). O custo da posição continua com a precisão cheia.
+- **Casas decimais aceitas na entrada** (decisão do dono, code review). Um valor com mais casas é **recusado** com "Use no máximo N casas decimais", nunca arredondado em silêncio. Zeros à direita não contam (100,500 é aceito como dinheiro).
+
+  | Campo | Casas |
+  |---|---|
+  | Dinheiro (aporte, resgate, depósito, saque, taxas, provento, imposto retido, lançamentos) | 2 |
+  | Quantidade | 8 |
+  | Preço unitário, custo atribuído da bonificação, cotação registrada | 8 |
+  | Câmbio | 6 |
 - No banco, valores ficam como TEXT exato (`"1234.5600"`), nunca REAL (`repositories/tipos.py::DecimalTexto`).
 
 Exemplo de `ROUND_HALF_EVEN`: 1.010,025 vira 1.010,02 (o 5 exato vai para o vizinho par) e 2,355 vira 2,36.
@@ -31,7 +40,7 @@ A posição é calculada por **(ativo, instituição)** (`domain/posicao.py`).
 - **Bonificação.** Ex.: 100 @ 10 com bonificação de 10% (10:11) e custo atribuído de R$ 4 dá 110 ações, custo 1.040 e PM 9,4545… Vender as 110 @ 12 gera lucro de 280. Sem custo informado, o custo atribuído é zero.
 
 ## 3. Multimoeda
-- Cada transação guarda o **câmbio da data** (BRL por unidade). Se ele não for informado, vem do indicador de câmbio mais recente com até 7 dias. Sem câmbio, a transação é recusada.
+- Cada transação **e cada evento corporativo** guarda o **câmbio da data** (BRL por unidade). Se ele não for informado, vem do indicador de câmbio mais recente com até 7 dias. Sem câmbio, a operação é recusada. No evento, o câmbio só é buscado quando importa (bonificação com custo atribuído); nos demais fica 1. Por estar gravado, cadastrar um câmbio depois não muda o custo em BRL já registrado.
 - Custo, lucro e proventos são acumulados na moeda do ativo **e** em BRL (o custo em BRL fica fixo no câmbio de cada compra). O valor atual em BRL usa o câmbio vigente.
 - Ex.: compra 10 @ US$ 100 + US$ 1 (câmbio 5) e 10 @ US$ 110 (câmbio 5,5). O custo fica em US$ 2.101 / R$ 11.055. Vender 5 @ US$ 120 (câmbio 6) dá lucro de US$ 74,75 / R$ 836,25.
 - A conta corrente em USD fica em USD e é convertida para BRL no patrimônio pelo câmbio vigente.
@@ -50,7 +59,7 @@ A posição é calculada por **(ativo, instituição)** (`domain/posicao.py`).
 - Cada instituição tem uma conta por moeda, criada automaticamente no primeiro movimento.
 - Movimentos:
   - manuais: depósito e saque;
-  - automáticos: compra/aporte debita, venda/resgate credita, provento credita o líquido;
+  - automáticos: compra/aporte debita, venda/resgate credita, provento credita o líquido. Compra e venda são arredondadas a centavos: 3 cotas a R$ 1,234567 (= 3,703701) debitam **R$ 3,70**. Uma compra a preço zero sem taxas não gera movimento;
   - ajuste de saldo: depósito não informado (ver abaixo).
 - **O saldo nunca fica negativo.** A checagem usa o saldo ao **fim de cada dia** (movimentos do mesmo dia se compensam), a partir da data do lançamento, porque um lançamento retroativo afeta os saldos seguintes.
 - Compra ou aporte maior que o saldo: o service devolve o aviso "Você está movimentando mais dinheiro do que o possível dentro desta conta corrente. Atualizar valores?" e não grava nada. Com `aceitar_ajuste=True`, grava a transação e um `ajuste_saldo` pela diferença, que fica visível e editável. Saque maior que o saldo é recusado.
@@ -75,7 +84,7 @@ A posição é calculada por **(ativo, instituição)** (`domain/posicao.py`).
 - **IPCA:** cada mês entra pro rata pelos dias úteis do mês dentro do período, (1 + IPCA_mês)^(du_no_período/du_do_mês). Um mês ainda sem IPCA publicado usa o último conhecido (simplificação). Ex.: IPCA + 6% com IPCA de 0,40% em agosto/2025: **10.088,87**.
 - O rendimento para no vencimento.
 - O valor é **bruto** (sem IR/IOF) e tem origem `calculado`. Sem os arredondamentos intermediários da convenção ANBIMA, pode diferir do extrato em centavos.
-- **Aporte e resgate** são em R$. Cada aporte rende desde a própria data. O resgate reduz o principal **proporcionalmente ao saldo**: com fração f = resgate / saldo, cada aporte fica com (1 − f) e o lucro realizado é resgate − f × custo. Resgatar exatamente o saldo exibido zera a posição; resgatar mais que isso é erro.
+- **Aporte e resgate** são em R$. Cada aporte rende desde a própria data. O resgate reduz o principal **proporcionalmente ao saldo**: com fração f = resgate / saldo, cada aporte fica com (1 − f) e o lucro realizado é resgate − f × custo. Resgatar exatamente o saldo exibido (ou qualquer valor ≥ o saldo real) zera a posição, e a fração nunca passa de 1; resgatar mais que o saldo exibido é erro.
 
 ## 7. Poupança (regra simplificada)
 `domain/poupanca.py`:
@@ -90,7 +99,8 @@ A posição é calculada por **(ativo, instituição)** (`domain/posicao.py`).
 ## 8. Valor atual e cotações
 - **Cotados:** quantidade × último preço salvo até a data (a "data" do preço é a data local de Brasília). O preço fica **defasado** quando passa da tolerância do tipo: 4 dias corridos para ações e fundos, 1 dia para cripto.
 - **Sem nenhuma cotação:** a posição vale o custo (preço médio), com origem `calculado`, defasado e com aviso.
-- **Falha de câmbio ou de indicador** vira `erro` naquela posição. As demais continuam, e o resumo marca `completo = False`.
+- **Câmbio antigo:** a conversão para BRL usa o último câmbio salvo. Se ele tiver mais de **4 dias** (mesma tolerância das ações), a posição ou a conta fica **defasada**, com o aviso "Câmbio USD/BRL defasado: último registro em dd/mm/aaaa". Ex.: câmbio de 28/08 avaliado em 01/09 está em dia; em 02/09 fica defasado.
+- **Falha de câmbio ou de indicador** (nenhum valor registrado) vira `erro` naquela posição. As demais continuam, e o resumo marca `completo = False`.
 
 ## 9. Carteira, alocação e patrimônio
 - **Análise por Instituição:** posições e caixa de uma instituição.
@@ -106,10 +116,11 @@ A posição é calculada por **(ativo, instituição)** (`domain/posicao.py`).
 - Preço e câmbio usam o último valor conhecido. Antes do primeiro preço, a posição vale o custo; antes do primeiro câmbio, usa-se o primeiro disponível.
 - Renda fixa e poupança entram pelo accrual de cada dia; o caixa, pelo saldo de fim de dia.
 - Falhas não derrubam a série:
-  - posição sem indicador entra pelo valor aplicado;
+  - posição que não pode ser reconstruída entra pelo valor aplicado em BRL (compras/aportes menos vendas/resgates, no câmbio de cada operação, sem rendimento);
+  - ativo estrangeiro sem câmbio algum entra pelo custo em BRL;
   - conta sem câmbio algum fica de fora.
 
-  Nos dois casos o motivo vai em `avisos`.
+  Em todos os casos o motivo vai em `avisos`.
 - Há um teste garantindo que o patrimônio de cada dia da série é igual ao da avaliação da carteira naquele dia.
 
 ## 11. Receitas e despesas

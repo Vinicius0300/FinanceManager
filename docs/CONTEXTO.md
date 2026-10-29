@@ -127,6 +127,17 @@ Regras de cálculo completas e exemplos em `docs/CALCULOS.md`.
 - **Analytics:** só Protocols e registry versionado; tabelas `previsoes` e `sugestoes` apenas planejadas (`docs/ANALYTICS.md`); ML fica em extra opcional, importado dentro das fábricas.
 - **Novas dependências:** `sqlalchemy`, `alembic`, `pandas`, `tzdata`; dev: `pandas-stubs`, `pytest-cov`.
 
+## 8.1 Correções do code review (Parte 2, bloco 1)
+Revisão de código feita antes da Parte 3. Correções aprovadas pelo dono (detalhes e exemplos em `docs/CALCULOS.md`):
+- **Casas decimais na entrada:** dinheiro 2, quantidade 8, preço unitário 8, câmbio 6. Valores com mais casas são **recusados** (não arredondados), com mensagem em pt-BR (`domain/numeros.exigir_casas`), em todos os services de entrada.
+- **Caixa em centavos:** o movimento automático de compra/venda é arredondado a 2 casas (como no extrato); o custo da posição mantém a precisão cheia. Compra a preço zero sem taxas não gera movimento (antes violava o CHECK `valor > 0`).
+- **Resgate:** a fração resgatada nunca passa de 1 (antes um resgate entre o saldo real e o exibido deixava principal e custo negativos).
+- **Câmbio defasado na avaliação:** câmbio com mais de 4 dias continua sendo usado, mas marca a posição/conta como defasada, com aviso (`domain/indicadores.TOLERANCIA_DEFASAGEM_CAMBIO`). `SaldoCaixa` ganhou `defasado` e `aviso`.
+- **Câmbio gravado no evento corporativo** (migração `0002_cambio_eventos`, com preenchimento dos eventos existentes pela regra dos 7 dias). `NovoEvento.cambio` é opcional; `estado_cotas`/`operacoes_cotas` não recebem mais moeda nem indicadores. A busca de câmbio de transações e eventos ficou em `services/posicoes.resolver_cambio`.
+- **Série de patrimônio:** o plano B entende posições em cotas (valor aplicado em BRL) e há aviso quando um ativo estrangeiro não tem câmbio algum.
+- **Para a Parte 3:** providers devem arredondar cotações (até 8 casas) e câmbio (até 6) antes de gravar, porque `registrar_preco`/`registrar_indicador` recusam valores com mais casas.
+- **Bloco 2 do review (limpeza)** ficou para depois: helper único de texto opcional, normalização de metadados separada da validação (CNPJ), fator de renda fixa criado uma vez só, `mensagemDeErro` sem mascarar `TypeError`, reset das consultas ao reiniciar o backend.
+
 ## 9. Pendências conhecidas
 - Build de release ainda não inclui o backend empacotado (Parte 5): `tauri build` gera o app, mas ele mostrará "Executável do serviço interno não encontrado".
 - Atualização por cima, assinatura de código e SmartScreen: Parte 5.
