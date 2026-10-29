@@ -97,7 +97,11 @@ A posição é calculada por **(ativo, instituição)** (`domain/posicao.py`).
 - Ex.: 1.000 em 10/01 com Selic de 15% vale 1.005,00 em 10/02 e 1.010,025 em 10/03, exibido como 1.010,02.
 
 ## 8. Valor atual e cotações
-- **Cotados:** quantidade × último preço salvo até a data (a "data" do preço é a data local de Brasília). O preço fica **defasado** quando passa da tolerância do tipo: 4 dias corridos para ações e fundos, 1 dia para cripto.
+- **Um preço por ativo por dia** (data local de Brasília). Cada coleta do dia atualiza o registro do dia; o último valor do dia é o fechamento. Fechamentos baixados do histórico de uma fonte recebem o instante 18h de Brasília daquele dia. Preço **manual** do dia não é sobrescrito pela coleta do mesmo dia; no dia seguinte a coleta volta a valer.
+- **Cotados:** quantidade × último preço salvo até a data. O preço fica **defasado** quando passa da tolerância do tipo: 4 dias corridos para ações, fundos e Tesouro Direto, 1 dia para cripto.
+- **Tesouro Direto:** quantidade × PU de venda do dia (Tesouro Transparente). Ex.: 2,5 títulos × PU 4.000,00 = 10.000,00.
+- **Renda fixa e poupança** continuam calculadas (origem `calculado`). Ficam **defasadas** só quando falta o indicador recente usado no cálculo: CDI/Selic com mais de 4 dias até a data de referência (a renda fixa para no vencimento), IPCA com mais de 2 meses de atraso (o IPCA de setembro sai por volta de 10/10, então em 29/10 ele é o último esperado). Ex.: CDB % CDI com o último CDI em 02/01 avaliado em 02/03 fica defasado, com o aviso "CDI defasado: último registro em 02/01/2026; o valor usa o último indicador conhecido."
+- **Variação do dia** (cotados) = preço atual ÷ fechamento anterior − 1, onde o fechamento anterior é o último preço com data anterior à do preço atual. Na posição, em BRL: quantidade × (atual − anterior) × câmbio vigente. Na carteira: soma das posições ÷ valor delas no fechamento anterior. Ex.: 10 PETR4, fechamento anterior 50,00 e atual 52,50 → +5% e +25,00; numa carteira só com essa ação, +25,00 sobre 500,00 = +5%.
 - **Sem nenhuma cotação:** a posição vale o custo (preço médio), com origem `calculado`, defasado e com aviso.
 - **Câmbio antigo:** a conversão para BRL usa o último câmbio salvo. Se ele tiver mais de **4 dias** (mesma tolerância das ações), a posição ou a conta fica **defasada**, com o aviso "Câmbio USD/BRL defasado: último registro em dd/mm/aaaa". Ex.: câmbio de 28/08 avaliado em 01/09 está em dia; em 02/09 fica defasado.
 - **Falha de câmbio ou de indicador** (nenhum valor registrado) vira `erro` naquela posição. As demais continuam, e o resumo marca `completo = False`.
@@ -108,6 +112,8 @@ A posição é calculada por **(ativo, instituição)** (`domain/posicao.py`).
 - Patrimônio = investimentos (valor atual em BRL) + caixa (saldos em BRL).
 - Alocação por tipo de ativo, com a fatia `caixa`.
 - Ex. do cenário de teste em 01/09/2025: TST11 1.500 + AAPL 6.600 + CDB 10.116,42 + caixa 1.695 = **19.911,42**.
+- **Rentabilidade da carteira** (API): as mesmas métricas da posição (seção 4), somando em BRL os valores de todas as posições avaliadas, inclusive as zeradas (que guardam lucro realizado e proventos). Ex.: compra de 10 a 40,00 (custo 400) cotada a 52,50 → (525 − 400) ÷ 400 = 31,25%.
+- **Saída da API:** dinheiro arredondado a 2 casas; preço, quantidade e razões (percentuais como 0,3125) a 8 casas. Os cálculos internos não arredondam.
 
 ## 10. Série diária de patrimônio (pandas)
 `domain/serie_patrimonio.py`:

@@ -91,7 +91,10 @@ def serie_patrimonio(
     inicio: date,
     fim: date,
     registro: RegistroTiposAtivo = REGISTRO_PADRAO,
+    instituicao_id: int | None = None,
 ) -> SeriePatrimonio:
+    """Série diária de ``inicio`` a ``fim``; com ``instituicao_id``, só as posições e o caixa
+    daquela instituição (Análise por Instituição)."""
     indicadores = carregar_indicadores(sessao)
     ativos = {a.id: a for a in RepositorioAtivos(sessao).listar()}
     eventos_repo = RepositorioEventos(sessao)
@@ -100,6 +103,8 @@ def serie_patrimonio(
 
     grupos = agrupar_por_posicao(RepositorioTransacoes(sessao).listar_ate(fim))
     for chave in sorted(grupos, key=lambda c: (c.ativo_id, c.instituicao_id)):
+        if instituicao_id is not None and chave.instituicao_id != instituicao_id:
+            continue
         ativo, transacoes = ativos[chave.ativo_id], grupos[chave]
         handler = registro.obter(ativo.tipo)
         try:
@@ -127,6 +132,8 @@ def serie_patrimonio(
 
     caixas: list[SerieDecimal] = []
     for conta in RepositorioContas(sessao).listar():
+        if instituicao_id is not None and conta.instituicao_id != instituicao_id:
+            continue
         serie = serie_caixa(
             lancamentos(movimentos_da_conta(sessao, conta.id, fim)),
             _cambios(indicadores, conta.moeda),

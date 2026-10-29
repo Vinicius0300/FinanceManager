@@ -15,12 +15,14 @@ dependencies = [
     "pandas>=3.1,<4",
     # Base de fusos horários (o Windows não traz a do IANA): usada por zoneinfo.
     "tzdata>=2026.1",
+    # Cliente HTTP dos providers de cotação (fork mantido do httpx; também usado pelo
+    # TestClient do Starlette).
+    "httpx2>=2.16,<3",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=9.2,<10",
-    "httpx2>=2.16,<3",  # cliente usado pelo TestClient do Starlette
     "ruff>=0.17,<0.18",
     "mypy>=2.4,<3",
     "pandas-stubs>=3.0,<4",

@@ -7,7 +7,7 @@ ou a conta como defasada, com aviso.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
 
@@ -26,7 +26,7 @@ from app.domain.carteira import (
 )
 from app.domain.conta_corrente import saldo_em
 from app.domain.erros import DominioError
-from app.domain.indicadores import Indicadores
+from app.domain.indicadores import Indicadores, aviso_indicador_defasado
 from app.domain.posicao import ValoresPosicao
 from app.repositories import modelos as m
 from app.repositories.ativos import RepositorioAtivos
@@ -92,6 +92,25 @@ def _juntar_avisos(*avisos: str | None) -> str | None:
     return " ".join(presentes) if presentes else None
 
 
+def _marcar_indicadores_defasados(
+    valoracao: Valoracao,
+    handler: HandlerMontante,
+    ativo: m.Ativo,
+    indicadores: Indicadores,
+    data_ref: date,
+) -> Valoracao:
+    """Renda fixa/poupança: defasada se falta o indicador recente usado no cálculo."""
+    referencia = handler.referencia_indicadores(ativo.metadados, data_ref)
+    avisos = [
+        aviso_indicador_defasado(indicadores.serie(tipo), referencia)
+        for tipo in sorted(handler.indicadores_necessarios(ativo.metadados))
+    ]
+    aviso = _juntar_avisos(valoracao.aviso, *avisos)
+    if aviso == valoracao.aviso:
+        return valoracao
+    return replace(valoracao, defasado=True, aviso=aviso)
+
+
 def _avaliar_posicao(
     sessao: Session,
     ativo: m.Ativo,
@@ -123,7 +142,9 @@ def _avaliar_posicao(
         if isinstance(handler, HandlerMontante):
             montante = estado_montante(transacoes, handler, ativo.metadados, indicadores)
             fator = handler.criar_fator(ativo.metadados, indicadores)
-            valoracao = handler.avaliar(montante, fator, data_ref)
+            valoracao = _marcar_indicadores_defasados(
+                handler.avaliar(montante, fator, data_ref), handler, ativo, indicadores, data_ref
+            )
             return posicao(
                 None,
                 montante.valores,

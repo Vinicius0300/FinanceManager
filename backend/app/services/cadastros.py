@@ -1,6 +1,10 @@
-"""Casos de uso de cadastro: instituições e ativos."""
+"""Casos de uso de cadastro: instituições e ativos (criação, consulta e edição simples).
 
-from collections.abc import Mapping
+Edição e exclusão de ativos, que podem exigir reprocessar posições, ficam em
+``services/ativos.py``.
+"""
+
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
@@ -9,10 +13,18 @@ from app.asset_types.base import HandlerTipoAtivo
 from app.asset_types.catalogo import REGISTRO_PADRAO
 from app.asset_types.registry import RegistroTiposAtivo
 from app.domain.enums import TipoInstituicao
-from app.domain.erros import ConflitoError, DetalheCampo, NaoEncontradoError, ValidacaoError
+from app.domain.erros import (
+    ConflitoError,
+    DetalheCampo,
+    NaoEncontradoError,
+    OperacaoNaoPermitidaError,
+    ValidacaoError,
+)
 from app.repositories.ativos import RepositorioAtivos
+from app.repositories.contas import RepositorioContas, RepositorioMovimentos
 from app.repositories.instituicoes import RepositorioInstituicoes
 from app.repositories.modelos import Ativo, Instituicao
+from app.repositories.transacoes import RepositorioTransacoes
 
 TAMANHO_NOME_INSTITUICAO = 100
 TAMANHO_NOME_ATIVO = 150
@@ -53,6 +65,46 @@ def obter_instituicao(sessao: Session, instituicao_id: int) -> Instituicao:
     return instituicao
 
 
+def listar_instituicoes(sessao: Session) -> Sequence[Instituicao]:
+    return RepositorioInstituicoes(sessao).listar()
+
+
+def editar_instituicao(
+    sessao: Session, instituicao_id: int, nome: str, tipo: TipoInstituicao
+) -> Instituicao:
+    instituicao = obter_instituicao(sessao, instituicao_id)
+    nome_limpo = _texto_obrigatorio(nome, "nome", "O nome da instituição", TAMANHO_NOME_INSTITUICAO)
+    outra = RepositorioInstituicoes(sessao).por_nome(nome_limpo)
+    if outra is not None and outra.id != instituicao.id:
+        raise ConflitoError(f"Já existe uma instituição chamada {nome_limpo!r}.")
+    instituicao.nome = nome_limpo
+    instituicao.tipo = tipo
+    sessao.flush()
+    return instituicao
+
+
+def excluir_instituicao(sessao: Session, instituicao_id: int) -> None:
+    """Exclui a instituição só se não houver transações nem movimentos de caixa.
+
+    Contas correntes vazias (sem movimentos) são removidas junto.
+    """
+    instituicao = obter_instituicao(sessao, instituicao_id)
+    if RepositorioTransacoes(sessao).existe_da_instituicao(instituicao.id):
+        raise OperacaoNaoPermitidaError(
+            "A instituição tem transações. Exclua-as antes de excluir a instituição."
+        )
+    contas = RepositorioContas(sessao)
+    movimentos = RepositorioMovimentos(sessao)
+    vazias = contas.da_instituicao_todas(instituicao.id)
+    if any(movimentos.existe_na_conta(conta.id) for conta in vazias):
+        raise OperacaoNaoPermitidaError(
+            "A instituição tem depósitos ou saques. Exclua-os antes de excluir a instituição."
+        )
+    for conta in vazias:
+        contas.remover(conta)
+    RepositorioInstituicoes(sessao).remover(instituicao)
+
+
 @dataclass(frozen=True)
 class NovoAtivo:
     tipo: str
@@ -91,6 +143,11 @@ def obter_ativo(sessao: Session, ativo_id: int) -> Ativo:
     if ativo is None:
         raise NaoEncontradoError(f"Ativo {ativo_id} não encontrado.")
     return ativo
+
+
+def listar_ativos(sessao: Session, tipo: str | None = None) -> Sequence[Ativo]:
+    ativos = RepositorioAtivos(sessao).listar()
+    return [a for a in ativos if a.tipo == tipo] if tipo else ativos
 
 
 def handler_do_ativo(

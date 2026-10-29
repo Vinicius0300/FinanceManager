@@ -234,3 +234,13 @@ def test_utilitarios_de_mes() -> None:
         date(2025, 1, 31),
         date(2025, 2, 1),
     ]
+
+
+def test_formatar_dinheiro() -> None:
+    from decimal import Decimal
+
+    from app.domain.numeros import formatar_dinheiro
+
+    assert formatar_dinheiro(Decimal("2000")) == "2.000,00"
+    assert formatar_dinheiro(Decimal("1234567.891")) == "1.234.567,89"
+    assert formatar_dinheiro(Decimal("-0.5")) == "-0,50"

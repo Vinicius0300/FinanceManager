@@ -35,6 +35,38 @@ class RepositorioLancamentos(RepositorioBase[Lancamento]):
         )
         return self.sessao.scalars(consulta.order_by(Lancamento.data, Lancamento.id)).all()
 
+    def pagina(
+        self,
+        *,
+        tipo: TipoLancamento | None,
+        categoria_id: int | None,
+        inicio: date | None,
+        fim: date | None,
+        limite: int,
+        deslocamento: int,
+    ) -> tuple[Sequence[Lancamento], int]:
+        """Lançamentos filtrados, do mais recente para o mais antigo, e o total."""
+        filtros = []
+        if tipo is not None:
+            filtros.append(Lancamento.tipo == tipo)
+        if categoria_id is not None:
+            filtros.append(Lancamento.categoria_id == categoria_id)
+        if inicio is not None:
+            filtros.append(Lancamento.data >= inicio)
+        if fim is not None:
+            filtros.append(Lancamento.data <= fim)
+        total = (
+            self.sessao.scalar(select(func.count()).select_from(Lancamento).where(*filtros)) or 0
+        )
+        consulta = (
+            select(Lancamento)
+            .where(*filtros)
+            .order_by(Lancamento.data.desc(), Lancamento.id.desc())
+            .limit(limite)
+            .offset(deslocamento)
+        )
+        return self.sessao.scalars(consulta).all(), total
+
     def existe_na_categoria(self, categoria_id: int) -> bool:
         consulta = select(Lancamento.id).where(Lancamento.categoria_id == categoria_id).limit(1)
         return self.sessao.scalars(consulta).first() is not None

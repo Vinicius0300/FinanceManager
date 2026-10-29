@@ -44,7 +44,7 @@ def erros_de(excecao: pytest.ExceptionInfo[ValidacaoError]) -> dict[str, str]:
 # ---------------------------------------------------------------- Registry e schema
 
 
-def test_registro_padrao_tem_os_seis_tipos() -> None:
+def test_registro_padrao_tem_os_sete_tipos() -> None:
     assert REGISTRO_PADRAO.slugs == [
         "acao_br",
         "acao_us",
@@ -52,6 +52,7 @@ def test_registro_padrao_tem_os_seis_tipos() -> None:
         "fundo",
         "poupanca",
         "renda_fixa",
+        "tesouro_direto",
     ]
     assert "acao_br" in REGISTRO_PADRAO
     assert "fii" not in REGISTRO_PADRAO
@@ -70,6 +71,7 @@ def test_schemas_sao_serializaveis_e_completos() -> None:
             "moedas_aceitas",
             "provider",
             "tipos_transacao",
+            "aceita_taxas",
             "campos",
         }
         assert schema["moeda_padrao"] in schema["moedas_aceitas"]
@@ -103,6 +105,7 @@ def test_schema_da_renda_fixa() -> None:
         ("cripto", "coingecko", ("BRL", "USD")),
         ("renda_fixa", None, ("BRL",)),
         ("poupanca", None, ("BRL",)),
+        ("tesouro_direto", "tesouro", ("BRL",)),
     ],
 )
 def test_provider_e_moedas_de_cada_tipo(
@@ -353,14 +356,14 @@ class Fii(HandlerCotado):
         )
 
 
-def test_setimo_tipo_entra_sem_alterar_os_existentes(sessao: Session) -> None:
+def test_tipo_novo_entra_sem_alterar_os_existentes(sessao: Session) -> None:
     registro = criar_registro_padrao()
     schemas_antes = {h.slug: h.schema() for h in registro.todos()}
     registro.registrar(Fii())
 
     assert registro.slugs == sorted([*schemas_antes, "fii"])
     assert {h.slug: h.schema() for h in registro.todos() if h.slug != "fii"} == schemas_antes
-    assert len(HANDLERS_PADRAO) == 6  # o catálogo padrão não mudou
+    assert len(HANDLERS_PADRAO) == 7  # o catálogo padrão não mudou
     ativo = criar_ativo(
         sessao,
         NovoAtivo(
@@ -391,3 +394,64 @@ def test_registro_recusa_slug_duplicado_invalido_ou_sem_moeda() -> None:
 
     with pytest.raises(ValueError, match="ao menos uma moeda"):
         registro.registrar(SemMoeda())
+
+
+# ---------------------------------------------------------------- Tesouro Direto
+
+METADADOS_TESOURO: Metadados = {"titulo": "ipca_juros", "vencimento": "2035-05-15"}
+
+
+def test_tesouro_direto_e_cotado_sem_taxas_e_diario() -> None:
+    from app.domain.agenda import AGENDA_DIARIA
+
+    handler = REGISTRO_PADRAO.obter("tesouro_direto")
+    schema = handler.schema()
+    assert schema["modo"] == "cotas"
+    assert schema["aceita_taxas"] is False
+    assert schema["tipos_transacao"] == ["compra", "provento", "venda"]
+    assert [c["nome"] for c in schema["campos"]] == ["titulo", "vencimento"]
+    titulo = schema["campos"][0]
+    assert [o["valor"] for o in titulo["opcoes"]] == [
+        "selic",
+        "prefixado",
+        "prefixado_juros",
+        "ipca",
+        "ipca_juros",
+        "renda_mais",
+        "educa_mais",
+    ]
+    assert handler.agenda is AGENDA_DIARIA
+    assert REGISTRO_PADRAO.obter("renda_fixa").aceita_taxas is True
+
+
+def test_tesouro_direto_valida_campos() -> None:
+    handler = REGISTRO_PADRAO.obter("tesouro_direto")
+    assert handler.validar_metadados(METADADOS_TESOURO) == METADADOS_TESOURO
+    with pytest.raises(ValidacaoError) as erro:
+        handler.validar_metadados({"titulo": "lft", "vencimento": "2035"})
+    assert set(erros_de(erro)) == {"titulo", "vencimento"}
+
+
+def test_tesouro_direto_regras_de_transacao() -> None:
+    handler = REGISTRO_PADRAO.obter("tesouro_direto")
+    handler.validar_transacao(METADADOS_TESOURO, TipoTransacao.COMPRA, date(2035, 5, 14))
+    handler.validar_transacao(METADADOS_TESOURO, TipoTransacao.PROVENTO, date(2030, 5, 15))
+    handler.validar_transacao(METADADOS_TESOURO, TipoTransacao.VENDA, date(2035, 5, 15))
+    with pytest.raises(OperacaoNaoPermitidaError, match="vencido em 15/05/2035"):
+        handler.validar_transacao(METADADOS_TESOURO, TipoTransacao.COMPRA, date(2035, 5, 15))
+    sem_cupom: Metadados = {"titulo": "ipca", "vencimento": "2035-05-15"}
+    with pytest.raises(OperacaoNaoPermitidaError, match="juros semestrais"):
+        handler.validar_transacao(sem_cupom, TipoTransacao.PROVENTO, date(2030, 5, 15))
+    with pytest.raises(OperacaoNaoPermitidaError, match="aporte"):
+        handler.validar_transacao(METADADOS_TESOURO, TipoTransacao.APORTE, date(2030, 5, 15))
+
+
+def test_tesouro_direto_vale_quantidade_vezes_pu() -> None:
+    # 2,5 títulos × PU de R$ 4.000,00 = R$ 10.000,00
+    handler = REGISTRO_PADRAO.obter("tesouro_direto")
+    assert isinstance(handler, HandlerCotado)
+    estado = aplicar_operacoes([Compra(date(2026, 1, 5), D("2.5"), D("3800"), D(0), D(1), 1)])
+    valoracao = handler.avaliar(estado, precos((date(2026, 10, 28), "4000")), date(2026, 10, 29))
+    assert valoracao.valor == D("10000.0")
+    assert valoracao.origem is OrigemPreco.AUTOMATICO
+    assert valoracao.defasado is False

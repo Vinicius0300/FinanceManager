@@ -13,7 +13,6 @@ diferença em relação ao que está no repositório (usado pelo build e pelo CI
 """
 
 import argparse
-import json
 import shutil
 import subprocess
 import sys
@@ -26,17 +25,13 @@ SAIDA_SCHEMA_TS = RAIZ / "apps" / "web" / "src" / "api" / "schema.ts"
 
 sys.path.insert(0, str(RAIZ / "backend"))
 
-from app.core.config import Settings  # noqa: E402
-from app.main import create_app  # noqa: E402
+from app.core.contrato import texto_openapi  # noqa: E402
 
 
 def exportar_openapi(destino: Path) -> None:
-    # Token fictício: só a estrutura do app é usada; nenhuma rota é chamada.
-    app = create_app(Settings(token="contrato" * 8))
-    especificacao = app.openapi()
+    # Mesmo texto que o teste do pytest compara (tests/test_contrato.py).
     destino.parent.mkdir(parents=True, exist_ok=True)
-    texto = json.dumps(especificacao, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
-    destino.write_text(texto, encoding="utf-8", newline="\n")
+    destino.write_text(texto_openapi(), encoding="utf-8", newline="\n")
 
 
 def gerar_tipos_ts(openapi: Path, destino: Path) -> None:

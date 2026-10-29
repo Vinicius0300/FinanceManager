@@ -1,4 +1,7 @@
-"""Renda fixa (CDB, LCI, LCA, Tesouro...): valor estimado por accrual em 252 dias úteis."""
+"""Renda fixa (CDB, LCI, LCA, debêntures...): valor estimado por accrual em 252 dias úteis.
+
+Tesouro Direto tem tipo próprio (``tesouro_direto``), cotado pelo PU do Tesouro.
+"""
 
 from datetime import date
 from decimal import Decimal
@@ -39,7 +42,10 @@ def parametros(metadados: Metadados) -> ParametrosRendaFixa:
 class RendaFixa(HandlerMontante):
     slug = "renda_fixa"
     nome = "Renda fixa"
-    descricao = "Títulos prefixados, pós-fixados em % do CDI ou atrelados ao IPCA."
+    descricao = (
+        "CDB, LCI, LCA e outros títulos prefixados, pós-fixados em % do CDI ou atrelados "
+        "ao IPCA, com valor estimado por accrual (Tesouro Direto tem tipo próprio)."
+    )
     campos = (
         CampoEspecifico(
             nome="indexador",
@@ -99,6 +105,10 @@ class RendaFixa(HandlerMontante):
 
     def indicadores_necessarios(self, metadados: Metadados) -> frozenset[TipoIndicador]:
         return _INDICADOR_DO_INDEXADOR[Indexador(str(metadados["indexador"]))]
+
+    def referencia_indicadores(self, metadados: Metadados, data_ref: date) -> date:
+        # Depois do vencimento o valor fica congelado: indicadores novos não importam.
+        return min(data_ref, ler_data(metadados, "vencimento"))
 
     def criar_fator(self, metadados: Metadados, indicadores: Indicadores) -> FatorAcumulado:
         return criar_fator_renda_fixa(parametros(metadados), indicadores)

@@ -1,6 +1,7 @@
 """Fundos de investimento (cotas; valor da cota pela CVM)."""
 
 import re
+from typing import ClassVar
 
 from app.asset_types.base import CampoEspecifico, HandlerCotado, Metadados, Opcao, TipoCampo
 from app.domain.erros import DetalheCampo
@@ -29,6 +30,7 @@ class Fundo(HandlerCotado):
     descricao = "Fundos de renda fixa, multimercado, ações ou cambiais, cotados pela CVM."
     moedas_aceitas = ("BRL",)
     provider = "cvm"
+    campos_identificacao: ClassVar[frozenset[str]] = frozenset({"cnpj"})
     campos = (
         CampoEspecifico(
             nome="cnpj",

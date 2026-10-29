@@ -124,8 +124,7 @@ def test_registro_de_precos(sessao: Session) -> None:
     instante = datetime(2025, 1, 2, 15, tzinfo=UTC)
     preco = registrar_preco(sessao, ativo.id, instante, D(10), OrigemPreco.AUTOMATICO, "yfinance")
     assert preco.moeda == "BRL"
-    with pytest.raises(ConflitoError):
-        registrar_preco(sessao, ativo.id, instante, D(11), OrigemPreco.MANUAL)
+    assert preco.data == date(2025, 1, 2)
     with pytest.raises(ValidacaoError, match="provider"):
         registrar_preco(
             sessao, ativo.id, datetime(2025, 1, 3, tzinfo=UTC), D(1), OrigemPreco.AUTOMATICO

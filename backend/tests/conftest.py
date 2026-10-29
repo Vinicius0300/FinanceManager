@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.banco import criar_engine
 from app.core.config import Settings
 from app.main import create_app
+from app.providers.registry import RegistroProviders
 from app.repositories.modelos import Base
 
 TOKEN_TESTE = "t" * 64
@@ -30,8 +31,13 @@ def encerramentos() -> list[str]:
 
 @pytest.fixture
 def app(encerramentos: list[str]) -> FastAPI:
-    settings = Settings(token=TOKEN_TESTE, porta=0, dev=True)
-    return create_app(settings, solicitar_encerramento=lambda: encerramentos.append("ok"))
+    # Sem atualização automática e sem providers reais: nenhum teste acessa a internet.
+    settings = Settings(token=TOKEN_TESTE, porta=0, dev=True, atualizacao_automatica=False)
+    return create_app(
+        settings,
+        solicitar_encerramento=lambda: encerramentos.append("ok"),
+        providers=RegistroProviders(),
+    )
 
 
 @pytest.fixture

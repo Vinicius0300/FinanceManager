@@ -4,6 +4,7 @@ from datetime import timedelta
 from typing import ClassVar
 
 from app.asset_types.base import HandlerCotado
+from app.domain.agenda import AGENDA_CONTINUA, Agenda
 from app.domain.enums import TipoTransacao
 
 
@@ -12,6 +13,7 @@ class Cripto(HandlerCotado):
     nome = "Criptomoeda"
     descricao = "Criptoativos como bitcoin e ethereum; negociados 24 horas por dia."
     moedas_aceitas = ("BRL", "USD")
+    agenda: ClassVar[Agenda] = AGENDA_CONTINUA
     provider = "coingecko"
     tipos_transacao: ClassVar[frozenset[TipoTransacao]] = frozenset(
         {TipoTransacao.COMPRA, TipoTransacao.VENDA}

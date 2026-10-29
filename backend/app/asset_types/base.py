@@ -4,7 +4,7 @@ Cada tipo de ativo é um handler isolado que declara:
 - **identidade**: ``slug`` (gravado em ``ativos.tipo``), nome e descrição;
 - **modo de posição**: ``cotas`` (quantidade × preço) ou ``montante`` (aportes/resgates
   em R$ com accrual);
-- **provider**: só o nome da fonte de cotação (os providers entram na Parte 3);
+- **provider**: nome da fonte de cotação no registry de ``app/providers``;
 - **campos específicos**: schema que gera o formulário no front e valida os metadados;
 - **transações aceitas** e regras extras de validação;
 - **valor atual**: :meth:`HandlerCotado.avaliar` ou :meth:`HandlerMontante.avaliar`.
@@ -21,6 +21,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Any, ClassVar
 
+from app.domain.agenda import AGENDA_DIARIA, Agenda
 from app.domain.enums import OrigemPreco, TipoIndicador, TipoTransacao
 from app.domain.erros import DetalheCampo, OperacaoNaoPermitidaError, ValidacaoError
 from app.domain.indicadores import Indicadores
@@ -168,6 +169,13 @@ class HandlerTipoAtivo(ABC):
     provider: ClassVar[str | None] = None
     campos: ClassVar[tuple[CampoEspecifico, ...]] = ()
     tipos_transacao: ClassVar[frozenset[TipoTransacao]]
+    aceita_taxas: ClassVar[bool] = True
+    """``False``: compra/venda deste tipo não aceitam taxas (ex.: Tesouro Direto)."""
+    agenda: ClassVar[Agenda] = AGENDA_DIARIA
+    """Quando a atualização automática coleta a cotação (ver ``domain/agenda.py``)."""
+    campos_identificacao: ClassVar[frozenset[str]] = frozenset()
+    """Campos específicos que identificam o ativo na fonte de cotação (ex.: CNPJ do fundo).
+    Alterá-los reinicia a coleta (apaga preços automáticos e baixa o histórico de novo)."""
 
     @property
     def moeda_padrao(self) -> str:
@@ -228,6 +236,7 @@ class HandlerTipoAtivo(ABC):
             "moedas_aceitas": list(self.moedas_aceitas),
             "provider": self.provider,
             "tipos_transacao": sorted(t.value for t in self.tipos_transacao),
+            "aceita_taxas": self.aceita_taxas,
             "campos": [campo.para_schema() for campo in self.campos],
         }
 
@@ -270,6 +279,10 @@ class HandlerMontante(HandlerTipoAtivo):
     tipos_transacao: ClassVar[frozenset[TipoTransacao]] = frozenset(
         {TipoTransacao.APORTE, TipoTransacao.RESGATE}
     )
+
+    def referencia_indicadores(self, metadados: Metadados, data_ref: date) -> date:
+        """Até que data o cálculo precisa de indicadores (usado no aviso de defasagem)."""
+        return data_ref
 
     @abstractmethod
     def criar_fator(self, metadados: Metadados, indicadores: Indicadores) -> FatorAcumulado:

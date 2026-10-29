@@ -118,13 +118,16 @@ def test_precos_e_indicadores(sessao: Session) -> None:
     preco = precos.adicionar(
         m.Preco(
             ativo_id=ativo.id,
+            data=date(2025, 1, 2),
             data_hora=instante,
             valor=D(10),
             moeda="BRL",
             origem=OrigemPreco.MANUAL,
         )
     )
-    assert precos.no_instante(ativo.id, instante) is preco
+    assert precos.na_data(ativo.id, date(2025, 1, 2)) is preco
+    assert precos.na_data(ativo.id, date(2025, 1, 3)) is None
+    assert precos.ultimos(ativo.id, 5) == [preco]
     assert precos.do_ativo(ativo.id) == [preco]
     indicadores = RepositorioIndicadores(sessao)
     cdi = indicadores.adicionar(

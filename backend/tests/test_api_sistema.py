@@ -73,7 +73,8 @@ def test_encerrar_agenda_encerramento_gracioso(
 def test_encerrar_fica_fora_do_contrato(cliente: TestClient) -> None:
     caminhos = cliente.get("/openapi.json").json()["paths"]
     assert "/api/sistema/encerrar" not in caminhos
-    assert set(caminhos) == {"/health", "/api/ping"}
+    assert {"/health", "/api/ping"} <= set(caminhos)
+    assert all(c == "/health" or c.startswith("/api/") for c in caminhos)
 
 
 def test_cors_permite_apenas_origens_do_app(cliente: TestClient) -> None:

@@ -10,6 +10,12 @@ Dia sem valor usa o último valor conhecido anterior (preenchimento para frente)
 Na **avaliação** (valor atual), um câmbio mais antigo que
 :data:`TOLERANCIA_DEFASAGEM_CAMBIO` continua sendo usado, mas fica marcado como
 **defasado** (mesma tolerância das ações: cobre fim de semana + feriado).
+
+Investimentos por montante (renda fixa, poupança) continuam calculados com o último
+indicador conhecido, mas ficam **defasados** quando ele é antigo demais
+(:func:`aviso_indicador_defasado`): CDI/Selic com mais de 4 dias; IPCA com mais de
+:data:`MESES_TOLERANCIA_IPCA` meses de atraso (o IPCA de um mês sai por volta do dia 10
+do mês seguinte, então em 29/10 o último esperado é o de setembro).
 """
 
 from bisect import bisect_right
@@ -33,6 +39,8 @@ NOMES_INDICADORES = {
 }
 
 TOLERANCIA_DEFASAGEM_CAMBIO = timedelta(days=4)
+TOLERANCIA_DEFASAGEM_TAXA_DIARIA = timedelta(days=4)
+MESES_TOLERANCIA_IPCA = 2
 
 
 @dataclass(frozen=True)
@@ -142,3 +150,24 @@ class Indicadores:
             return CambioVigente(moeda, valor, None)
         defasado = dia - ponto.data > TOLERANCIA_DEFASAGEM_CAMBIO
         return CambioVigente(moeda, valor, ponto.data, defasado)
+
+
+def _indice_mes(dia: date) -> int:
+    return dia.year * 12 + dia.month - 1
+
+
+def aviso_indicador_defasado(serie: SerieIndicador, data_ref: date) -> str | None:
+    """Aviso se o último valor da série até ``data_ref`` é antigo demais (ou não existe)."""
+    ponto = serie.ponto_em(data_ref)
+    if ponto is None:
+        return f"Não há {serie.nome} registrado até {formatar_data(data_ref)}."
+    if serie.tipo is TipoIndicador.IPCA:
+        atrasado = _indice_mes(data_ref) - _indice_mes(ponto.data) > MESES_TOLERANCIA_IPCA
+    else:
+        atrasado = data_ref - ponto.data > TOLERANCIA_DEFASAGEM_TAXA_DIARIA
+    if not atrasado:
+        return None
+    return (
+        f"{serie.nome} defasado: último registro em {formatar_data(ponto.data)}; "
+        "o valor usa o último indicador conhecido."
+    )

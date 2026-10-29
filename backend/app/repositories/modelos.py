@@ -228,9 +228,14 @@ class EventoCorporativo(Base):
 
 
 class Preco(Base):
+    """Um preço por ativo por dia (data local de Brasília); o último do dia é o fechamento.
+
+    ``data_hora`` é o instante da coleta (ou do lançamento manual) que gerou o valor.
+    """
+
     __tablename__ = "precos"
     __table_args__ = (
-        UniqueConstraint("ativo_id", "data_hora"),
+        UniqueConstraint("ativo_id", "data"),
         CheckConstraint(_positivo("valor"), name="valor"),
         CheckConstraint(
             "origem <> 'automatico' OR provider IS NOT NULL", name="provider_automatico"
@@ -240,6 +245,7 @@ class Preco(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     ativo_id: Mapped[int] = mapped_column(ForeignKey("ativos.id", ondelete="CASCADE"))
+    data: Mapped[date]
     data_hora: Mapped[datetime]
     valor: Mapped[Decimal]
     moeda: Mapped[str] = mapped_column(String(3))
@@ -272,6 +278,24 @@ class Indicador(Base):
     data: Mapped[date]
     valor: Mapped[Decimal]
     fonte: Mapped[str | None] = mapped_column(String(40))
+
+
+class EstadoColeta(Base):
+    """Situação da atualização automática de um alvo (um ativo ou um indicador).
+
+    ``chave``: ``ativo:<id>`` ou ``indicador:<tipo>:<moeda>``. ``historico_desde`` é a
+    data mais antiga já baixada do histórico (``None``: histórico ainda não baixado).
+    """
+
+    __tablename__ = "estados_coleta"
+
+    chave: Mapped[str] = mapped_column(String(60), primary_key=True)
+    ativo_id: Mapped[int | None] = mapped_column(ForeignKey("ativos.id", ondelete="CASCADE"))
+    ultima_tentativa: Mapped[datetime | None]
+    ultimo_sucesso: Mapped[datetime | None]
+    ultimo_erro: Mapped[str | None] = mapped_column(String(500))
+    provider: Mapped[str | None] = mapped_column(String(40))
+    historico_desde: Mapped[date | None]
 
 
 class MovimentoConta(Base):

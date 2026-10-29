@@ -4,7 +4,7 @@ Instantes (``datetime``) são guardados em UTC; a "data" de um preço é a data 
 de Brasília (``America/Sao_Paulo``), que é como o usuário enxerga o dia.
 """
 
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 FUSO_LOCAL = ZoneInfo("America/Sao_Paulo")
@@ -15,6 +15,16 @@ def data_local(instante: datetime) -> date:
     if instante.tzinfo is None:
         raise ValueError("O instante precisa ter fuso horário definido.")
     return instante.astimezone(FUSO_LOCAL).date()
+
+
+def agora_utc() -> datetime:
+    """Relógio real (padrão das dependências injetáveis; testes passam o próprio)."""
+    return datetime.now(UTC)
+
+
+def hoje_local() -> date:
+    """Data de hoje em Brasília pelo relógio real."""
+    return data_local(agora_utc())
 
 
 def formatar_data(dia: date) -> str:

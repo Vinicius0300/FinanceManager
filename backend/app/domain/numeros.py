@@ -125,3 +125,9 @@ def formatar_numero(valor: Decimal) -> str:
     """Texto curto para mensagens ao usuário (sem zeros à direita, vírgula decimal)."""
     texto = format(valor.normalize(context=CONTEXTO), "f")
     return texto.replace(".", ",")
+
+
+def formatar_dinheiro(valor: Decimal) -> str:
+    """Valor monetário para mensagens: 2 casas, milhar com ponto e vírgula decimal (2.000,00)."""
+    texto = f"{arredondar_moeda(valor):,.2f}"
+    return texto.replace(",", "_").replace(".", ",").replace("_", ".")

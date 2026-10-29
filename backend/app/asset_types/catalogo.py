@@ -12,6 +12,7 @@ from app.asset_types.fundo import Fundo
 from app.asset_types.poupanca import Poupanca
 from app.asset_types.registry import RegistroTiposAtivo
 from app.asset_types.renda_fixa import RendaFixa
+from app.asset_types.tesouro_direto import TesouroDireto
 
 HANDLERS_PADRAO: tuple[type[HandlerTipoAtivo], ...] = (
     AcaoBr,
@@ -20,6 +21,7 @@ HANDLERS_PADRAO: tuple[type[HandlerTipoAtivo], ...] = (
     RendaFixa,
     Cripto,
     Poupanca,
+    TesouroDireto,
 )
 
 

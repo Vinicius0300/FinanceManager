@@ -86,12 +86,64 @@ async def _tratar_http(_: Request, exc: Exception) -> JSONResponse:
     return _resposta(exc.status_code, ErroApi(codigo=f"http_{exc.status_code}", mensagem=mensagem))
 
 
+MENSAGENS_VALIDACAO = {
+    "missing": "Campo obrigatório.",
+    "extra_forbidden": "Campo desconhecido.",
+    "json_invalid": "JSON inválido.",
+    "model_attributes_type": "Formato inválido.",
+    "dict_type": "Formato inválido.",
+    "list_type": "Informe uma lista.",
+    "string_type": "Informe um texto.",
+    "int_type": "Informe um número inteiro.",
+    "int_parsing": "Informe um número inteiro.",
+    "int_from_float": "Informe um número inteiro.",
+    "bool_type": "Informe verdadeiro ou falso.",
+    "bool_parsing": "Informe verdadeiro ou falso.",
+    "decimal_type": "Informe um número.",
+    "decimal_parsing": "Informe um número válido (use ponto como separador decimal).",
+    "date_type": "Data inválida. Use o formato AAAA-MM-DD.",
+    "date_parsing": "Data inválida. Use o formato AAAA-MM-DD.",
+    "date_from_datetime_parsing": "Data inválida. Use o formato AAAA-MM-DD.",
+    "date_from_datetime_inexact": "Data inválida. Use o formato AAAA-MM-DD.",
+    "enum": "Opção inválida.",
+    "literal_error": "Opção inválida.",
+}
+
+
+def mensagem_validacao(erro: dict[str, object]) -> str:
+    """Mensagem em pt-BR para um erro do Pydantic (o texto original é em inglês)."""
+    tipo = str(erro.get("type", ""))
+    contexto = erro.get("ctx")
+    limites = contexto if isinstance(contexto, dict) else {}
+    if tipo in MENSAGENS_VALIDACAO:
+        return MENSAGENS_VALIDACAO[tipo]
+    if tipo == "value_error":  # ValueError dos validadores próprios (já em pt-BR)
+        motivo = limites.get("error")
+        return str(motivo) if motivo else "Valor inválido."
+    if tipo in ("greater_than", "greater_than_equal", "less_than", "less_than_equal"):
+        sinal = {
+            "greater_than": "maior que",
+            "greater_than_equal": "maior ou igual a",
+            "less_than": "menor que",
+            "less_than_equal": "menor ou igual a",
+        }[tipo]
+        limite = next(iter(limites.values()), "")
+        return f"Use um valor {sinal} {limite}."
+    if tipo == "string_too_long":
+        return f"Use no máximo {limites.get('max_length')} caracteres."
+    if tipo == "string_too_short":
+        return f"Use no mínimo {limites.get('min_length')} caracteres."
+    return "Valor inválido."
+
+
 async def _tratar_validacao(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, RequestValidationError)  # noqa: S101
     detalhes = [
         DetalheErro(
-            campo=".".join(str(parte) for parte in erro.get("loc", ())),
-            mensagem=str(erro.get("msg", "valor inválido")),
+            # "body"/"query"/"path" não interessam ao usuário: só o caminho do campo.
+            campo=".".join(str(parte) for parte in erro.get("loc", ())[1:])
+            or ".".join(str(parte) for parte in erro.get("loc", ())),
+            mensagem=mensagem_validacao(erro),
         )
         for erro in exc.errors()
     ]

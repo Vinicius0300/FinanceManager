@@ -1,6 +1,9 @@
 """Ações e ETFs negociados nos EUA (USD, convertidos para BRL pelo câmbio)."""
 
+from typing import ClassVar
+
 from app.asset_types.base import CampoEspecifico, HandlerCotado, Opcao, TipoCampo
+from app.domain.agenda import AGENDA_EUA, Agenda
 
 
 class AcaoUs(HandlerCotado):
@@ -8,6 +11,7 @@ class AcaoUs(HandlerCotado):
     nome = "Ação (EUA)"
     descricao = "Ações e ETFs negociados em bolsas dos Estados Unidos, em dólar."
     moedas_aceitas = ("USD",)
+    agenda: ClassVar[Agenda] = AGENDA_EUA
     provider = "yfinance"
     campos = (
         CampoEspecifico(

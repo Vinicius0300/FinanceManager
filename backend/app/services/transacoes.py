@@ -12,6 +12,7 @@ Excluir uma transação ou evento reprocessa o histórico sem ela e recusa se al
 inválido (ex.: excluir uma compra que sustentava uma venda posterior).
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -34,6 +35,7 @@ from app.domain.erros import (
     DominioError,
     NaoEncontradoError,
     OperacaoNaoPermitidaError,
+    PosicaoInsuficienteError,
     SaldoInsuficienteError,
     exigir,
 )
@@ -159,22 +161,38 @@ def _sem_dominio(acao: str, erro: DominioError) -> OperacaoNaoPermitidaError:
     return OperacaoNaoPermitidaError(f"{acao}: {erro.mensagem}")
 
 
-def registrar_transacao(
+@dataclass(frozen=True)
+class _Simulacao:
+    """Transação validada (ainda não gravada) e o efeito dela no caixa."""
+
+    transacao: m.Transacao
+    tipo_movimento: TipoMovimento
+    valor_movimento: Decimal
+    faltante: Decimal
+
+
+def _simular(
     sessao: Session,
     dados: NovaTransacao,
-    *,
-    aceitar_ajuste: bool = False,
-    registro: RegistroTiposAtivo = REGISTRO_PADRAO,
-) -> ResultadoTransacao:
+    registro: RegistroTiposAtivo,
+    substituida: m.Transacao | None = None,
+) -> _Simulacao:
+    """Valida ``dados`` reprocessando o ativo (sem ``substituida``, na edição) e calcula o
+    movimento de caixa e quanto faltaria de saldo. Não grava nada."""
     ativo = obter_ativo(sessao, dados.ativo_id)
     obter_instituicao(sessao, dados.instituicao_id)
     handler = handler_do_ativo(ativo, registro)
     handler.validar_transacao(ativo.metadados, dados.tipo, dados.data)
     _validar_campos(dados)
+    exigir(
+        handler.aceita_taxas or dados.taxas == ZERO, "taxas", f"{handler.nome} não aceita taxas."
+    )
     indicadores = carregar_indicadores(sessao)
     observacao = dados.observacao.strip() if dados.observacao and dados.observacao.strip() else None
+    ignorar = substituida.id if substituida is not None else None
 
     nova = m.Transacao(
+        id=ignorar,  # na edição mantém a ordem original entre as operações do mesmo dia
         ativo_id=ativo.id,
         instituicao_id=dados.instituicao_id,
         tipo=dados.tipo,
@@ -190,7 +208,8 @@ def registrar_transacao(
         observacao=observacao,
     )
     repositorio = RepositorioTransacoes(sessao)
-    da_posicao = list(repositorio.da_posicao(ativo.id, dados.instituicao_id))
+    outras = [t for t in repositorio.do_ativo(ativo.id) if ignorar is None or t.id != ignorar]
+    da_posicao = [t for t in outras if t.instituicao_id == dados.instituicao_id]
     if isinstance(handler, HandlerCotado):
         operacao_cotas(nova)  # valida números (quantidade > 0, taxas ≤ venda...)
         if dados.tipo is TipoTransacao.PROVENTO and not houve_compra_ate(da_posicao, dados.data):
@@ -198,11 +217,8 @@ def registrar_transacao(
                 "Não há compra deste ativo nesta instituição até "
                 f"{formatar_data(dados.data)} para receber o provento."
             )
-    outras_posicoes = [
-        t for t in repositorio.do_ativo(ativo.id) if t.instituicao_id != dados.instituicao_id
-    ]
     eventos = list(RepositorioEventos(sessao).do_ativo(ativo.id))
-    reprocessar_ativo(ativo, handler, [*da_posicao, nova, *outras_posicoes], eventos, indicadores)
+    reprocessar_ativo(ativo, handler, [*outras, nova], eventos, indicadores)
 
     tipo_movimento, valor_movimento = movimento_da_transacao(
         dados.tipo,
@@ -212,47 +228,140 @@ def registrar_transacao(
         valor=dados.valor,
     )
     conta = obter_conta(sessao, dados.instituicao_id, ativo.moeda)
-    existentes = lancamentos(movimentos_da_conta(sessao, conta.id)) if conta else []
+    existentes = (
+        lancamentos(
+            x
+            for x in movimentos_da_conta(sessao, conta.id)
+            if ignorar is None or x.transacao_id != ignorar
+        )
+        if conta
+        else []
+    )
     novo_lancamento = LancamentoCaixa(dados.data, valor_com_sinal(tipo_movimento, valor_movimento))
     faltante = deficit([*existentes, novo_lancamento], dados.data)
-    if faltante > ZERO and not aceitar_ajuste:
-        return ResultadoTransacao(
-            transacao=None,
-            aviso=AvisoSaldoInsuficiente(
-                mensagem=MENSAGEM_SALDO_INSUFICIENTE,
-                instituicao_id=dados.instituicao_id,
-                moeda=ativo.moeda,
-                data=dados.data,
-                valor_faltante=faltante,
-            ),
-        )
+    return _Simulacao(nova, tipo_movimento, valor_movimento, faltante)
 
-    transacao = repositorio.adicionar(nova)
-    conta = conta or obter_ou_criar_conta(sessao, dados.instituicao_id, ativo.moeda)
+
+def _aviso(dados: NovaTransacao, moeda: str, faltante: Decimal) -> ResultadoTransacao:
+    return ResultadoTransacao(
+        transacao=None,
+        aviso=AvisoSaldoInsuficiente(
+            mensagem=MENSAGEM_SALDO_INSUFICIENTE,
+            instituicao_id=dados.instituicao_id,
+            moeda=moeda,
+            data=dados.data,
+            valor_faltante=faltante,
+        ),
+    )
+
+
+def _gravar_movimentos(
+    sessao: Session, transacao: m.Transacao, simulacao: _Simulacao
+) -> m.MovimentoConta | None:
+    """Cria o movimento automático da transação e, se faltar saldo, o ajuste."""
+    conta = obter_ou_criar_conta(sessao, transacao.instituicao_id, transacao.moeda)
     movimentos = RepositorioMovimentos(sessao)
-    if valor_movimento > ZERO:  # compra a preço zero sem taxas não movimenta o caixa
+    if simulacao.valor_movimento > ZERO:  # compra a preço zero sem taxas não movimenta
         movimentos.adicionar(
             m.MovimentoConta(
                 conta_id=conta.id,
                 transacao_id=transacao.id,
-                tipo=tipo_movimento,
-                data=dados.data,
-                valor=valor_movimento,
+                tipo=simulacao.tipo_movimento,
+                data=transacao.data,
+                valor=simulacao.valor_movimento,
             )
         )
-    ajuste = None
-    if faltante > ZERO:
-        ajuste = movimentos.adicionar(
-            m.MovimentoConta(
-                conta_id=conta.id,
-                transacao_id=transacao.id,
-                tipo=TipoMovimento.AJUSTE_SALDO,
-                data=dados.data,
-                valor=faltante,
-                descricao=DESCRICAO_AJUSTE,
-            )
+    if simulacao.faltante <= ZERO:
+        return None
+    return movimentos.adicionar(
+        m.MovimentoConta(
+            conta_id=conta.id,
+            transacao_id=transacao.id,
+            tipo=TipoMovimento.AJUSTE_SALDO,
+            data=transacao.data,
+            valor=simulacao.faltante,
+            descricao=DESCRICAO_AJUSTE,
         )
+    )
+
+
+def registrar_transacao(
+    sessao: Session,
+    dados: NovaTransacao,
+    *,
+    aceitar_ajuste: bool = False,
+    registro: RegistroTiposAtivo = REGISTRO_PADRAO,
+) -> ResultadoTransacao:
+    simulacao = _simular(sessao, dados, registro)
+    if simulacao.faltante > ZERO and not aceitar_ajuste:
+        return _aviso(dados, simulacao.transacao.moeda, simulacao.faltante)
+    transacao = RepositorioTransacoes(sessao).adicionar(simulacao.transacao)
+    ajuste = _gravar_movimentos(sessao, transacao, simulacao)
     return ResultadoTransacao(transacao=transacao, ajuste=ajuste)
+
+
+CAMPOS_EDITAVEIS = (
+    "instituicao_id",
+    "tipo",
+    "data",
+    "quantidade",
+    "preco_unitario",
+    "valor",
+    "taxas",
+    "cambio",
+    "subtipo_provento",
+    "imposto_retido",
+    "observacao",
+)
+
+
+def editar_transacao(
+    sessao: Session,
+    transacao_id: int,
+    dados: NovaTransacao,
+    *,
+    aceitar_ajuste: bool = False,
+    registro: RegistroTiposAtivo = REGISTRO_PADRAO,
+) -> ResultadoTransacao:
+    """Substitui a transação pelos novos dados e reprocessa a posição.
+
+    Recusa se algo ficar inválido (mesma regra da exclusão) e passa pelo aviso de saldo
+    insuficiente como um registro novo. O ativo não muda (para isso, exclua e registre
+    de novo). Os movimentos automáticos e o ajuste de saldo antigos são refeitos.
+    """
+    original = obter_transacao(sessao, transacao_id)
+    exigir(
+        dados.ativo_id == original.ativo_id,
+        "ativo_id",
+        "O ativo de uma transação não pode ser trocado: exclua e registre de novo.",
+    )
+    try:
+        simulacao = _simular(sessao, dados, registro, substituida=original)
+    except PosicaoInsuficienteError as erro:
+        raise _sem_dominio("Não é possível alterar esta transação", erro) from erro
+    if simulacao.faltante > ZERO and not aceitar_ajuste:
+        return _aviso(dados, simulacao.transacao.moeda, simulacao.faltante)
+    conta_antiga = obter_conta(sessao, original.instituicao_id, original.moeda)
+    if conta_antiga is not None and original.instituicao_id != dados.instituicao_id:
+        restantes = [
+            x for x in movimentos_da_conta(sessao, conta_antiga.id) if x.transacao_id != original.id
+        ]
+        falta = deficit(lancamentos(restantes), original.data)
+        if falta > ZERO:
+            raise SaldoInsuficienteError(
+                "Mudar a instituição desta transação deixaria a conta corrente anterior "
+                f"negativa em R$ {formatar_numero(arredondar_moeda(falta))} a partir de "
+                f"{formatar_data(original.data)}."
+            )
+    movimentos = RepositorioMovimentos(sessao)
+    for movimento in movimentos.da_transacao(original.id):
+        movimentos.remover(movimento)
+    sessao.expire(original, ["movimentos"])
+    for campo in CAMPOS_EDITAVEIS:
+        setattr(original, campo, getattr(simulacao.transacao, campo))
+    sessao.flush()
+    ajuste = _gravar_movimentos(sessao, original, simulacao)
+    return ResultadoTransacao(transacao=original, ajuste=ajuste)
 
 
 def obter_transacao(sessao: Session, transacao_id: int) -> m.Transacao:
@@ -305,15 +414,13 @@ class NovoEvento:
     observacao: str | None = None
 
 
-def registrar_evento(
-    sessao: Session, dados: NovoEvento, registro: RegistroTiposAtivo = REGISTRO_PADRAO
+def _preparar_evento(
+    sessao: Session,
+    dados: NovoEvento,
+    registro: RegistroTiposAtivo,
+    substituido: m.EventoCorporativo | None = None,
 ) -> m.EventoCorporativo:
-    """Registra desdobramento, grupamento ou bonificação (vale para todas as instituições).
-
-    O câmbio fica gravado no evento (como nas transações), para o custo em BRL da
-    bonificação não mudar se os indicadores forem alterados depois. Só é buscado quando
-    importa: bonificação com custo atribuído em ativo estrangeiro.
-    """
+    """Valida o evento e reprocessa o ativo com ele (sem ``substituido``). Não grava."""
     ativo = obter_ativo(sessao, dados.ativo_id)
     handler = handler_do_ativo(ativo, registro)
     if isinstance(handler, HandlerMontante):
@@ -335,12 +442,18 @@ def registrar_evento(
         "observacao",
         f"Use no máximo {TAMANHO_OBSERVACAO} caracteres.",
     )
-    repositorio = RepositorioEventos(sessao)
-    if any(e.data == dados.data and e.tipo is dados.tipo for e in repositorio.do_ativo(ativo.id)):
+    ignorar = substituido.id if substituido is not None else None
+    outros = [
+        e
+        for e in RepositorioEventos(sessao).do_ativo(ativo.id)
+        if ignorar is None or e.id != ignorar
+    ]
+    if any(e.data == dados.data and e.tipo is dados.tipo for e in outros):
         raise ConflitoError(
             f"Já existe {dados.tipo.value} deste ativo em {formatar_data(dados.data)}."
         )
     novo = m.EventoCorporativo(
+        id=ignorar,
         ativo_id=ativo.id,
         tipo=dados.tipo,
         data=dados.data,
@@ -350,19 +463,66 @@ def registrar_evento(
         cambio=cambio,
         observacao=dados.observacao.strip() if dados.observacao else None,
     )
-    eventos = [*repositorio.do_ativo(ativo.id), novo]
     transacoes = list(RepositorioTransacoes(sessao).do_ativo(ativo.id))
-    reprocessar_ativo(ativo, handler, transacoes, eventos, indicadores)
-    return repositorio.adicionar(novo)
+    reprocessar_ativo(ativo, handler, transacoes, [*outros, novo], indicadores)
+    return novo
+
+
+def registrar_evento(
+    sessao: Session, dados: NovoEvento, registro: RegistroTiposAtivo = REGISTRO_PADRAO
+) -> m.EventoCorporativo:
+    """Registra desdobramento, grupamento ou bonificação (vale para todas as instituições).
+
+    O câmbio fica gravado no evento (como nas transações), para o custo em BRL da
+    bonificação não mudar se os indicadores forem alterados depois. Só é buscado quando
+    importa: bonificação com custo atribuído em ativo estrangeiro.
+    """
+    return RepositorioEventos(sessao).adicionar(_preparar_evento(sessao, dados, registro))
+
+
+def obter_evento(sessao: Session, evento_id: int) -> m.EventoCorporativo:
+    evento = RepositorioEventos(sessao).obter(evento_id)
+    if evento is None:
+        raise NaoEncontradoError(f"Evento corporativo {evento_id} não encontrado.")
+    return evento
+
+
+def editar_evento(
+    sessao: Session,
+    evento_id: int,
+    dados: NovoEvento,
+    registro: RegistroTiposAtivo = REGISTRO_PADRAO,
+) -> m.EventoCorporativo:
+    """Substitui o evento e reprocessa o ativo; recusa se alguma posição ficar inválida."""
+    original = obter_evento(sessao, evento_id)
+    exigir(
+        dados.ativo_id == original.ativo_id,
+        "ativo_id",
+        "O ativo de um evento não pode ser trocado: exclua e registre de novo.",
+    )
+    try:
+        novo = _preparar_evento(sessao, dados, registro, substituido=original)
+    except PosicaoInsuficienteError as erro:
+        raise _sem_dominio("Não é possível alterar este evento", erro) from erro
+    for campo in (
+        "tipo",
+        "data",
+        "proporcao_de",
+        "proporcao_para",
+        "custo_unitario",
+        "cambio",
+        "observacao",
+    ):
+        setattr(original, campo, getattr(novo, campo))
+    sessao.flush()
+    return original
 
 
 def excluir_evento(
     sessao: Session, evento_id: int, registro: RegistroTiposAtivo = REGISTRO_PADRAO
 ) -> None:
     repositorio = RepositorioEventos(sessao)
-    evento = repositorio.obter(evento_id)
-    if evento is None:
-        raise NaoEncontradoError(f"Evento corporativo {evento_id} não encontrado.")
+    evento = obter_evento(sessao, evento_id)
     ativo = obter_ativo(sessao, evento.ativo_id)
     restantes = [e for e in repositorio.do_ativo(ativo.id) if e.id != evento.id]
     transacoes = list(RepositorioTransacoes(sessao).do_ativo(ativo.id))
@@ -377,3 +537,39 @@ def excluir_evento(
     except DominioError as erro:
         raise _sem_dominio("Não é possível excluir este evento", erro) from erro
     repositorio.remover(evento)
+
+
+@dataclass(frozen=True)
+class PaginaTransacoes:
+    itens: Sequence[m.Transacao]
+    total: int
+
+
+def listar_transacoes(
+    sessao: Session,
+    *,
+    ativo_id: int | None = None,
+    instituicao_id: int | None = None,
+    tipo: TipoTransacao | None = None,
+    inicio: date | None = None,
+    fim: date | None = None,
+    limite: int = 50,
+    deslocamento: int = 0,
+) -> PaginaTransacoes:
+    itens, total = RepositorioTransacoes(sessao).pagina(
+        ativo_id=ativo_id,
+        instituicao_id=instituicao_id,
+        tipo=tipo,
+        inicio=inicio,
+        fim=fim,
+        limite=limite,
+        deslocamento=deslocamento,
+    )
+    return PaginaTransacoes(itens, total)
+
+
+def listar_eventos(sessao: Session, ativo_id: int | None = None) -> Sequence[m.EventoCorporativo]:
+    repositorio = RepositorioEventos(sessao)
+    if ativo_id is None:
+        return repositorio.listar()
+    return list(reversed(repositorio.do_ativo(ativo_id)))

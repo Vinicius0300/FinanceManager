@@ -4,6 +4,477 @@
  */
 
 export interface paths {
+    "/api/ativos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista os ativos (opcionalmente de um tipo) */
+        get: operations["listar_ativos"];
+        put?: never;
+        /**
+         * Cadastra um ativo
+         * @description Ativos cotados começam a ser atualizados logo após o cadastro, em segundo plano (cotação do dia e fechamentos de até 1 ano).
+         */
+        post: operations["criar_ativo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ativos/{ativo_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detalha um ativo */
+        get: operations["obter_ativo"];
+        /**
+         * Altera nome, símbolo externo e campos específicos
+         * @description Tipo e moeda não mudam. Alterar a identificação na fonte (símbolo externo, CNPJ, título) apaga os preços automáticos e baixa o histórico de novo.
+         */
+        put: operations["editar_ativo"];
+        post?: never;
+        /** Exclui um ativo sem transações nem eventos */
+        delete: operations["excluir_ativo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ativos/{ativo_id}/precos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Histórico de preços (um por dia; o último do dia é o fechamento) */
+        get: operations["listar_precos"];
+        put?: never;
+        /**
+         * Informa o preço de um dia manualmente (só ativos cotados)
+         * @description Substitui o preço automático daquele dia e não é sobrescrito pela coleta do mesmo dia. Renda fixa e poupança são calculadas e não aceitam preço manual.
+         */
+        post: operations["registrar_preco_manual"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ativos/{ativo_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status da última atualização de um ativo */
+        get: operations["obter_status_cotacao"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/backups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Backups disponíveis (mais recentes primeiro) */
+        get: operations["listar_backups"];
+        put?: never;
+        /** Cria um backup agora (API de backup do SQLite, validado) */
+        post: operations["criar_backup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/backups/restaurar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restaura um backup (com backup de segurança antes)
+         * @description Valida o arquivo (banco íntegro do Finanças, de versão conhecida), faz um backup de segurança do banco atual, restaura e aplica as migrações. Em caso de falha, o banco anterior volta. A atualização automática fica pausada durante a restauração.
+         */
+        post: operations["restaurar_backup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/categorias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista as categorias (opcionalmente de um tipo) */
+        get: operations["listar_categorias"];
+        put?: never;
+        /** Cria uma categoria */
+        post: operations["criar_categoria"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/categorias/{categoria_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Renomeia uma categoria */
+        put: operations["renomear_categoria"];
+        post?: never;
+        /** Exclui uma categoria sem lançamentos */
+        delete: operations["excluir_categoria"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/configuracoes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Configurações do app */
+        get: operations["obter_configuracoes"];
+        /** Altera o intervalo da atualização automática (1 a 15 minutos) */
+        put: operations["alterar_configuracoes"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/contas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Contas correntes (por instituição e moeda) com saldo
+         * @description Saldo ao fim de `data` (padrão: hoje). Filtra por instituição se informada.
+         */
+        get: operations["listar_contas"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cotacoes/atualizacao": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Se há uma atualização em andamento e o resumo do último ciclo */
+        get: operations["obter_atualizacao"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cotacoes/atualizar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Força a atualização de cotações e indicadores agora
+         * @description Ignora o intervalo e roda em segundo plano; o andamento chega pelo stream de eventos. Se já houver uma atualização rodando, responde 409.
+         */
+        post: operations["forcar_atualizacao"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cotacoes/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Status da última atualização de cada ativo
+         * @description Data/hora, origem, provider, se está defasado e o último erro da coleta.
+         */
+        get: operations["listar_status_cotacoes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/eventos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Eventos da atualização em tempo real (SSE)
+         * @description Stream de eventos (SSE). Consuma com `fetch` + `Authorization: Bearer` e leia o corpo em streaming. Cada mensagem tem `event:` (conectado, preco_atualizado, indicador_atualizado, erro_provider, fim_ciclo, heartbeat) e `data:` em JSON.
+         */
+        get: operations["stream_eventos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/eventos-corporativos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista eventos corporativos (mais recentes primeiro) */
+        get: operations["listar_eventos"];
+        put?: never;
+        /** Registra desdobramento, grupamento ou bonificação */
+        post: operations["criar_evento"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/eventos-corporativos/{evento_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Substitui um evento corporativo e reprocessa o ativo */
+        put: operations["editar_evento"];
+        post?: never;
+        /** Exclui um evento corporativo (recusa se algo ficar inválido) */
+        delete: operations["excluir_evento"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/indicadores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista indicadores por tipo, moeda e período */
+        get: operations["listar_indicadores"];
+        put?: never;
+        /** Lança um indicador manualmente */
+        post: operations["criar_indicador"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/indicadores/{indicador_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Altera o valor de um indicador (passa a ser manual) */
+        put: operations["editar_indicador"];
+        post?: never;
+        /** Exclui um indicador */
+        delete: operations["excluir_indicador"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/instituicoes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista as instituições */
+        get: operations["listar_instituicoes"];
+        put?: never;
+        /** Cadastra uma instituição */
+        post: operations["criar_instituicao"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/instituicoes/{instituicao_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detalha uma instituição */
+        get: operations["obter_instituicao"];
+        /** Altera nome e tipo de uma instituição */
+        put: operations["editar_instituicao"];
+        post?: never;
+        /** Exclui uma instituição sem transações nem movimentos */
+        delete: operations["excluir_instituicao"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/instituicoes/{instituicao_id}/extrato": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Extrato da conta corrente de uma instituição numa moeda */
+        get: operations["obter_extrato"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lancamentos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista lançamentos com filtros (mais recentes primeiro) */
+        get: operations["listar_lancamentos"];
+        put?: never;
+        /** Registra uma receita ou despesa */
+        post: operations["criar_lancamento"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lancamentos/{lancamento_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detalha um lançamento */
+        get: operations["obter_lancamento"];
+        /** Altera um lançamento */
+        put: operations["editar_lancamento"];
+        post?: never;
+        /** Exclui um lançamento */
+        delete: operations["excluir_lancamento"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/movimentos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Registra um depósito ou saque
+         * @description Saque maior que o saldo disponível é recusado (422, `saldo_insuficiente`).
+         */
+        post: operations["criar_movimento"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/movimentos/{movimento_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Exclui um depósito, saque ou ajuste de saldo */
+        delete: operations["excluir_movimento"];
+        options?: never;
+        head?: never;
+        /** Altera o valor de um depósito, saque ou ajuste de saldo */
+        patch: operations["alterar_valor_movimento"];
+        trace?: never;
+    };
     "/api/ping": {
         parameters: {
             query?: never;
@@ -19,6 +490,259 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/alocacao": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Alocação por tipo de ativo (com a fatia caixa) */
+        get: operations["obter_alocacao"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/evolucao": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Evolução diária do patrimônio (até 1 ano)
+         * @description Padrão: os últimos 365 dias até hoje, a partir dos fechamentos diários.
+         */
+        get: operations["obter_evolucao"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/instituicoes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Patrimônio de cada instituição (base da Análise por Instituição) */
+        get: operations["listar_resumo_instituicoes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/maiores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Maiores posições em valor (BRL) */
+        get: operations["listar_maiores"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/posicoes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Posições abertas por ativo (da maior para a menor) */
+        get: operations["listar_posicoes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/rentabilidade": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Rentabilidade da carteira e de cada ativo (em BRL) */
+        get: operations["obter_rentabilidade"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/resumo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Patrimônio, caixa, variação do dia e rentabilidade */
+        get: operations["obter_resumo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/variacao-dia": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Variação do dia (preço atual sobre o fechamento anterior) */
+        get: operations["obter_variacao_dia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/precos/{preco_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Exclui um preço manual (a coleta automática volta a valer) */
+        delete: operations["excluir_preco"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/resumo-mensal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Receitas, despesas, saldo e totais por categoria do mês */
+        get: operations["obter_resumo_mensal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tipos-ativo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tipos de ativo com o schema dos campos específicos
+         * @description Usado pelo front para gerar o formulário de cadastro de cada tipo.
+         */
+        get: operations["listar_tipos_ativo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tipos-ativo/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Schema de um tipo de ativo */
+        get: operations["obter_tipo_ativo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transacoes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista transações com filtros (mais recentes primeiro) */
+        get: operations["listar_transacoes"];
+        put?: never;
+        /**
+         * Registra uma transação
+         * @description Se o caixa da instituição ficaria negativo, responde 409 `saldo_insuficiente` sem gravar. Reenvie com `aceitar_ajuste=true` para gravar com um ajuste de saldo.
+         */
+        post: operations["criar_transacao"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transacoes/{transacao_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detalha uma transação */
+        get: operations["obter_transacao"];
+        /**
+         * Substitui uma transação e reprocessa a posição
+         * @description Mesmas regras do registro, inclusive o 409 de saldo insuficiente.
+         */
+        put: operations["editar_transacao"];
+        post?: never;
+        /** Exclui uma transação (recusa se algo ficar inválido) */
+        delete: operations["excluir_transacao"];
         options?: never;
         head?: never;
         patch?: never;
@@ -48,6 +772,184 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AlteracaoValor */
+        AlteracaoValor: {
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
+        };
+        /** AtivoEdicao */
+        AtivoEdicao: {
+            /** Metadados */
+            metadados?: {
+                [key: string]: string | number;
+            };
+            /** Nome */
+            nome: string;
+            /** Simbolo Externo */
+            simbolo_externo?: string | null;
+        };
+        /** AtivoEntrada */
+        AtivoEntrada: {
+            /** Metadados */
+            metadados?: {
+                [key: string]: string | number;
+            };
+            /** Moeda */
+            moeda?: string | null;
+            /** Nome */
+            nome: string;
+            /** Simbolo */
+            simbolo?: string | null;
+            /** Simbolo Externo */
+            simbolo_externo?: string | null;
+            /** Tipo */
+            tipo: string;
+        };
+        /** AtivoSaida */
+        AtivoSaida: {
+            /**
+             * Criado Em
+             * Format: date-time
+             */
+            criado_em: string;
+            /** Id */
+            id: number;
+            /** Metadados */
+            metadados: {
+                [key: string]: string | number;
+            };
+            /** Moeda */
+            moeda: string;
+            /** Nome */
+            nome: string;
+            /** Provider */
+            provider: string | null;
+            /** Simbolo */
+            simbolo: string | null;
+            /** Simbolo Externo */
+            simbolo_externo: string | null;
+            /** Tipo */
+            tipo: string;
+        };
+        /** AtualizacaoIniciada */
+        AtualizacaoIniciada: {
+            /** Mensagem */
+            mensagem: string;
+        };
+        /** AtualizacaoStatus */
+        AtualizacaoStatus: {
+            /** Em Andamento */
+            em_andamento: boolean;
+            /** Erros */
+            erros: number | null;
+            /** Precos Atualizados */
+            precos_atualizados: number | null;
+            /** Ultimo Ciclo Fim */
+            ultimo_ciclo_fim: string | null;
+            /** Ultimo Ciclo Inicio */
+            ultimo_ciclo_inicio: string | null;
+        };
+        /** BackupSaida */
+        BackupSaida: {
+            /**
+             * Criado Em
+             * Format: date-time
+             */
+            criado_em: string;
+            /** Nome */
+            nome: string;
+            /** Tamanho Bytes */
+            tamanho_bytes: number;
+        };
+        /** CaixaSaida */
+        CaixaSaida: {
+            /** Aviso */
+            aviso: string | null;
+            /** Defasado */
+            defasado: boolean;
+            /** Erro */
+            erro: string | null;
+            /** Instituicao Id */
+            instituicao_id: number;
+            /** Moeda */
+            moeda: string;
+            /**
+             * Saldo
+             * @example 10.50
+             */
+            saldo: string;
+            /** Saldo Brl */
+            saldo_brl: string | null;
+        };
+        /** CampoTipo */
+        CampoTipo: {
+            /** Ajuda */
+            ajuda: string | null;
+            /** Maximo */
+            maximo: string | null;
+            /** Minimo */
+            minimo: string | null;
+            /** Nome */
+            nome: string;
+            /** Obrigatorio */
+            obrigatorio: boolean;
+            /** Opcoes */
+            opcoes: components["schemas"]["OpcaoCampo"][];
+            /** Rotulo */
+            rotulo: string;
+            /** Tamanho Maximo */
+            tamanho_maximo: number | null;
+            /** Tipo */
+            tipo: string;
+        };
+        /** CategoriaEntrada */
+        CategoriaEntrada: {
+            /** Nome */
+            nome: string;
+            tipo: components["schemas"]["TipoLancamento"];
+        };
+        /** CategoriaRenomear */
+        CategoriaRenomear: {
+            /** Nome */
+            nome: string;
+        };
+        /** CategoriaSaida */
+        CategoriaSaida: {
+            /** Id */
+            id: number;
+            /** Nome */
+            nome: string;
+            tipo: components["schemas"]["TipoLancamento"];
+        };
+        /** ConfiguracoesEntrada */
+        ConfiguracoesEntrada: {
+            /** Intervalo Atualizacao Min */
+            intervalo_atualizacao_min: number;
+        };
+        /** ConfiguracoesSaida */
+        ConfiguracoesSaida: {
+            /** Intervalo Atualizacao Min */
+            intervalo_atualizacao_min: number;
+        };
+        /** ContaSaida */
+        ContaSaida: {
+            /** Id */
+            id: number;
+            /** Instituicao Id */
+            instituicao_id: number;
+            /** Instituicao Nome */
+            instituicao_nome: string;
+            /** Moeda */
+            moeda: string;
+            /**
+             * Saldo
+             * @example 10.50
+             */
+            saldo: string;
+        };
         /** DetalheErro */
         DetalheErro: {
             /** Campo */
@@ -63,6 +965,501 @@ export interface components {
             detalhes?: components["schemas"]["DetalheErro"][] | null;
             /** Mensagem */
             mensagem: string;
+        };
+        /** EventoEntrada */
+        EventoEntrada: {
+            /** Ativo Id */
+            ativo_id: number;
+            /** Cambio */
+            cambio?: string | null;
+            /**
+             * Custo Unitario
+             * @default 0
+             * @example 10.50
+             */
+            custo_unitario: string;
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /** Observacao */
+            observacao?: string | null;
+            /** Proporcao De */
+            proporcao_de: number;
+            /** Proporcao Para */
+            proporcao_para: number;
+            tipo: components["schemas"]["TipoEvento"];
+        };
+        /** EventoSaida */
+        EventoSaida: {
+            /** Ativo Id */
+            ativo_id: number;
+            /**
+             * Cambio
+             * @example 10.50
+             */
+            cambio: string;
+            /**
+             * Criado Em
+             * Format: date-time
+             */
+            criado_em: string;
+            /**
+             * Custo Unitario
+             * @example 10.50
+             */
+            custo_unitario: string;
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /** Id */
+            id: number;
+            /** Observacao */
+            observacao: string | null;
+            /** Proporcao De */
+            proporcao_de: number;
+            /** Proporcao Para */
+            proporcao_para: number;
+            tipo: components["schemas"]["TipoEvento"];
+        };
+        /** EvolucaoSaida */
+        EvolucaoSaida: {
+            /** Avisos */
+            avisos: string[];
+            /** Pontos */
+            pontos: components["schemas"]["PontoEvolucao"][];
+        };
+        /** ExtratoSaida */
+        ExtratoSaida: {
+            /** Deslocamento */
+            deslocamento: number;
+            /** Instituicao Id */
+            instituicao_id: number;
+            /** Itens */
+            itens: components["schemas"]["MovimentoSaida"][];
+            /** Limite */
+            limite: number;
+            /** Moeda */
+            moeda: string;
+            /**
+             * Saldo Final
+             * @example 10.50
+             */
+            saldo_final: string;
+            /** Total */
+            total: number;
+        };
+        /** FatiaSaida */
+        FatiaSaida: {
+            /** Grupo */
+            grupo: string;
+            /**
+             * Percentual
+             * @example 10.50
+             */
+            percentual: string;
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /** IndicadorEdicao */
+        IndicadorEdicao: {
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
+        };
+        /** IndicadorEntrada */
+        IndicadorEntrada: {
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /**
+             * Moeda
+             * @default BRL
+             */
+            moeda: string;
+            tipo: components["schemas"]["TipoIndicador"];
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
+        };
+        /** IndicadorSaida */
+        IndicadorSaida: {
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /** Fonte */
+            fonte: string | null;
+            /** Id */
+            id: number;
+            /** Moeda */
+            moeda: string;
+            tipo: components["schemas"]["TipoIndicador"];
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
+        };
+        /** InstituicaoEntrada */
+        InstituicaoEntrada: {
+            /** Nome */
+            nome: string;
+            tipo: components["schemas"]["TipoInstituicao"];
+        };
+        /** InstituicaoSaida */
+        InstituicaoSaida: {
+            /**
+             * Criado Em
+             * Format: date-time
+             */
+            criado_em: string;
+            /** Id */
+            id: number;
+            /** Nome */
+            nome: string;
+            tipo: components["schemas"]["TipoInstituicao"];
+        };
+        /** LancamentoEntrada */
+        LancamentoEntrada: {
+            /** Categoria Id */
+            categoria_id?: number | null;
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /** Descricao */
+            descricao: string;
+            /** Observacao */
+            observacao?: string | null;
+            tipo: components["schemas"]["TipoLancamento"];
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
+        };
+        /** LancamentoSaida */
+        LancamentoSaida: {
+            /** Categoria Id */
+            categoria_id: number | null;
+            /** Categoria Nome */
+            categoria_nome: string | null;
+            /**
+             * Criado Em
+             * Format: date-time
+             */
+            criado_em: string;
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /** Descricao */
+            descricao: string;
+            /** Id */
+            id: number;
+            /** Observacao */
+            observacao: string | null;
+            tipo: components["schemas"]["TipoLancamento"];
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
+        };
+        /** MetricasSaida */
+        MetricasSaida: {
+            /**
+             * Custo
+             * @example 10.50
+             */
+            custo: string;
+            /**
+             * Lucro Nao Realizado
+             * @example 10.50
+             */
+            lucro_nao_realizado: string;
+            /**
+             * Lucro Realizado
+             * @example 10.50
+             */
+            lucro_realizado: string;
+            /**
+             * Proventos
+             * @example 10.50
+             */
+            proventos: string;
+            /**
+             * Rendimentos Bonificacao
+             * @example 10.50
+             */
+            rendimentos_bonificacao: string;
+            /** Rentabilidade Total */
+            rentabilidade_total: string | null;
+            /**
+             * Resultado Total
+             * @example 10.50
+             */
+            resultado_total: string;
+            /**
+             * Total Investido
+             * @example 10.50
+             */
+            total_investido: string;
+            /**
+             * Valor Atual
+             * @example 10.50
+             */
+            valor_atual: string;
+            /** Valorizacao */
+            valorizacao: string | null;
+        };
+        /** MovimentoEntrada */
+        MovimentoEntrada: {
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /** Descricao */
+            descricao?: string | null;
+            /** Instituicao Id */
+            instituicao_id: number;
+            /**
+             * Moeda
+             * @default BRL
+             */
+            moeda: string;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "deposito" | "saque";
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
+        };
+        /** MovimentoResumo */
+        MovimentoResumo: {
+            /** Id */
+            id: number;
+            /** Tipo */
+            tipo: string;
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
+        };
+        /** MovimentoSaida */
+        MovimentoSaida: {
+            /** Conta Id */
+            conta_id: number;
+            /**
+             * Criado Em
+             * Format: date-time
+             */
+            criado_em: string;
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /** Descricao */
+            descricao: string | null;
+            /** Id */
+            id: number;
+            tipo: components["schemas"]["TipoMovimento"];
+            /** Transacao Id */
+            transacao_id: number | null;
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
+        };
+        /** OpcaoCampo */
+        OpcaoCampo: {
+            /** Rotulo */
+            rotulo: string;
+            /** Valor */
+            valor: string;
+        };
+        /**
+         * OrigemPreco
+         * @enum {string}
+         */
+        OrigemPreco: "automatico" | "manual" | "calculado";
+        /** Pagina[LancamentoSaida] */
+        Pagina_LancamentoSaida_: {
+            /** Deslocamento */
+            deslocamento: number;
+            /** Itens */
+            itens: components["schemas"]["LancamentoSaida"][];
+            /** Limite */
+            limite: number;
+            /** Total */
+            total: number;
+        };
+        /** Pagina[PrecoSaida] */
+        Pagina_PrecoSaida_: {
+            /** Deslocamento */
+            deslocamento: number;
+            /** Itens */
+            itens: components["schemas"]["PrecoSaida"][];
+            /** Limite */
+            limite: number;
+            /** Total */
+            total: number;
+        };
+        /** Pagina[TransacaoSaida] */
+        Pagina_TransacaoSaida_: {
+            /** Deslocamento */
+            deslocamento: number;
+            /** Itens */
+            itens: components["schemas"]["TransacaoSaida"][];
+            /** Limite */
+            limite: number;
+            /** Total */
+            total: number;
+        };
+        /** PontoEvolucao */
+        PontoEvolucao: {
+            /**
+             * Caixa
+             * @example 10.50
+             */
+            caixa: string;
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /**
+             * Investimentos
+             * @example 10.50
+             */
+            investimentos: string;
+            /**
+             * Patrimonio
+             * @example 10.50
+             */
+            patrimonio: string;
+        };
+        /** PosicaoSaida */
+        PosicaoSaida: {
+            /** Ativo Id */
+            ativo_id: number;
+            /** Aviso */
+            aviso: string | null;
+            /** Data Preco */
+            data_preco: string | null;
+            /** Defasado */
+            defasado: boolean;
+            /** Erro */
+            erro: string | null;
+            /** Instituicao Id */
+            instituicao_id: number | null;
+            metricas: components["schemas"]["MetricasSaida"] | null;
+            metricas_brl: components["schemas"]["MetricasSaida"] | null;
+            /** Moeda */
+            moeda: string;
+            /** Nome */
+            nome: string;
+            origem: components["schemas"]["OrigemPreco"] | null;
+            /** Participacao */
+            participacao: string | null;
+            /** Preco Atual */
+            preco_atual: string | null;
+            /** Preco Medio */
+            preco_medio: string | null;
+            /** Quantidade */
+            quantidade: string | null;
+            /** Simbolo */
+            simbolo: string | null;
+            /** Tipo */
+            tipo: string;
+            /** Valor */
+            valor: string | null;
+            /** Valor Brl */
+            valor_brl: string | null;
+            variacao_dia: components["schemas"]["VariacaoDiaSaida"] | null;
+        };
+        /** PrecoManualEntrada */
+        PrecoManualEntrada: {
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
+        };
+        /** PrecoSaida */
+        PrecoSaida: {
+            /** Ativo Id */
+            ativo_id: number;
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /**
+             * Data Hora
+             * Format: date-time
+             */
+            data_hora: string;
+            /** Id */
+            id: number;
+            /** Moeda */
+            moeda: string;
+            origem: components["schemas"]["OrigemPreco"];
+            /** Provider */
+            provider: string | null;
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
+        };
+        /** RentabilidadeAtivo */
+        RentabilidadeAtivo: {
+            /** Ativo Id */
+            ativo_id: number;
+            metricas_brl: components["schemas"]["MetricasSaida"] | null;
+            /** Nome */
+            nome: string;
+        };
+        /** RentabilidadeSaida */
+        RentabilidadeSaida: {
+            /** Ativos */
+            ativos: components["schemas"]["RentabilidadeAtivo"][];
+            carteira: components["schemas"]["MetricasSaida"] | null;
         };
         /** RespostaHealth */
         RespostaHealth: {
@@ -86,6 +1483,370 @@ export interface components {
             /** Versao */
             versao: string;
         };
+        /** RestauracaoEntrada */
+        RestauracaoEntrada: {
+            /** Caminho */
+            caminho?: string | null;
+            /** Nome */
+            nome?: string | null;
+        };
+        /** RestauracaoSaida */
+        RestauracaoSaida: {
+            backup_seguranca: components["schemas"]["BackupSaida"];
+            /** Restaurado */
+            restaurado: string;
+        };
+        /** ResumoInstituicao */
+        ResumoInstituicao: {
+            /**
+             * Caixa Brl
+             * @example 10.50
+             */
+            caixa_brl: string;
+            /** Completo */
+            completo: boolean;
+            /** Instituicao Id */
+            instituicao_id: number;
+            /**
+             * Investimentos Brl
+             * @example 10.50
+             */
+            investimentos_brl: string;
+            /** Nome */
+            nome: string;
+            /**
+             * Patrimonio Brl
+             * @example 10.50
+             */
+            patrimonio_brl: string;
+        };
+        /** ResumoMensalSaida */
+        ResumoMensalSaida: {
+            /** Ano */
+            ano: number;
+            /** Mes */
+            mes: number;
+            /** Por Categoria */
+            por_categoria: components["schemas"]["TotalCategoriaSaida"][];
+            /**
+             * Saldo
+             * @example 10.50
+             */
+            saldo: string;
+            /**
+             * Total Despesas
+             * @example 10.50
+             */
+            total_despesas: string;
+            /**
+             * Total Receitas
+             * @example 10.50
+             */
+            total_receitas: string;
+        };
+        /** ResumoSaida */
+        ResumoSaida: {
+            /**
+             * Caixa Brl
+             * @example 10.50
+             */
+            caixa_brl: string;
+            /** Caixas */
+            caixas: components["schemas"]["CaixaSaida"][];
+            /** Completo */
+            completo: boolean;
+            /**
+             * Data Ref
+             * Format: date
+             */
+            data_ref: string;
+            /** Instituicao Id */
+            instituicao_id: number | null;
+            /**
+             * Investimentos Brl
+             * @example 10.50
+             */
+            investimentos_brl: string;
+            /**
+             * Patrimonio Brl
+             * @example 10.50
+             */
+            patrimonio_brl: string;
+            rentabilidade: components["schemas"]["MetricasSaida"] | null;
+            /** Variacao Dia */
+            variacao_dia: string | null;
+            /**
+             * Variacao Dia Brl
+             * @example 10.50
+             */
+            variacao_dia_brl: string;
+        };
+        /** StatusAtivoSaida */
+        StatusAtivoSaida: {
+            /** Ativo Id */
+            ativo_id: number;
+            /** Aviso */
+            aviso: string | null;
+            /** Data */
+            data: string | null;
+            /** Data Hora */
+            data_hora: string | null;
+            /** Defasado */
+            defasado: boolean;
+            /** Nome */
+            nome: string;
+            origem: components["schemas"]["OrigemPreco"] | null;
+            /** Provider */
+            provider: string | null;
+            /** Provider Preco */
+            provider_preco: string | null;
+            /** Tipo */
+            tipo: string;
+            /** Ultima Tentativa */
+            ultima_tentativa: string | null;
+            /** Ultimo Erro */
+            ultimo_erro: string | null;
+            /** Ultimo Sucesso */
+            ultimo_sucesso: string | null;
+            /** Valor */
+            valor: string | null;
+        };
+        /**
+         * SubtipoProvento
+         * @enum {string}
+         */
+        SubtipoProvento: "dividendo" | "jcp" | "rendimento" | "outro";
+        /** TipoAtivoSaida */
+        TipoAtivoSaida: {
+            /** Aceita Taxas */
+            aceita_taxas: boolean;
+            /** Campos */
+            campos: components["schemas"]["CampoTipo"][];
+            /** Descricao */
+            descricao: string;
+            /** Modo */
+            modo: string;
+            /** Moeda Padrao */
+            moeda_padrao: string;
+            /** Moedas Aceitas */
+            moedas_aceitas: string[];
+            /** Nome */
+            nome: string;
+            /** Provider */
+            provider: string | null;
+            /** Slug */
+            slug: string;
+            /** Tipos Transacao */
+            tipos_transacao: string[];
+        };
+        /**
+         * TipoEvento
+         * @description Eventos corporativos. Proporção ``de:para`` (ex.: desdobramento 1:2).
+         * @enum {string}
+         */
+        TipoEvento: "desdobramento" | "grupamento" | "bonificacao";
+        /**
+         * TipoIndicador
+         * @description Unidades: Selic e CDI em % ao ano; IPCA em % no mês; câmbio em BRL por unidade.
+         * @enum {string}
+         */
+        TipoIndicador: "selic" | "cdi" | "ipca" | "cambio";
+        /**
+         * TipoInstituicao
+         * @description Onde o dinheiro está alocado.
+         * @enum {string}
+         */
+        TipoInstituicao: "corretora" | "banco" | "outro";
+        /**
+         * TipoLancamento
+         * @enum {string}
+         */
+        TipoLancamento: "receita" | "despesa";
+        /**
+         * TipoMovimento
+         * @description Movimentos da conta corrente de uma instituição.
+         *
+         *     - ``deposito``/``saque``: manuais.
+         *     - ``debito_compra``: compra ou aporte (automático, ligado à transação).
+         *     - ``credito_venda``: venda ou resgate (automático, ligado à transação).
+         *     - ``credito_provento``: provento líquido (automático, ligado à transação).
+         *     - ``ajuste_saldo``: depósito não informado, criado quando uma compra/aporte
+         *       excede o saldo e o usuário opta por não atualizar os valores.
+         * @enum {string}
+         */
+        TipoMovimento: "deposito" | "saque" | "debito_compra" | "credito_venda" | "credito_provento" | "ajuste_saldo";
+        /**
+         * TipoTransacao
+         * @enum {string}
+         */
+        TipoTransacao: "compra" | "venda" | "aporte" | "resgate" | "provento";
+        /** TotalCategoriaSaida */
+        TotalCategoriaSaida: {
+            /** Categoria Id */
+            categoria_id: number | null;
+            /** Categoria Nome */
+            categoria_nome: string;
+            /**
+             * Percentual
+             * @example 10.50
+             */
+            percentual: string;
+            tipo: components["schemas"]["TipoLancamento"];
+            /**
+             * Total
+             * @example 10.50
+             */
+            total: string;
+        };
+        /** TransacaoEntrada */
+        TransacaoEntrada: {
+            /**
+             * Aceitar Ajuste
+             * @default false
+             */
+            aceitar_ajuste: boolean;
+            /** Ativo Id */
+            ativo_id: number;
+            /** Cambio */
+            cambio?: string | null;
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /**
+             * Imposto Retido
+             * @default 0
+             * @example 10.50
+             */
+            imposto_retido: string;
+            /** Instituicao Id */
+            instituicao_id: number;
+            /** Observacao */
+            observacao?: string | null;
+            /** Preco Unitario */
+            preco_unitario?: string | null;
+            /** Quantidade */
+            quantidade?: string | null;
+            subtipo_provento?: components["schemas"]["SubtipoProvento"] | null;
+            /**
+             * Taxas
+             * @default 0
+             * @example 10.50
+             */
+            taxas: string;
+            tipo: components["schemas"]["TipoTransacao"];
+            /** Valor */
+            valor?: string | null;
+        };
+        /** TransacaoSaida */
+        TransacaoSaida: {
+            /** Ativo Id */
+            ativo_id: number;
+            /**
+             * Cambio
+             * @example 10.50
+             */
+            cambio: string;
+            /**
+             * Criado Em
+             * Format: date-time
+             */
+            criado_em: string;
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /** Id */
+            id: number;
+            /**
+             * Imposto Retido
+             * @example 10.50
+             */
+            imposto_retido: string;
+            /** Instituicao Id */
+            instituicao_id: number;
+            /** Moeda */
+            moeda: string;
+            /** Movimentos */
+            movimentos: components["schemas"]["MovimentoResumo"][];
+            /** Observacao */
+            observacao: string | null;
+            /** Preco Unitario */
+            preco_unitario: string | null;
+            /** Quantidade */
+            quantidade: string | null;
+            subtipo_provento: components["schemas"]["SubtipoProvento"] | null;
+            /**
+             * Taxas
+             * @example 10.50
+             */
+            taxas: string;
+            tipo: components["schemas"]["TipoTransacao"];
+            /** Valor */
+            valor: string | null;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
+        /** VariacaoAtivoSaida */
+        VariacaoAtivoSaida: {
+            /** Ativo Id */
+            ativo_id: number;
+            /** Nome */
+            nome: string;
+            variacao: components["schemas"]["VariacaoDiaSaida"];
+        };
+        /** VariacaoCarteiraSaida */
+        VariacaoCarteiraSaida: {
+            /** Ativos */
+            ativos: components["schemas"]["VariacaoAtivoSaida"][];
+            /** Variacao Dia */
+            variacao_dia: string | null;
+            /**
+             * Variacao Dia Brl
+             * @example 10.50
+             */
+            variacao_dia_brl: string;
+        };
+        /** VariacaoDiaSaida */
+        VariacaoDiaSaida: {
+            /**
+             * Data Anterior
+             * Format: date
+             */
+            data_anterior: string;
+            /**
+             * Data Atual
+             * Format: date
+             */
+            data_atual: string;
+            /**
+             * Preco Anterior
+             * @example 10.50
+             */
+            preco_anterior: string;
+            /**
+             * Preco Atual
+             * @example 10.50
+             */
+            preco_atual: string;
+            /** Variacao */
+            variacao: string | null;
+            /** Variacao Brl */
+            variacao_brl: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -95,6 +1856,2055 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listar_ativos: {
+        parameters: {
+            query?: {
+                tipo?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtivoSaida"][];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    criar_ativo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtivoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtivoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_ativo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ativo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtivoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    editar_ativo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ativo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtivoEdicao"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtivoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    excluir_ativo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ativo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    listar_precos: {
+        parameters: {
+            query?: {
+                inicio?: string | null;
+                fim?: string | null;
+                /** @description Itens por página (máximo 500). */
+                limite?: number;
+                /** @description Quantos itens pular (paginação). */
+                deslocamento?: number;
+            };
+            header?: never;
+            path: {
+                ativo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagina_PrecoSaida_"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    registrar_preco_manual: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ativo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrecoManualEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrecoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_status_cotacao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ativo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusAtivoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listar_backups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupSaida"][];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    criar_backup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    restaurar_backup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestauracaoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestauracaoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    listar_categorias: {
+        parameters: {
+            query?: {
+                tipo?: components["schemas"]["TipoLancamento"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoriaSaida"][];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    criar_categoria: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoriaEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoriaSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    renomear_categoria: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categoria_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoriaRenomear"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoriaSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    excluir_categoria: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categoria_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_configuracoes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfiguracoesSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    alterar_configuracoes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfiguracoesEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfiguracoesSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    listar_contas: {
+        parameters: {
+            query?: {
+                instituicao_id?: number | null;
+                data?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContaSaida"][];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    obter_atualizacao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtualizacaoStatus"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    forcar_atualizacao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtualizacaoIniciada"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    listar_status_cotacoes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusAtivoSaida"][];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    stream_eventos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    listar_eventos: {
+        parameters: {
+            query?: {
+                ativo_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventoSaida"][];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    criar_evento: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    editar_evento: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evento_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    excluir_evento: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evento_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    listar_indicadores: {
+        parameters: {
+            query?: {
+                tipo?: components["schemas"]["TipoIndicador"] | null;
+                moeda?: string | null;
+                inicio?: string | null;
+                fim?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndicadorSaida"][];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    criar_indicador: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndicadorEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndicadorSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    editar_indicador: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                indicador_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndicadorEdicao"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndicadorSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    excluir_indicador: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                indicador_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listar_instituicoes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstituicaoSaida"][];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    criar_instituicao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstituicaoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstituicaoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_instituicao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instituicao_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstituicaoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    editar_instituicao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instituicao_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstituicaoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstituicaoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    excluir_instituicao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instituicao_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_extrato: {
+        parameters: {
+            query?: {
+                moeda?: string;
+                inicio?: string | null;
+                fim?: string | null;
+                /** @description Itens por página (máximo 500). */
+                limite?: number;
+                /** @description Quantos itens pular (paginação). */
+                deslocamento?: number;
+            };
+            header?: never;
+            path: {
+                instituicao_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtratoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    listar_lancamentos: {
+        parameters: {
+            query?: {
+                tipo?: components["schemas"]["TipoLancamento"] | null;
+                categoria_id?: number | null;
+                inicio?: string | null;
+                fim?: string | null;
+                /** @description Itens por página (máximo 500). */
+                limite?: number;
+                /** @description Quantos itens pular (paginação). */
+                deslocamento?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagina_LancamentoSaida_"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    criar_lancamento: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LancamentoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LancamentoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_lancamento: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lancamento_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LancamentoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    editar_lancamento: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lancamento_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LancamentoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LancamentoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    excluir_lancamento: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lancamento_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    criar_movimento: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MovimentoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovimentoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    excluir_movimento: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                movimento_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    alterar_valor_movimento: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                movimento_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AlteracaoValor"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovimentoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
     ping: {
         parameters: {
             query?: never;
@@ -115,6 +3925,835 @@ export interface operations {
             };
             /** @description Token de sessão ausente ou inválido. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_alocacao: {
+        parameters: {
+            query?: {
+                /** @description Análise por Instituição (omita para a Análise Geral). */
+                instituicao_id?: number | null;
+                /** @description Data de referência (padrão: hoje). */
+                data?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FatiaSaida"][];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    obter_evolucao: {
+        parameters: {
+            query?: {
+                inicio?: string | null;
+                fim?: string | null;
+                /** @description Análise por Instituição (omita para a Análise Geral). */
+                instituicao_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvolucaoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    listar_resumo_instituicoes: {
+        parameters: {
+            query?: {
+                /** @description Data de referência (padrão: hoje). */
+                data?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumoInstituicao"][];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listar_maiores: {
+        parameters: {
+            query?: {
+                limite?: number;
+                /** @description Análise por Instituição (omita para a Análise Geral). */
+                instituicao_id?: number | null;
+                /** @description Data de referência (padrão: hoje). */
+                data?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PosicaoSaida"][];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listar_posicoes: {
+        parameters: {
+            query?: {
+                /** @description Análise por Instituição (omita para a Análise Geral). */
+                instituicao_id?: number | null;
+                /** @description Data de referência (padrão: hoje). */
+                data?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PosicaoSaida"][];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    obter_rentabilidade: {
+        parameters: {
+            query?: {
+                /** @description Análise por Instituição (omita para a Análise Geral). */
+                instituicao_id?: number | null;
+                /** @description Data de referência (padrão: hoje). */
+                data?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RentabilidadeSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    obter_resumo: {
+        parameters: {
+            query?: {
+                /** @description Análise por Instituição (omita para a Análise Geral). */
+                instituicao_id?: number | null;
+                /** @description Data de referência (padrão: hoje). */
+                data?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    obter_variacao_dia: {
+        parameters: {
+            query?: {
+                /** @description Análise por Instituição (omita para a Análise Geral). */
+                instituicao_id?: number | null;
+                /** @description Data de referência (padrão: hoje). */
+                data?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VariacaoCarteiraSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    excluir_preco: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preco_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_resumo_mensal: {
+        parameters: {
+            query: {
+                ano: number;
+                mes: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumoMensalSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    listar_tipos_ativo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TipoAtivoSaida"][];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_tipo_ativo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TipoAtivoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    listar_transacoes: {
+        parameters: {
+            query?: {
+                ativo_id?: number | null;
+                instituicao_id?: number | null;
+                tipo?: components["schemas"]["TipoTransacao"] | null;
+                inicio?: string | null;
+                fim?: string | null;
+                /** @description Itens por página (máximo 500). */
+                limite?: number;
+                /** @description Quantos itens pular (paginação). */
+                deslocamento?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagina_TransacaoSaida_"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    criar_transacao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransacaoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransacaoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_transacao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transacao_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransacaoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    editar_transacao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transacao_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransacaoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransacaoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    excluir_transacao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transacao_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

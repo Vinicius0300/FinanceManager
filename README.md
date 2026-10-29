@@ -56,17 +56,24 @@ $env:FINANCAS_TOKEN = "<64 caracteres quaisquer>"; $env:FINANCAS_DEV = "1"
 .venv\Scripts\python entrypoint.py --porta 8765 --reload
 ```
 Swagger em http://127.0.0.1:8765/docs (use **Authorize** com o mesmo token).
+A atualização automática de cotações começa ao abrir; para depurar sem acessar a internet, defina também `$env:FINANCAS_SEM_ATUALIZACAO = "1"` (a atualização forçada pela API continua funcionando).
+
+### Atualização de cotações
+- Ações e cripto: a cada 1 a 15 min (padrão 5; `PUT /api/configuracoes`). Fora do pregão, ações só até pegar o fechamento.
+- Selic, CDI, IPCA, PTAX, Tesouro Direto e fundos: uma vez por dia.
+- Forçar agora: `POST /api/cotacoes/atualizar`. Status por ativo: `GET /api/cotacoes/status`. Eventos em tempo real: `GET /api/eventos` (SSE).
+- Na primeira vez são baixados os fechamentos de até 1 ano (fundos: até 12 arquivos de ~12 MB da CVM, processados e descartados).
 
 ## Onde ficam os dados
-- `%APPDATA%\Financas\` : banco `financas.db`, `logs\backend.log`, `backups\` (cópia automática antes de cada migração do banco) e `models\`.
+- `%APPDATA%\Financas\` : banco `financas.db`, `logs\backend.log`, `backups\` (cópia automática antes de cada migração e antes de restaurar, além dos backups manuais pela API) e `models\`.
 - Nada é gravado na pasta de instalação.
 - Para testar com um banco descartável, defina `FINANCAS_DATA_DIR` com outra pasta antes de rodar o backend ou o `alembic`.
 
 ## Documentação
 - [`docs/CONTEXTO.md`](docs/CONTEXTO.md): visão, decisões e roadmap.
 - [`docs/CALCULOS.md`](docs/CALCULOS.md): regras de cálculo (preço médio, caixa, renda fixa, poupança...).
-- [`docs/TIPOS_DE_ATIVO.md`](docs/TIPOS_DE_ATIVO.md): registry de tipos de ativo e como criar um novo.
+- [`docs/TIPOS_DE_ATIVO.md`](docs/TIPOS_DE_ATIVO.md): registry de tipos de ativo, providers de cotação e como criar um tipo novo.
 - [`docs/ANALYTICS.md`](docs/ANALYTICS.md): plano da futura camada de previsão e sugestões.
 
 ## Contrato da API
-`docs/openapi.json` e `apps/web/src/api/schema.ts` são **gerados**: nunca edite à mão. Mudou a API? Rode `npm run contrato` e commite os dois arquivos junto com a mudança.
+`docs/openapi.json` e `apps/web/src/api/schema.ts` são **gerados**: nunca edite à mão. Mudou a API? Rode `npm run contrato` e commite os dois arquivos junto com a mudança. Os testes do backend falham se o `docs/openapi.json` estiver desatualizado (`tests/test_contrato.py`).

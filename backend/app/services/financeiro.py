@@ -1,5 +1,6 @@
 """Casos de uso de receitas e despesas (orçamento pessoal)."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -25,7 +26,7 @@ TAMANHO_DESCRICAO = 200
 TAMANHO_OBSERVACAO = 500
 
 
-def criar_categoria(sessao: Session, nome: str, tipo: TipoLancamento) -> m.Categoria:
+def _nome_categoria(nome: str) -> str:
     nome_limpo = nome.strip()
     exigir(bool(nome_limpo), "nome", "Informe o nome da categoria.")
     exigir(
@@ -33,17 +34,44 @@ def criar_categoria(sessao: Session, nome: str, tipo: TipoLancamento) -> m.Categ
         "nome",
         f"Use no máximo {TAMANHO_NOME_CATEGORIA} caracteres.",
     )
+    return nome_limpo
+
+
+def criar_categoria(sessao: Session, nome: str, tipo: TipoLancamento) -> m.Categoria:
+    nome_limpo = _nome_categoria(nome)
     repositorio = RepositorioCategorias(sessao)
     if repositorio.por_nome(nome_limpo, tipo) is not None:
         raise ConflitoError(f"Já existe a categoria {nome_limpo!r} de {tipo.value}.")
     return repositorio.adicionar(m.Categoria(nome=nome_limpo, tipo=tipo))
 
 
-def excluir_categoria(sessao: Session, categoria_id: int) -> None:
-    repositorio = RepositorioCategorias(sessao)
-    categoria = repositorio.obter(categoria_id)
+def obter_categoria(sessao: Session, categoria_id: int) -> m.Categoria:
+    categoria = RepositorioCategorias(sessao).obter(categoria_id)
     if categoria is None:
         raise NaoEncontradoError(f"Categoria {categoria_id} não encontrada.")
+    return categoria
+
+
+def listar_categorias(sessao: Session, tipo: TipoLancamento | None = None) -> Sequence[m.Categoria]:
+    categorias = RepositorioCategorias(sessao).listar()
+    return [c for c in categorias if c.tipo is tipo] if tipo else categorias
+
+
+def renomear_categoria(sessao: Session, categoria_id: int, nome: str) -> m.Categoria:
+    """Só o nome muda: o tipo (receita/despesa) precisa casar com os lançamentos dela."""
+    categoria = obter_categoria(sessao, categoria_id)
+    nome_limpo = _nome_categoria(nome)
+    outra = RepositorioCategorias(sessao).por_nome(nome_limpo, categoria.tipo)
+    if outra is not None and outra.id != categoria.id:
+        raise ConflitoError(f"Já existe a categoria {nome_limpo!r} de {categoria.tipo.value}.")
+    categoria.nome = nome_limpo
+    sessao.flush()
+    return categoria
+
+
+def excluir_categoria(sessao: Session, categoria_id: int) -> None:
+    repositorio = RepositorioCategorias(sessao)
+    categoria = obter_categoria(sessao, categoria_id)
     if RepositorioLancamentos(sessao).existe_na_categoria(categoria_id):
         raise OperacaoNaoPermitidaError(
             "A categoria tem lançamentos. Mova-os para outra categoria antes de excluir."
@@ -61,7 +89,8 @@ class NovoLancamento:
     observacao: str | None = None
 
 
-def registrar_lancamento(sessao: Session, dados: NovoLancamento) -> m.Lancamento:
+def _validar_lancamento(sessao: Session, dados: NovoLancamento) -> tuple[str, str | None]:
+    """Valida os dados e devolve (descrição, observação) já limpos."""
     descricao = dados.descricao.strip()
     exigir(bool(descricao), "descricao", "Informe a descrição.")
     exigir(
@@ -78,15 +107,18 @@ def registrar_lancamento(sessao: Session, dados: NovoLancamento) -> m.Lancamento
         f"Use no máximo {TAMANHO_OBSERVACAO} caracteres.",
     )
     if dados.categoria_id is not None:
-        categoria = RepositorioCategorias(sessao).obter(dados.categoria_id)
-        if categoria is None:
-            raise NaoEncontradoError(f"Categoria {dados.categoria_id} não encontrada.")
+        categoria = obter_categoria(sessao, dados.categoria_id)
         exigir(
             categoria.tipo is dados.tipo,
             "categoria_id",
             f"A categoria {categoria.nome!r} é de {categoria.tipo.value}, "
             f"não de {dados.tipo.value}.",
         )
+    return descricao, observacao
+
+
+def registrar_lancamento(sessao: Session, dados: NovoLancamento) -> m.Lancamento:
+    descricao, observacao = _validar_lancamento(sessao, dados)
     return RepositorioLancamentos(sessao).adicionar(
         m.Lancamento(
             tipo=dados.tipo,
@@ -99,12 +131,55 @@ def registrar_lancamento(sessao: Session, dados: NovoLancamento) -> m.Lancamento
     )
 
 
-def excluir_lancamento(sessao: Session, lancamento_id: int) -> None:
-    repositorio = RepositorioLancamentos(sessao)
-    lancamento = repositorio.obter(lancamento_id)
+def obter_lancamento(sessao: Session, lancamento_id: int) -> m.Lancamento:
+    lancamento = RepositorioLancamentos(sessao).obter(lancamento_id)
     if lancamento is None:
         raise NaoEncontradoError(f"Lançamento {lancamento_id} não encontrado.")
-    repositorio.remover(lancamento)
+    return lancamento
+
+
+def editar_lancamento(sessao: Session, lancamento_id: int, dados: NovoLancamento) -> m.Lancamento:
+    lancamento = obter_lancamento(sessao, lancamento_id)
+    descricao, observacao = _validar_lancamento(sessao, dados)
+    lancamento.tipo = dados.tipo
+    lancamento.data = dados.data
+    lancamento.descricao = descricao
+    lancamento.valor = dados.valor
+    lancamento.categoria_id = dados.categoria_id
+    lancamento.observacao = observacao
+    sessao.flush()
+    return lancamento
+
+
+@dataclass(frozen=True)
+class PaginaLancamentos:
+    itens: Sequence[m.Lancamento]
+    total: int
+
+
+def listar_lancamentos(
+    sessao: Session,
+    *,
+    tipo: TipoLancamento | None = None,
+    categoria_id: int | None = None,
+    inicio: date | None = None,
+    fim: date | None = None,
+    limite: int = 50,
+    deslocamento: int = 0,
+) -> PaginaLancamentos:
+    itens, total = RepositorioLancamentos(sessao).pagina(
+        tipo=tipo,
+        categoria_id=categoria_id,
+        inicio=inicio,
+        fim=fim,
+        limite=limite,
+        deslocamento=deslocamento,
+    )
+    return PaginaLancamentos(itens, total)
+
+
+def excluir_lancamento(sessao: Session, lancamento_id: int) -> None:
+    RepositorioLancamentos(sessao).remover(obter_lancamento(sessao, lancamento_id))
 
 
 def _do_mes(sessao: Session, ano: int, mes: int) -> list[Lancamento]:

@@ -4,7 +4,7 @@ Depósito e saque são manuais; os movimentos de compra/venda/provento são cria
 ``services/transacoes.py``. O saldo nunca fica negativo (ver ``domain/conta_corrente.py``).
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -160,3 +160,50 @@ def excluir_movimento(sessao: Session, movimento_id: int) -> None:
         movimento.conta, lancamentos(outros), movimento.data, "Excluir este movimento"
     )
     RepositorioMovimentos(sessao).remover(movimento)
+
+
+@dataclass(frozen=True)
+class ContaComSaldo:
+    conta: m.ContaCorrente
+    saldo: Decimal
+
+
+def listar_contas(
+    sessao: Session, dia: date, instituicao_id: int | None = None
+) -> list[ContaComSaldo]:
+    """Contas correntes (uma por instituição e moeda) com o saldo ao fim de ``dia``."""
+    return [
+        ContaComSaldo(conta, saldo_em(lancamentos(movimentos_da_conta(sessao, conta.id)), dia))
+        for conta in RepositorioContas(sessao).listar()
+        if instituicao_id is None or conta.instituicao_id == instituicao_id
+    ]
+
+
+@dataclass(frozen=True)
+class Extrato:
+    conta: m.ContaCorrente
+    itens: Sequence[m.MovimentoConta]
+    total: int
+    saldo_final: Decimal  # saldo ao fim do período (ou de hoje, sem período)
+
+
+def extrato(
+    sessao: Session,
+    instituicao_id: int,
+    moeda: str,
+    *,
+    inicio: date | None,
+    fim: date | None,
+    hoje: date,
+    limite: int,
+    deslocamento: int,
+) -> Extrato:
+    """Movimentos da conta, do mais recente para o mais antigo (paginado)."""
+    obter_instituicao(sessao, instituicao_id)
+    moeda = validar_moeda(moeda)
+    conta = obter_conta(sessao, instituicao_id, moeda)
+    if conta is None:
+        raise NaoEncontradoError(f"A instituição não tem conta corrente em {moeda}.")
+    itens, total = RepositorioMovimentos(sessao).pagina(conta.id, inicio, fim, limite, deslocamento)
+    saldo_final = saldo_em(lancamentos(movimentos_da_conta(sessao, conta.id)), fim or hoje)
+    return Extrato(conta, itens, total, saldo_final)

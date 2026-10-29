@@ -40,6 +40,7 @@ TABELAS = {
     "categorias",
     "configuracoes",
     "contas_correntes",
+    "estados_coleta",
     "eventos_corporativos",
     "indicadores",
     "instituicoes",
@@ -73,7 +74,7 @@ def test_migra_banco_novo_ate_a_head_sem_backup(banco: Path, pasta_backups: Path
     banco.parent.mkdir(parents=True)
     resultado = migrar_banco(banco, pasta_backups)
     assert resultado.revisao_anterior is None
-    assert resultado.revisao_atual == "0002_cambio_eventos"
+    assert resultado.revisao_atual == "0003_precos_diarios_estado_coleta"
     assert resultado.migrou
     assert resultado.backup is None
     assert tabelas(banco) == TABELAS
@@ -219,6 +220,61 @@ def test_migracao_0002_preenche_o_cambio_das_bonificacoes_estrangeiras(banco: Pa
             conexao.execute("UPDATE eventos_corporativos SET proporcao_para = 1 WHERE id = 2")
 
 
+def test_migracao_0003_deixa_um_preco_por_dia_mantendo_o_ultimo(banco: Path) -> None:
+    # Instantes em UTC; a data é a de Brasília (UTC−3):
+    # id 1: 29/10 13:00 UTC = 29/10 10:00 local  (descartado: há um mais tarde no dia)
+    # id 2: 29/10 20:00 UTC = 29/10 17:00 local  (mantido: último do dia 29)
+    # id 3: 30/10 02:00 UTC = 29/10 23:00 local  -> mesmo dia 29 local e ainda mais tarde!
+    # id 4: 30/10 13:00 UTC = 30/10 10:00 local  (mantido: único do dia 30)
+    # id 5: outro ativo no dia 29 (mantido)
+    banco.parent.mkdir(parents=True)
+    configuracao = configuracao_alembic(banco)
+    command.upgrade(configuracao, "0002_cambio_eventos")
+    with closing(sqlite3.connect(banco)) as conexao:
+        conexao.executescript(
+            """
+            INSERT INTO ativos VALUES
+                (1, 'acao_br', 'AAA3', 'A', 'BRL', NULL, NULL, '{}', '2025-01-01'),
+                (2, 'acao_br', 'BBB3', 'B', 'BRL', NULL, NULL, '{}', '2025-01-01');
+            INSERT INTO precos VALUES
+                (1, 1, '2026-10-29 13:00:00.000000', '10', 'BRL', 'manual', NULL),
+                (2, 1, '2026-10-29 20:00:00.000000', '11', 'BRL', 'manual', NULL),
+                (3, 1, '2026-10-30 02:00:00.000000', '12', 'BRL', 'manual', NULL),
+                (4, 1, '2026-10-30 13:00:00.000000', '13', 'BRL', 'manual', NULL),
+                (5, 2, '2026-10-29 13:00:00.000000', '20', 'BRL', 'manual', NULL);
+            """
+        )
+        conexao.commit()
+    command.upgrade(configuracao, "head")
+    with closing(sqlite3.connect(banco)) as conexao:
+        linhas = conexao.execute("SELECT id, ativo_id, data, valor FROM precos ORDER BY id")
+        assert linhas.fetchall() == [
+            (3, 1, "2026-10-29", "12"),
+            (4, 1, "2026-10-30", "13"),
+            (5, 2, "2026-10-29", "20"),
+        ]
+        with pytest.raises(sqlite3.IntegrityError, match="UNIQUE"):
+            conexao.execute(
+                "INSERT INTO precos VALUES "
+                "(9, 1, '2026-10-30 15:00:00', '14', 'BRL', 'manual', NULL, '2026-10-30')"
+            )
+        # O CHECK antigo continua valendo depois da recriação da tabela.
+        with pytest.raises(sqlite3.IntegrityError, match="provider_automatico"):
+            conexao.execute("UPDATE precos SET origem = 'automatico' WHERE id = 4")
+
+
+def test_estado_coleta_e_removido_com_o_ativo(sessao: Session) -> None:
+    ativo = m.Ativo(tipo="acao_br", simbolo="AAA3", nome="A", moeda="BRL")
+    sessao.add(ativo)
+    sessao.flush()
+    sessao.add(m.EstadoColeta(chave=f"ativo:{ativo.id}", ativo_id=ativo.id))
+    sessao.add(m.EstadoColeta(chave="indicador:cdi:BRL"))
+    sessao.commit()
+    sessao.delete(ativo)
+    sessao.commit()
+    assert [e.chave for e in sessao.query(m.EstadoColeta).all()] == ["indicador:cdi:BRL"]
+
+
 def test_models_e_migracao_estao_sincronizados(banco: Path, pasta_backups: Path) -> None:
     # Se alguém mudar um model sem criar migração, este teste falha.
     banco.parent.mkdir(parents=True)
@@ -357,6 +413,7 @@ def test_data_hora_utc(sessao: Session) -> None:
     sessao.add(
         m.Preco(
             ativo_id=ativo.id,
+            data=date(2025, 1, 2),
             data_hora=datetime(2025, 1, 2, 12, tzinfo=brasilia),
             valor=Decimal(10),
             moeda="BRL",
@@ -371,6 +428,7 @@ def test_data_hora_utc(sessao: Session) -> None:
     sessao.add(
         m.Preco(
             ativo_id=ativo.id,
+            data=date(2025, 1, 3),
             data_hora=datetime(2025, 1, 3, 12),
             valor=Decimal(10),
             moeda="BRL",

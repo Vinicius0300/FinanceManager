@@ -24,6 +24,7 @@ class Settings:
     porta: int = 0
     pid_pai: int | None = None
     dev: bool = False
+    atualizacao_automatica: bool = True  # FINANCAS_SEM_ATUALIZACAO=1 desliga (testes/diagnóstico)
 
     @property
     def origens_cors(self) -> list[str]:
@@ -45,6 +46,7 @@ class Settings:
             porta=_inteiro("FINANCAS_PORTA", padrao=0),
             pid_pai=_inteiro("FINANCAS_PID_PAI", padrao=0) or None,
             dev=os.environ.get("FINANCAS_DEV") == "1",
+            atualizacao_automatica=os.environ.get("FINANCAS_SEM_ATUALIZACAO") != "1",
         )
 
 
