@@ -16,7 +16,7 @@ from app.domain.lancamentos import (
     totais_por_categoria,
     validar_mes,
 )
-from app.domain.numeros import ZERO
+from app.domain.numeros import CASAS_MOEDA, ZERO, exigir_casas
 from app.repositories import modelos as m
 from app.repositories.lancamentos import RepositorioCategorias, RepositorioLancamentos
 
@@ -70,6 +70,7 @@ def registrar_lancamento(sessao: Session, dados: NovoLancamento) -> m.Lancamento
         f"Use no máximo {TAMANHO_DESCRICAO} caracteres.",
     )
     exigir(dados.valor > ZERO, "valor", "O valor deve ser maior que zero.")
+    exigir_casas(dados.valor, CASAS_MOEDA, "valor")
     observacao = dados.observacao.strip() if dados.observacao and dados.observacao.strip() else None
     exigir(
         observacao is None or len(observacao) <= TAMANHO_OBSERVACAO,

@@ -1,7 +1,8 @@
 """Série diária de evolução do patrimônio, reconstruída do histórico (usa pandas).
 
 Uma posição ou conta que não pode ser reconstruída não derruba a série: ela entra
-pelo custo (posições) ou fica de fora (contas sem câmbio), e o motivo vai em ``avisos``.
+pelo valor aplicado (posições), pelo custo em BRL (ativo estrangeiro sem câmbio algum)
+ou fica de fora (contas sem câmbio), e o motivo vai em ``avisos``.
 """
 
 from dataclasses import dataclass
@@ -58,14 +59,29 @@ def _cambios(indicadores: Indicadores, moeda: str) -> list[tuple[date, Decimal]]
     return [(p.data, p.valor) for p in serie.pontos]
 
 
+def _fluxo_aplicado_brl(transacao: m.Transacao) -> Decimal:
+    """Dinheiro (BRL, no câmbio da operação) que entrou (+) ou saiu (−) da posição."""
+    tipo = transacao.tipo
+    if tipo is TipoTransacao.PROVENTO:
+        return ZERO
+    if tipo in (TipoTransacao.APORTE, TipoTransacao.RESGATE):
+        valor = transacao.valor or ZERO
+        return valor if tipo is TipoTransacao.APORTE else -valor
+    bruto = (transacao.quantidade or ZERO) * (transacao.preco_unitario or ZERO)
+    if tipo is TipoTransacao.COMPRA:
+        return (bruto + transacao.taxas) * transacao.cambio
+    return -(bruto - transacao.taxas) * transacao.cambio
+
+
 def _custo_nominal(transacoes: list[m.Transacao]) -> list[tuple[date, Decimal]]:
-    """Plano B para montante: aportes − resgates (sem rendimento), nunca abaixo de zero."""
+    """Plano B (cotas ou montante): valor aplicado em BRL, sem rendimento nem cotação.
+
+    Compras/aportes somam, vendas/resgates subtraem; nunca abaixo de zero.
+    """
     saldo = ZERO
     pontos: list[tuple[date, Decimal]] = []
     for transacao in sorted(transacoes, key=lambda t: (t.data, t.id)):
-        valor = transacao.valor or ZERO
-        saldo += valor if transacao.tipo is TipoTransacao.APORTE else -valor
-        saldo = max(saldo, ZERO)
+        saldo = max(saldo + _fluxo_aplicado_brl(transacao), ZERO)
         pontos.append((transacao.data, saldo))
     return pontos
 
@@ -92,17 +108,17 @@ def serie_patrimonio(
                 operacoes = [operacao_montante(t) for t in transacoes]
                 investimentos.append(serie_valor_montante(operacoes, fator, inicio, fim))
             else:
-                operacoes_ativo = operacoes_cotas(
-                    transacoes, eventos_repo.do_ativo(ativo.id, fim), ativo.moeda, indicadores
-                )
+                operacoes_ativo = operacoes_cotas(transacoes, eventos_repo.do_ativo(ativo.id, fim))
                 precos = carregar_precos(sessao, ativo.id).ultimo_por_dia()
+                cambios = _cambios(indicadores, ativo.moeda)
+                if cambios == []:
+                    avisos.append(
+                        f"{ativo.nome}: não há câmbio {ativo.moeda}/BRL registrado. "
+                        "Considerado pelo custo em BRL."
+                    )
                 investimentos.append(
                     serie_valor_cotas(
-                        historico_posicao(operacoes_ativo),
-                        precos,
-                        _cambios(indicadores, ativo.moeda),
-                        inicio,
-                        fim,
+                        historico_posicao(operacoes_ativo), precos, cambios, inicio, fim
                     )
                 )
         except DominioError as falha:

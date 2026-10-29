@@ -146,6 +146,20 @@ def test_resgate_do_saldo_exibido_zera_mesmo_com_fracao_de_centavo() -> None:
     assert estado.valores.lucro_realizado == ZERO
 
 
+def test_resgate_entre_o_saldo_real_e_o_exibido_nunca_deixa_posicao_negativa() -> None:
+    # Regressão (code review): saldo real 100,006 aparece como 100,01. Resgatar 100,008
+    # passava na checagem e dava fração > 1 (principal e custo negativos). Agora zera.
+    def rende_seis_milesimos(inicio: date, fim: date) -> Decimal:
+        return D("1.00006") if fim > inicio else UM
+
+    estado = aplicar_operacoes_montante(
+        [Aporte(A, D(100)), Resgate(B, D("100.008"))], rende_seis_milesimos
+    )
+    assert estado.zerada
+    assert estado.valores.custo == ZERO
+    assert estado.valores.lucro_realizado == D("0.008")
+
+
 def test_resgate_maior_que_o_saldo() -> None:
     with pytest.raises(PosicaoInsuficienteError) as erro:
         aplicar_operacoes_montante([Aporte(A, D(1000)), Resgate(B, D(1200))], dez_por_cento)

@@ -14,7 +14,7 @@ from app.domain.enums import OrigemPreco, TipoIndicador
 from app.domain.erros import ConflitoError, exigir
 from app.domain.indicadores import NOMES_INDICADORES, Indicadores, PontoIndicador, SerieIndicador
 from app.domain.moedas import MOEDA_BASE, validar_moeda
-from app.domain.numeros import ZERO
+from app.domain.numeros import CASAS_CAMBIO, CASAS_PRECO, ZERO, exigir_casas
 from app.domain.precos import PontoPreco, SeriePrecos
 from app.domain.tempo import formatar_data
 from app.repositories.mercado import RepositorioIndicadores, RepositorioPrecos
@@ -33,6 +33,8 @@ def registrar_preco(
     ativo = obter_ativo(sessao, ativo_id)
     exigir(data_hora.tzinfo is not None, "data_hora", "Informe a data/hora com fuso horário.")
     exigir(valor > ZERO, "valor", "O preço deve ser maior que zero.")
+    # Providers (Parte 3) devem arredondar a cotação antes de gravar (floats da fonte).
+    exigir_casas(valor, CASAS_PRECO, "valor")
     exigir(
         origem is not OrigemPreco.AUTOMATICO or bool(provider),
         "provider",
@@ -65,6 +67,7 @@ def registrar_indicador(
     if tipo is TipoIndicador.CAMBIO:
         exigir(moeda != MOEDA_BASE, "moeda", "Câmbio deve ser de uma moeda estrangeira.")
         exigir(valor > ZERO, "valor", "O câmbio deve ser maior que zero.")
+        exigir_casas(valor, CASAS_CAMBIO, "valor")
     else:
         exigir(moeda == MOEDA_BASE, "moeda", "Selic, CDI e IPCA são indicadores em BRL.")
     if tipo in (TipoIndicador.SELIC, TipoIndicador.CDI):

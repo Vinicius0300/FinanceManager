@@ -20,7 +20,7 @@ from app.domain.erros import (
     exigir,
 )
 from app.domain.moedas import validar_moeda
-from app.domain.numeros import ZERO, arredondar_moeda, formatar_numero
+from app.domain.numeros import CASAS_MOEDA, ZERO, arredondar_moeda, exigir_casas, formatar_numero
 from app.domain.tempo import formatar_data
 from app.repositories import modelos as m
 from app.repositories.contas import RepositorioContas, RepositorioMovimentos
@@ -107,6 +107,7 @@ def registrar_movimento_manual(sessao: Session, dados: NovoMovimentoManual) -> m
     if dados.tipo not in MOVIMENTOS_MANUAIS:
         raise OperacaoNaoPermitidaError("Só depósitos e saques podem ser lançados manualmente.")
     exigir(dados.valor > ZERO, "valor", "O valor deve ser maior que zero.")
+    exigir_casas(dados.valor, CASAS_MOEDA, "valor")
     descricao = _descricao(dados.descricao)
     conta = obter_ou_criar_conta(sessao, dados.instituicao_id, dados.moeda)
     if dados.tipo is TipoMovimento.SAQUE:
@@ -138,6 +139,7 @@ def _obter_editavel(sessao: Session, movimento_id: int) -> m.MovimentoConta:
 def alterar_valor_movimento(sessao: Session, movimento_id: int, valor: Decimal) -> m.MovimentoConta:
     """Altera o valor de um depósito, saque ou ajuste de saldo, mantendo o saldo ≥ 0."""
     exigir(valor > ZERO, "valor", "O valor deve ser maior que zero.")
+    exigir_casas(valor, CASAS_MOEDA, "valor")
     movimento = _obter_editavel(sessao, movimento_id)
     outros = [x for x in movimentos_da_conta(sessao, movimento.conta_id) if x.id != movimento.id]
     simulado = [

@@ -17,8 +17,10 @@ from app.domain.moedas import validar_moeda
 from app.domain.numeros import (
     arredondar_moeda,
     arredondar_quantidade,
+    casas_decimais,
     dec,
     dividir,
+    exigir_casas,
     formatar_numero,
     percentual,
     potencia,
@@ -104,6 +106,22 @@ def test_texto_decimal_sem_notacao_cientifica() -> None:
     assert texto_decimal(Decimal("1E+3")) == "1000"
     assert texto_decimal(Decimal("0.00001")) == "0.00001"
     assert texto_decimal(Decimal("10.50")) == "10.50"
+
+
+@pytest.mark.parametrize(
+    ("valor", "esperado"),
+    [("100", 0), ("100.000", 0), ("1.50", 1), ("100.005", 3), ("1E+3", 0), ("0.00001234", 8)],
+)
+def test_casas_decimais_ignora_zeros_a_direita(valor: str, esperado: int) -> None:
+    assert casas_decimais(Decimal(valor)) == esperado
+
+
+def test_exigir_casas_recusa_sem_arredondar() -> None:
+    exigir_casas(Decimal("100.00"), 2, "valor")
+    exigir_casas(None, 2, "valor")  # campo não informado: nada a validar
+    with pytest.raises(ValidacaoError, match="no máximo 2 casas decimais") as erro:
+        exigir_casas(Decimal("100.005"), 2, "valor")
+    assert erro.value.detalhes[0].campo == "valor"
 
 
 def test_formatar_numero_para_mensagens() -> None:

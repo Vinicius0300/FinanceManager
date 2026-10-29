@@ -211,6 +211,7 @@ class EventoCorporativo(Base):
             "tipo = 'bonificacao' OR CAST(custo_unitario AS NUMERIC) = 0",
             name="custo_so_bonificacao",
         ),
+        CheckConstraint(_positivo("cambio"), name="cambio"),
         Index("ix_eventos_corporativos_ativo_data", "ativo_id", "data"),
     )
 
@@ -221,6 +222,7 @@ class EventoCorporativo(Base):
     proporcao_de: Mapped[int] = mapped_column(Integer)
     proporcao_para: Mapped[int] = mapped_column(Integer)
     custo_unitario: Mapped[Decimal] = mapped_column(default=Decimal(0))
+    cambio: Mapped[Decimal] = mapped_column(default=Decimal(1))  # BRL por unidade, na data
     observacao: Mapped[str | None] = mapped_column(String(500))
     criado_em: Mapped[datetime] = mapped_column(default=agora_utc)
 

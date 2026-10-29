@@ -80,6 +80,8 @@ class SaldoCaixa:
     saldo: Decimal  # na moeda da conta
     saldo_brl: Decimal | None
     erro: str | None = None
+    defasado: bool = False  # câmbio usado na conversão está defasado
+    aviso: str | None = None
 
 
 @dataclass(frozen=True)

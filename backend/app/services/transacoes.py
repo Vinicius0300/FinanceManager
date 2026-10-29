@@ -37,9 +37,15 @@ from app.domain.erros import (
     SaldoInsuficienteError,
     exigir,
 )
-from app.domain.indicadores import Indicadores
-from app.domain.moedas import MOEDA_BASE
-from app.domain.numeros import UM, ZERO, arredondar_moeda, formatar_numero
+from app.domain.numeros import (
+    CASAS_MOEDA,
+    CASAS_PRECO,
+    CASAS_QUANTIDADE,
+    ZERO,
+    arredondar_moeda,
+    exigir_casas,
+    formatar_numero,
+)
 from app.domain.posicao import validar_proporcao_evento
 from app.domain.tempo import formatar_data
 from app.repositories import modelos as m
@@ -55,10 +61,10 @@ from app.services.caixa import (
 )
 from app.services.mercado import carregar_indicadores
 from app.services.posicoes import (
-    TOLERANCIA_CAMBIO_DIAS,
     houve_compra_ate,
     operacao_cotas,
     reprocessar_ativo,
+    resolver_cambio,
 )
 
 TAMANHO_OBSERVACAO = 500
@@ -142,20 +148,11 @@ def _validar_campos(dados: NovaTransacao) -> None:
         "observacao",
         f"Use no máximo {TAMANHO_OBSERVACAO} caracteres.",
     )
-
-
-def _cambio(dados: NovaTransacao, moeda: str, indicadores: Indicadores) -> Decimal:
-    if moeda == MOEDA_BASE:
-        exigir(
-            dados.cambio is None or dados.cambio == UM,
-            "cambio",
-            "Transações em BRL não usam câmbio.",
-        )
-        return UM
-    if dados.cambio is not None:
-        exigir(dados.cambio > ZERO, "cambio", "O câmbio deve ser maior que zero.")
-        return dados.cambio
-    return indicadores.cambio_em(moeda, dados.data, tolerancia_dias=TOLERANCIA_CAMBIO_DIAS)
+    exigir_casas(dados.quantidade, CASAS_QUANTIDADE, "quantidade")
+    exigir_casas(dados.preco_unitario, CASAS_PRECO, "preco_unitario")
+    exigir_casas(dados.valor, CASAS_MOEDA, "valor")
+    exigir_casas(dados.taxas, CASAS_MOEDA, "taxas")
+    exigir_casas(dados.imposto_retido, CASAS_MOEDA, "imposto_retido")
 
 
 def _sem_dominio(acao: str, erro: DominioError) -> OperacaoNaoPermitidaError:
@@ -187,7 +184,7 @@ def registrar_transacao(
         valor=dados.valor,
         taxas=dados.taxas,
         moeda=ativo.moeda,
-        cambio=_cambio(dados, ativo.moeda, indicadores),
+        cambio=resolver_cambio(dados.cambio, ativo.moeda, dados.data, indicadores),
         subtipo_provento=dados.subtipo_provento,
         imposto_retido=dados.imposto_retido,
         observacao=observacao,
@@ -233,15 +230,16 @@ def registrar_transacao(
     transacao = repositorio.adicionar(nova)
     conta = conta or obter_ou_criar_conta(sessao, dados.instituicao_id, ativo.moeda)
     movimentos = RepositorioMovimentos(sessao)
-    movimentos.adicionar(
-        m.MovimentoConta(
-            conta_id=conta.id,
-            transacao_id=transacao.id,
-            tipo=tipo_movimento,
-            data=dados.data,
-            valor=valor_movimento,
+    if valor_movimento > ZERO:  # compra a preço zero sem taxas não movimenta o caixa
+        movimentos.adicionar(
+            m.MovimentoConta(
+                conta_id=conta.id,
+                transacao_id=transacao.id,
+                tipo=tipo_movimento,
+                data=dados.data,
+                valor=valor_movimento,
+            )
         )
-    )
     ajuste = None
     if faltante > ZERO:
         ajuste = movimentos.adicionar(
@@ -303,19 +301,34 @@ class NovoEvento:
     proporcao_de: int
     proporcao_para: int
     custo_unitario: Decimal = ZERO  # só bonificação (moeda do ativo)
+    cambio: Decimal | None = None  # BRL por unidade; buscado em indicadores se omitido
     observacao: str | None = None
 
 
 def registrar_evento(
     sessao: Session, dados: NovoEvento, registro: RegistroTiposAtivo = REGISTRO_PADRAO
 ) -> m.EventoCorporativo:
-    """Registra desdobramento, grupamento ou bonificação (vale para todas as instituições)."""
+    """Registra desdobramento, grupamento ou bonificação (vale para todas as instituições).
+
+    O câmbio fica gravado no evento (como nas transações), para o custo em BRL da
+    bonificação não mudar se os indicadores forem alterados depois. Só é buscado quando
+    importa: bonificação com custo atribuído em ativo estrangeiro.
+    """
     ativo = obter_ativo(sessao, dados.ativo_id)
     handler = handler_do_ativo(ativo, registro)
     if isinstance(handler, HandlerMontante):
         raise OperacaoNaoPermitidaError(f"{handler.nome} não tem eventos corporativos.")
     validar_proporcao_evento(
         dados.tipo, dados.proporcao_de, dados.proporcao_para, dados.custo_unitario
+    )
+    exigir_casas(dados.custo_unitario, CASAS_PRECO, "custo_unitario")
+    indicadores = carregar_indicadores(sessao)
+    cambio = resolver_cambio(
+        dados.cambio,
+        ativo.moeda,
+        dados.data,
+        indicadores,
+        buscar=dados.custo_unitario > ZERO,
     )
     exigir(
         dados.observacao is None or len(dados.observacao.strip()) <= TAMANHO_OBSERVACAO,
@@ -334,11 +347,12 @@ def registrar_evento(
         proporcao_de=dados.proporcao_de,
         proporcao_para=dados.proporcao_para,
         custo_unitario=dados.custo_unitario,
+        cambio=cambio,
         observacao=dados.observacao.strip() if dados.observacao else None,
     )
     eventos = [*repositorio.do_ativo(ativo.id), novo]
     transacoes = list(RepositorioTransacoes(sessao).do_ativo(ativo.id))
-    reprocessar_ativo(ativo, handler, transacoes, eventos, carregar_indicadores(sessao))
+    reprocessar_ativo(ativo, handler, transacoes, eventos, indicadores)
     return repositorio.adicionar(novo)
 
 

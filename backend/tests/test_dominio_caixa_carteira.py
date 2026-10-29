@@ -90,6 +90,22 @@ def test_movimento_gerado_por_cada_tipo_de_transacao() -> None:
         movimento_da_transacao(TipoTransacao.APORTE)
 
 
+def test_compra_e_venda_movimentam_o_caixa_em_centavos() -> None:
+    # 3 cotas a R$ 1,234567 = 3,703701 → débito de R$ 3,70 (como no extrato).
+    compra = movimento_da_transacao(
+        TipoTransacao.COMPRA, quantidade=D(3), preco_unitario=D("1.234567")
+    )
+    assert compra == (TipoMovimento.DEBITO_COMPRA, D("3.70"))
+    # 0,5 × 10,125 − 0,01 = 5,0525 → crédito de R$ 5,05 (arredondamento bancário).
+    venda = movimento_da_transacao(
+        TipoTransacao.VENDA, quantidade=D("0.5"), preco_unitario=D("10.125"), taxas=D("0.01")
+    )
+    assert venda == (TipoMovimento.CREDITO_VENDA, D("5.05"))
+    # Compra a preço zero sem taxas: movimento de valor zero (o service não o grava).
+    gratis = movimento_da_transacao(TipoTransacao.COMPRA, quantidade=D(1), preco_unitario=ZERO)
+    assert gratis == (TipoMovimento.DEBITO_COMPRA, ZERO)
+
+
 def test_exemplo_da_conta_rico_do_prompt() -> None:
     # 20/02 depósito +1.000 → 1.000; 01/03 compra 90 @ 10 −900 → 100;
     # 10/03 provento +45 → 145; 20/03 venda 40 @ 12 +480 → 625.

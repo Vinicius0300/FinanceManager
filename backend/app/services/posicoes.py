@@ -14,6 +14,7 @@ from decimal import Decimal
 
 from app.asset_types.base import HandlerMontante, HandlerTipoAtivo, Metadados
 from app.domain.enums import TipoTransacao
+from app.domain.erros import exigir
 from app.domain.indicadores import Indicadores
 from app.domain.moedas import MOEDA_BASE
 from app.domain.montante import (
@@ -23,7 +24,7 @@ from app.domain.montante import (
     Resgate,
     aplicar_operacoes_montante,
 )
-from app.domain.numeros import UM, ZERO
+from app.domain.numeros import CASAS_CAMBIO, UM, ZERO, exigir_casas
 from app.domain.posicao import (
     Compra,
     EstadoPosicao,
@@ -39,7 +40,8 @@ ORDEM_NOVA = 2**62
 """Ordem de uma operação ainda não gravada: fica por último entre as do mesmo dia."""
 
 TOLERANCIA_CAMBIO_DIAS = 7
-"""Idade máxima do câmbio buscado em ``indicadores`` quando a operação não informa um."""
+"""Idade máxima do câmbio buscado em ``indicadores`` quando a operação não informa um
+(no registro; a avaliação usa outra regra, ver ``domain/indicadores.py``)."""
 
 
 def _ordem(identificador: int | None) -> int:
@@ -82,45 +84,56 @@ def operacao_montante(transacao: m.Transacao) -> OperacaoMontante:
     return classe(transacao.data, _exigir_decimal(transacao.valor), _ordem(transacao.id))
 
 
-def cambio_do_evento(evento: m.EventoCorporativo, moeda: str, indicadores: Indicadores) -> Decimal:
-    """Câmbio para converter o custo atribuído de uma bonificação em ativo estrangeiro."""
-    if moeda == MOEDA_BASE or evento.custo_unitario == ZERO:
+def resolver_cambio(
+    informado: Decimal | None,
+    moeda: str,
+    dia: date,
+    indicadores: Indicadores,
+    *,
+    buscar: bool = True,
+) -> Decimal:
+    """Câmbio a gravar numa transação ou evento (BRL por unidade da moeda do ativo).
+
+    BRL → 1; senão o informado pelo usuário (> 0, até 6 casas) ou o indicador de câmbio
+    mais recente com até ``TOLERANCIA_CAMBIO_DIAS``. Com ``buscar=False`` e nada
+    informado, devolve 1: o câmbio não entra no cálculo (ex.: desdobramento).
+    """
+    if moeda == MOEDA_BASE:
+        exigir(informado is None or informado == UM, "cambio", "Operações em BRL não usam câmbio.")
         return UM
-    return indicadores.cambio_em(moeda, evento.data, tolerancia_dias=TOLERANCIA_CAMBIO_DIAS)
+    if informado is not None:
+        exigir(informado > ZERO, "cambio", "O câmbio deve ser maior que zero.")
+        exigir_casas(informado, CASAS_CAMBIO, "cambio")
+        return informado
+    if not buscar:
+        return UM
+    return indicadores.cambio_em(moeda, dia, tolerancia_dias=TOLERANCIA_CAMBIO_DIAS)
 
 
-def operacao_evento(
-    evento: m.EventoCorporativo, moeda: str, indicadores: Indicadores
-) -> EventoCorporativo:
+def operacao_evento(evento: m.EventoCorporativo) -> EventoCorporativo:
     return EventoCorporativo(
         data=evento.data,
         tipo=evento.tipo,
         proporcao_de=evento.proporcao_de,
         proporcao_para=evento.proporcao_para,
         custo_unitario=evento.custo_unitario,
-        cambio=cambio_do_evento(evento, moeda, indicadores),
+        cambio=evento.cambio,
         ordem=_ordem(evento.id),
     )
 
 
 def operacoes_cotas(
-    transacoes: Iterable[m.Transacao],
-    eventos: Iterable[m.EventoCorporativo],
-    moeda: str,
-    indicadores: Indicadores,
+    transacoes: Iterable[m.Transacao], eventos: Iterable[m.EventoCorporativo]
 ) -> list[OperacaoCotas]:
     operacoes: list[OperacaoCotas] = [operacao_cotas(t) for t in transacoes]
-    operacoes += [operacao_evento(e, moeda, indicadores) for e in eventos]
+    operacoes += [operacao_evento(e) for e in eventos]
     return operacoes
 
 
 def estado_cotas(
-    transacoes: Iterable[m.Transacao],
-    eventos: Iterable[m.EventoCorporativo],
-    moeda: str,
-    indicadores: Indicadores,
+    transacoes: Iterable[m.Transacao], eventos: Iterable[m.EventoCorporativo]
 ) -> EstadoPosicao:
-    return aplicar_operacoes(operacoes_cotas(transacoes, eventos, moeda, indicadores))
+    return aplicar_operacoes(operacoes_cotas(transacoes, eventos))
 
 
 def estado_montante(
@@ -160,7 +173,7 @@ def reprocessar_ativo(
         if isinstance(handler, HandlerMontante):
             estado_montante(grupo, handler, ativo.metadados, indicadores)
         else:
-            estado_cotas(grupo, eventos, ativo.moeda, indicadores)
+            estado_cotas(grupo, eventos)
 
 
 def houve_compra_ate(transacoes: Iterable[m.Transacao], dia: date) -> bool:

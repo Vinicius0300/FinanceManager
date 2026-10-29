@@ -1,8 +1,10 @@
 """Conta corrente por instituição (caixa): saldo, efeito das transações e ajuste.
 
 Regras (decididas com o dono):
-- compra/aporte debita (quantidade × preço + taxas, ou o valor do aporte);
-- venda/resgate credita (quantidade × preço − taxas, ou o valor do resgate);
+- compra/aporte debita (quantidade × preço + taxas, arredondado a centavos, ou o valor
+  do aporte);
+- venda/resgate credita (quantidade × preço − taxas, arredondado a centavos, ou o valor
+  do resgate);
 - provento credita o valor líquido; depósito e saque são manuais;
 - o saldo **nunca fica negativo**. A verificação usa o saldo ao **fim de cada dia**
   (movimentos do mesmo dia se compensam), a partir da data do movimento novo, porque
@@ -18,7 +20,7 @@ from datetime import date
 from decimal import Decimal
 
 from app.domain.enums import MOVIMENTOS_DE_SAIDA, TipoMovimento, TipoTransacao
-from app.domain.numeros import ZERO
+from app.domain.numeros import ZERO, arredondar_moeda
 
 MENSAGEM_SALDO_INSUFICIENTE = (
     "Você está movimentando mais dinheiro do que o possível dentro desta conta corrente. "
@@ -47,14 +49,19 @@ def movimento_da_transacao(
     taxas: Decimal = ZERO,
     valor: Decimal | None = None,
 ) -> tuple[TipoMovimento, Decimal]:
-    """Tipo e valor (positivo) do movimento automático gerado por uma transação."""
+    """Tipo e valor (≥ 0) do movimento automático gerado por uma transação.
+
+    Compra e venda são arredondadas a centavos (como no extrato da corretora); o custo
+    da posição continua com a precisão cheia. Ex.: 3 cotas a R$ 1,234567 debitam R$ 3,70.
+    O valor pode ser zero (ex.: compra a preço zero sem taxas): nesse caso não há movimento.
+    """
     if tipo in (TipoTransacao.COMPRA, TipoTransacao.VENDA):
         if quantidade is None or preco_unitario is None:
             raise ValueError("Compra e venda exigem quantidade e preço unitário.")
         bruto = quantidade * preco_unitario
         if tipo is TipoTransacao.COMPRA:
-            return TipoMovimento.DEBITO_COMPRA, bruto + taxas
-        return TipoMovimento.CREDITO_VENDA, bruto - taxas
+            return TipoMovimento.DEBITO_COMPRA, arredondar_moeda(bruto + taxas)
+        return TipoMovimento.CREDITO_VENDA, arredondar_moeda(bruto - taxas)
     if valor is None:
         raise ValueError("Aporte, resgate e provento exigem valor.")
     if tipo is TipoTransacao.APORTE:

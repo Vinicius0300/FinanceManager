@@ -1,5 +1,6 @@
 """Services de cadastro, mercado, caixa, transações e eventos (com banco SQLite)."""
 
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 
 import pytest
@@ -75,7 +76,7 @@ def estado(sessao: Session, ativo: m.Ativo, inst: m.Instituicao) -> EstadoPosica
     eventos = list(
         sessao.scalars(select(m.EventoCorporativo).where(m.EventoCorporativo.ativo_id == ativo.id))
     )
-    return estado_cotas(transacoes, eventos, ativo.moeda, carregar_indicadores(sessao))
+    return estado_cotas(transacoes, eventos)
 
 
 # ---------------------------------------------------------------- Cadastros e mercado
@@ -686,3 +687,98 @@ def test_editar_e_excluir_ajuste_e_deposito(sessao: Session) -> None:
     extra = deposito(sessao, rico, "5", date(2025, 3, 3))
     caixa.excluir_movimento(sessao, extra.id)
     assert caixa.saldo(sessao, rico.id, "BRL", date(2025, 3, 31)) == D(10)
+
+
+# ---------------------------------------------------------------- Precisão das entradas
+
+
+def test_entradas_com_casas_decimais_demais_sao_recusadas(sessao: Session) -> None:
+    # Dinheiro 2 casas, quantidade e preço 8, câmbio 6 (decisão do dono, code review).
+    rico, avenue = instituicao(sessao), instituicao(sessao, "Avenue")
+    tst, aapl, titulo = acao_br(sessao), acao_us(sessao), cdb(sessao)
+    deposito(sessao, rico, "1000", date(2025, 3, 1))
+    casos: list[Callable[[], object]] = [
+        lambda: deposito(sessao, rico, "100.005", date(2025, 3, 2)),
+        lambda: compra(sessao, tst, rico, date(2025, 3, 2), "1.123456789", "10"),
+        lambda: compra(sessao, tst, rico, date(2025, 3, 2), "1", "10.123456789"),
+        lambda: compra(sessao, tst, rico, date(2025, 3, 2), "1", "10", taxas="0.001"),
+        lambda: compra(sessao, aapl, avenue, date(2025, 3, 2), "1", "10", cambio="5.1234567"),
+        lambda: montante(sessao, titulo, rico, TipoTransacao.APORTE, date(2025, 8, 1), "1.001"),
+        lambda: provento(sessao, tst, rico, date(2025, 3, 2), "1.001"),
+        lambda: registrar_preco(
+            sessao,
+            tst.id,
+            datetime(2025, 3, 2, 15, tzinfo=UTC),
+            D("1.123456789"),
+            OrigemPreco.MANUAL,
+        ),
+        lambda: indicador(sessao, TipoIndicador.CAMBIO, date(2025, 3, 2), "5.1234567", "USD"),
+        lambda: registrar_evento(
+            sessao,
+            NovoEvento(tst.id, TipoEvento.BONIFICACAO, date(2025, 4, 1), 10, 11, D("1.123456789")),
+        ),
+    ]
+    for caso in casos:
+        with pytest.raises(ValidacaoError, match="casas decimais"):
+            caso()
+    assert contar(sessao, m.Transacao) == 0
+    assert contar(sessao, m.EventoCorporativo) == 0
+    # Os limites exatos são aceitos (zeros à direita não contam).
+    compra(sessao, tst, rico, date(2025, 3, 2), "1.12345678", "10.12345678", taxas="0.10")
+    deposito(sessao, rico, "100.500", date(2025, 3, 3))
+
+
+def test_compra_debita_o_caixa_em_centavos_e_o_custo_fica_cheio(sessao: Session) -> None:
+    rico, fundo_tst = instituicao(sessao), acao_br(sessao)
+    deposito(sessao, rico, "10", date(2025, 3, 1))
+    compra(sessao, fundo_tst, rico, date(2025, 3, 2), "3", "1.234567")
+    assert caixa.saldo(sessao, rico.id, "BRL", date(2025, 3, 2)) == D("6.30")  # 10 − 3,70
+    assert estado(sessao, fundo_tst, rico).moeda.custo == D("3.703701")
+
+
+def test_compra_a_preco_zero_nao_gera_movimento_de_caixa(sessao: Session) -> None:
+    # Antes gravava um movimento de valor zero e violava o CHECK valor > 0.
+    rico, tst = instituicao(sessao), acao_br(sessao)
+    resultado = compra(sessao, tst, rico, date(2025, 3, 2), "10", "0")
+    assert resultado.gravada
+    assert contar(sessao, m.MovimentoConta) == 0
+    assert estado(sessao, tst, rico).quantidade == D(10)
+
+
+def test_cambio_da_bonificacao_fica_gravado_no_evento(sessao: Session) -> None:
+    # Regressão (code review): cadastrar o câmbio do dia depois do evento mudava o custo
+    # em BRL já registrado (5.050 → 5.060). Agora o câmbio fica no evento.
+    avenue, msft = instituicao(sessao, "Avenue"), acao_us(sessao, "MSFT")
+    indicador(sessao, TipoIndicador.CAMBIO, date(2025, 3, 3), "5", moeda="USD")
+    compra(sessao, msft, avenue, date(2025, 3, 3), "10", "100", cambio="5")
+    evento = registrar_evento(
+        sessao, NovoEvento(msft.id, TipoEvento.BONIFICACAO, date(2025, 3, 5), 10, 11, D(10))
+    )
+    assert evento.cambio == D(5)  # buscado nos indicadores (até 7 dias)
+    # 10 × 100 × 5 = 5.000 + 1 nova × US$ 10 × 5 = 50 → R$ 5.050.
+    assert estado(sessao, msft, avenue).brl.custo == D(5050)
+    indicador(sessao, TipoIndicador.CAMBIO, date(2025, 3, 5), "6", moeda="USD")
+    assert estado(sessao, msft, avenue).brl.custo == D(5050)
+
+    # Câmbio informado pelo usuário tem prioridade e segue o limite de 6 casas.
+    informado = registrar_evento(
+        sessao,
+        NovoEvento(
+            msft.id, TipoEvento.BONIFICACAO, date(2025, 3, 10), 10, 11, D(10), cambio=D("5.7")
+        ),
+    )
+    assert informado.cambio == D("5.7")
+    # Sem custo atribuído o câmbio não importa: não é buscado nem exigido.
+    sem_cambio = acao_us(sessao, "NVDA")
+    compra(sessao, sem_cambio, avenue, date(2025, 3, 3), "1", "10", cambio="5")
+    desdobramento = registrar_evento(
+        sessao, NovoEvento(sem_cambio.id, TipoEvento.DESDOBRAMENTO, date(2026, 1, 5), 1, 2)
+    )
+    assert desdobramento.cambio == D(1)
+    with pytest.raises(ValidacaoError, match="BRL não usam câmbio"):
+        registrar_evento(
+            sessao,
+            NovoEvento(
+                acao_br(sessao).id, TipoEvento.DESDOBRAMENTO, date(2025, 3, 5), 1, 2, cambio=D(5)
+            ),
+        )

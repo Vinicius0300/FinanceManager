@@ -1,7 +1,9 @@
 """Avaliação da carteira em uma data: posições, caixa, patrimônio e alocação.
 
 Cada posição (ativo, instituição) é avaliada isoladamente: uma falha (câmbio ou
-indicador ausente) vira ``erro`` naquela posição e as demais continuam.
+indicador ausente) vira ``erro`` naquela posição e as demais continuam. Câmbio antigo
+(ver ``domain/indicadores.TOLERANCIA_DEFASAGEM_CAMBIO``) é usado, mas marca a posição
+ou a conta como defasada, com aviso.
 """
 
 from collections.abc import Sequence
@@ -64,22 +66,30 @@ class CarteiraAvaliada:
 def _avaliacao(
     valoracao: Valoracao, moeda: str, indicadores: Indicadores, data_ref: date
 ) -> Avaliacao:
+    valor_brl: Decimal | None = None
+    erro = aviso_cambio = None
+    cambio_defasado = False
     try:
-        cambio = indicadores.cambio_em(moeda, data_ref)
-        valor_brl = valoracao.valor * cambio
-        erro = None
+        cambio = indicadores.cambio_vigente(moeda, data_ref)
+        valor_brl = valoracao.valor * cambio.valor
+        cambio_defasado, aviso_cambio = cambio.defasado, cambio.aviso
     except DominioError as falha:
-        valor_brl, erro = None, falha.mensagem
+        erro = falha.mensagem
     return Avaliacao(
         valor=valoracao.valor,
         valor_brl=valor_brl,
         preco_unitario=valoracao.preco_unitario,
         origem=valoracao.origem,
         data_preco=valoracao.data_preco,
-        defasado=valoracao.defasado,
-        aviso=valoracao.aviso,
+        defasado=valoracao.defasado or cambio_defasado,
+        aviso=_juntar_avisos(valoracao.aviso, aviso_cambio),
         erro=erro,
     )
+
+
+def _juntar_avisos(*avisos: str | None) -> str | None:
+    presentes = [a for a in avisos if a]
+    return " ".join(presentes) if presentes else None
 
 
 def _avaliar_posicao(
@@ -122,7 +132,7 @@ def _avaliar_posicao(
             )
         if not isinstance(handler, HandlerCotado):
             raise TypeError(f"Handler sem modo de avaliação conhecido: {handler.slug}.")
-        cotas = estado_cotas(transacoes, eventos, ativo.moeda, indicadores)
+        cotas = estado_cotas(transacoes, eventos)
         valoracao = handler.avaliar(cotas, carregar_precos(sessao, ativo.id), data_ref)
         return posicao(
             cotas.quantidade,
@@ -144,10 +154,22 @@ def _avaliar_caixas(sessao: Session, indicadores: Indicadores, data_ref: date) -
     for conta in RepositorioContas(sessao).listar():
         valor = saldo_em(lancamentos(movimentos_da_conta(sessao, conta.id, data_ref)), data_ref)
         try:
-            saldo_brl, erro = valor * indicadores.cambio_em(conta.moeda, data_ref), None
+            cambio = indicadores.cambio_vigente(conta.moeda, data_ref)
         except DominioError as falha:
-            saldo_brl, erro = None, falha.mensagem
-        caixas.append(SaldoCaixa(conta.instituicao_id, conta.moeda, valor, saldo_brl, erro))
+            caixas.append(
+                SaldoCaixa(conta.instituicao_id, conta.moeda, valor, None, erro=falha.mensagem)
+            )
+            continue
+        caixas.append(
+            SaldoCaixa(
+                conta.instituicao_id,
+                conta.moeda,
+                valor,
+                valor * cambio.valor,
+                defasado=cambio.defasado,
+                aviso=cambio.aviso,
+            )
+        )
     return caixas
 
 

@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.carteira import GRUPO_CAIXA
@@ -32,7 +33,7 @@ from app.services.financeiro import (
     obter_totais_por_categoria,
     registrar_lancamento,
 )
-from app.services.patrimonio import serie_patrimonio
+from app.services.patrimonio import _custo_nominal, serie_patrimonio
 from tests.fabricas import (
     D,
     acao_br,
@@ -46,6 +47,7 @@ from tests.fabricas import (
     poupanca,
     preco,
     provento,
+    venda,
 )
 
 DATA_REF = date(2025, 9, 1)
@@ -162,6 +164,32 @@ def test_falha_de_cambio_ou_indicador_nao_derruba_a_carteira(sessao: Session) ->
     assert avenue.erro is not None
 
 
+def test_cambio_antigo_e_usado_mas_marca_posicao_e_caixa_como_defasados(sessao: Session) -> None:
+    # Regressão (code review): câmbio de 2020 avaliado em 2025 saía com defasado=False.
+    # Tolerância de 4 dias (decisão do dono, igual às ações).
+    avenue, aapl = instituicao(sessao, "Avenue"), acao_us(sessao)
+    indicador(sessao, TipoIndicador.CAMBIO, date(2025, 8, 28), "4", moeda="USD")
+    deposito(sessao, avenue, "150", date(2025, 8, 28), moeda="USD")
+    compra(sessao, aapl, avenue, date(2025, 8, 28), "1", "100")
+    preco(sessao, aapl, DATA_REF, "200")
+
+    # 28/08 → 01/09: 4 dias, ainda vigente.
+    em_dia = avaliar_carteira(sessao, DATA_REF)
+    assert not em_dia.posicoes[0].avaliacao.defasado
+    assert not em_dia.caixas[0].defasado
+
+    # 28/08 → 02/09: 5 dias, defasado (valor continua calculado com o último câmbio).
+    carteira = avaliar_carteira(sessao, DATA_REF + timedelta(days=1))
+    posicao, conta = carteira.posicoes[0], carteira.caixas[0]
+    assert posicao.avaliacao.valor_brl == D(800)
+    assert posicao.avaliacao.defasado
+    assert posicao.avaliacao.aviso == "Câmbio USD/BRL defasado: último registro em 28/08/2025."
+    assert posicao.avaliacao.erro is None
+    assert (conta.saldo_brl, conta.defasado) == (D(200), True)  # US$ 50 × 4
+    assert conta.aviso == posicao.avaliacao.aviso
+    assert carteira.geral().completo
+
+
 def test_carteira_em_data_passada_ignora_o_futuro(sessao: Session) -> None:
     Cenario(sessao)
     passado = avaliar_carteira(sessao, date(2025, 7, 1)).geral()
@@ -227,10 +255,30 @@ def test_serie_com_falhas_registra_avisos(sessao: Session) -> None:
     serie = serie_patrimonio(sessao, date(2025, 8, 1), date(2025, 8, 2))
     assert any("CDB Banco X" in aviso and "valor aplicado" in aviso for aviso in serie.avisos)
     assert any("Conta Avenue (USD) fora da série" in aviso for aviso in serie.avisos)
+    assert any(
+        "AAPL" in aviso and "não há câmbio USD/BRL" in aviso and "custo em BRL" in aviso
+        for aviso in serie.avisos
+    )
     # Sem câmbio, a AAPL entra pelo custo em BRL (5.000); o CDB pelo valor aplicado (10.000);
     # TST11 sem preço até 01/09 entra pelo custo (900 + 120). Caixa em BRL: 1.145 + 0 + 0.
     assert serie.pontos[0].investimentos == D(5000) + D(10000) + D(1020)
     assert serie.pontos[0].caixa == D(1145)
+
+
+def test_plano_b_da_serie_em_cotas_usa_o_valor_aplicado_em_brl(sessao: Session) -> None:
+    # Regressão (code review): o plano B só entendia aporte/resgate e zerava ações.
+    # Compra 10 @ US$ 100 + US$ 1 (câmbio 5) = R$ 5.005; venda 4 @ US$ 120 − US$ 1
+    # (câmbio 6) = R$ 2.874 → resta R$ 2.131 aplicado. Proventos não entram.
+    avenue, aapl = instituicao(sessao, "Avenue"), acao_us(sessao)
+    compra(sessao, aapl, avenue, date(2025, 3, 3), "10", "100", taxas="1", cambio="5")
+    venda(sessao, aapl, avenue, date(2025, 3, 10), "4", "120", taxas="1", cambio="6")
+    provento(sessao, aapl, avenue, date(2025, 3, 12), "5", cambio="6")
+    transacoes = list(sessao.scalars(select(m.Transacao).order_by(m.Transacao.id)))
+    assert _custo_nominal(transacoes) == [
+        (date(2025, 3, 3), D(5005)),
+        (date(2025, 3, 10), D(2131)),
+        (date(2025, 3, 12), D(2131)),
+    ]
 
 
 def test_serie_valor_aplicado_considera_resgates(sessao: Session) -> None:
@@ -302,6 +350,8 @@ def test_validacoes_do_financeiro(sessao: Session) -> None:
         registrar_lancamento(sessao, NovoLancamento(TipoLancamento.DESPESA, dia, "x" * 201, D(1)))
     with pytest.raises(ValidacaoError, match="maior que zero"):
         registrar_lancamento(sessao, NovoLancamento(TipoLancamento.DESPESA, dia, "x", ZERO))
+    with pytest.raises(ValidacaoError, match="no máximo 2 casas decimais"):
+        registrar_lancamento(sessao, NovoLancamento(TipoLancamento.DESPESA, dia, "x", D("1.005")))
     with pytest.raises(ValidacaoError, match="no máximo 500"):
         registrar_lancamento(
             sessao, NovoLancamento(TipoLancamento.DESPESA, dia, "x", D(1), observacao="x" * 501)

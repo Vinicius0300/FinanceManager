@@ -73,7 +73,7 @@ def test_migra_banco_novo_ate_a_head_sem_backup(banco: Path, pasta_backups: Path
     banco.parent.mkdir(parents=True)
     resultado = migrar_banco(banco, pasta_backups)
     assert resultado.revisao_anterior is None
-    assert resultado.revisao_atual == "0001_schema_inicial"
+    assert resultado.revisao_atual == "0002_cambio_eventos"
     assert resultado.migrou
     assert resultado.backup is None
     assert tabelas(banco) == TABELAS
@@ -184,6 +184,39 @@ def test_downgrade_e_upgrade_sao_reversiveis(banco: Path, pasta_backups: Path) -
     assert tabelas(banco) == {"alembic_version"}
     command.upgrade(configuracao, "head")
     assert tabelas(banco) == TABELAS
+
+
+def test_migracao_0002_preenche_o_cambio_das_bonificacoes_estrangeiras(banco: Path) -> None:
+    # Eventos já gravados ganham câmbio 1; bonificação com custo em ativo estrangeiro
+    # recebe o câmbio mais recente com até 7 dias antes da data "ex" (regra do registro).
+    banco.parent.mkdir(parents=True)
+    configuracao = configuracao_alembic(banco)
+    command.upgrade(configuracao, "0001_schema_inicial")
+    with closing(sqlite3.connect(banco)) as conexao:
+        conexao.executescript(
+            """
+            INSERT INTO ativos VALUES
+                (1, 'acao_us', 'AAPL', 'A', 'USD', NULL, NULL, '{}', '2025-01-01'),
+                (2, 'acao_br', 'TST11', 'T', 'BRL', NULL, NULL, '{}', '2025-01-01');
+            INSERT INTO indicadores VALUES (1, 'cambio', 'USD', '2025-03-28', '5.5', NULL);
+            INSERT INTO indicadores VALUES (2, 'cambio', 'USD', '2025-01-02', '4', NULL);
+            INSERT INTO eventos_corporativos VALUES
+                (1, 1, 'bonificacao', '2025-04-01', 10, 11, '4', NULL, '2025-01-01'),
+                (2, 1, 'desdobramento', '2025-05-01', 1, 2, '0', NULL, '2025-01-01'),
+                (3, 2, 'bonificacao', '2025-04-01', 10, 11, '4', NULL, '2025-01-01'),
+                (4, 1, 'bonificacao', '2025-02-01', 10, 11, '4', NULL, '2025-01-01');
+            """
+        )
+        conexao.commit()
+    command.upgrade(configuracao, "head")
+    with closing(sqlite3.connect(banco)) as conexao:
+        cambios = conexao.execute("SELECT id, cambio FROM eventos_corporativos ORDER BY id")
+        assert cambios.fetchall() == [(1, "5.5"), (2, "1"), (3, "1"), (4, "1")]
+        with pytest.raises(sqlite3.IntegrityError, match="ck_eventos_corporativos_cambio"):
+            conexao.execute("UPDATE eventos_corporativos SET cambio = '0' WHERE id = 2")
+        # A recriação da tabela pelo batch preserva os CHECKs antigos.
+        with pytest.raises(sqlite3.IntegrityError, match="proporcao_por_tipo"):
+            conexao.execute("UPDATE eventos_corporativos SET proporcao_para = 1 WHERE id = 2")
 
 
 def test_models_e_migracao_estao_sincronizados(banco: Path, pasta_backups: Path) -> None:

@@ -11,7 +11,11 @@ Regras do projeto (únicas, documentadas aqui):
   Soma, subtração e multiplicação de valores financeiros cabem nos 28 dígitos.
 - Cálculo interno com precisão cheia; arredondamento **só na apresentação**:
   :func:`arredondar_moeda` (2 casas), :func:`arredondar_quantidade` (8 casas)
-  e :func:`percentual` (razão → % com 2 casas).
+  e :func:`percentual` (razão → % com 2 casas). A exceção é o movimento de caixa de
+  uma compra/venda, arredondado a centavos como no extrato da corretora.
+- **Entrada do usuário** com casas limitadas (valores com mais casas são recusados,
+  nunca arredondados em silêncio, ver :func:`exigir_casas`): dinheiro 2, quantidade 8,
+  preço unitário 8, câmbio 6.
 """
 
 from decimal import (
@@ -22,6 +26,8 @@ from decimal import (
     InvalidOperation,
     Overflow,
 )
+
+from app.domain.erros import exigir
 
 CONTEXTO = Context(
     prec=28,
@@ -36,6 +42,8 @@ CEM = Decimal(100)
 CASAS_MOEDA = 2
 CASAS_QUANTIDADE = 8
 CASAS_PERCENTUAL = 2
+CASAS_PRECO = 8
+CASAS_CAMBIO = 6
 
 NumeroEntrada = Decimal | int | str
 
@@ -89,6 +97,23 @@ def arredondar_quantidade(valor: Decimal) -> Decimal:
 def percentual(razao: Decimal) -> Decimal:
     """Converte uma razão (0,15) em percentual de apresentação (15,00)."""
     return arredondar(razao * CEM, CASAS_PERCENTUAL)
+
+
+def casas_decimais(valor: Decimal) -> int:
+    """Casas decimais significativas (zeros à direita não contam: 1,50 tem 1 casa)."""
+    expoente = valor.normalize(context=CONTEXTO).as_tuple().exponent
+    if not isinstance(expoente, int):
+        raise ValueError(f"Número inválido: {valor!r}.")
+    return max(-expoente, 0)
+
+
+def exigir_casas(valor: Decimal | None, casas: int, campo: str) -> None:
+    """Recusa (``ValidacaoError``) um valor informado com mais de ``casas`` decimais."""
+    exigir(
+        valor is None or casas_decimais(valor) <= casas,
+        campo,
+        f"Use no máximo {casas} casas decimais.",
+    )
 
 
 def texto_decimal(valor: Decimal) -> str:

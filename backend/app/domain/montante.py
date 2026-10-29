@@ -7,7 +7,8 @@ poupança). O valor do investimento numa data é a soma de ``principal × fator`
 Resgate (decidido com o dono): reduz o principal **proporcionalmente ao saldo**.
 Com saldo bruto S na data e resgate X, a fração resgatada é f = X / S; cada lote
 fica com principal × (1 − f) e sai f do custo. Lucro realizado = X − f × custo.
-Resgatar exatamente o saldo exibido (S arredondado a centavos) zera a posição.
+Resgatar exatamente o saldo exibido (S arredondado a centavos), ou qualquer valor ≥ S,
+zera a posição (a fração nunca passa de 1).
 Resgate maior que o saldo é erro de domínio.
 
 Montante é sempre em BRL e não aceita taxas (renda fixa e poupança não as têm).
@@ -108,7 +109,10 @@ def _aplicar_resgate(
             f"Resgate de R$ {formatar_numero(resgate.valor)} maior que o saldo estimado de "
             f"R$ {formatar_numero(saldo_exibido)} em {formatar_data(resgate.data)}."
         )
-    fracao = UM if resgate.valor == saldo_exibido else dividir(resgate.valor, saldo)
+    # Resgatar o saldo exibido (ou qualquer valor ≥ o saldo real, que só difere dele por
+    # frações de centavo) zera a posição: a fração nunca passa de 1.
+    zera = resgate.valor >= saldo or resgate.valor == saldo_exibido
+    fracao = UM if zera else dividir(resgate.valor, saldo)
     restante = UM - fracao
     custo_saida = estado.valores.custo if fracao == UM else estado.valores.custo * fracao
     lotes = (

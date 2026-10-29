@@ -6,12 +6,16 @@ Convenções de unidade (iguais às da tabela ``indicadores``):
 - câmbio: BRL por 1 unidade da moeda estrangeira, um valor por dia.
 
 Dia sem valor usa o último valor conhecido anterior (preenchimento para frente).
+
+Na **avaliação** (valor atual), um câmbio mais antigo que
+:data:`TOLERANCIA_DEFASAGEM_CAMBIO` continua sendo usado, mas fica marcado como
+**defasado** (mesma tolerância das ações: cobre fim de semana + feriado).
 """
 
 from bisect import bisect_right
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from itertools import pairwise
 
@@ -28,11 +32,29 @@ NOMES_INDICADORES = {
     TipoIndicador.CAMBIO: "câmbio",
 }
 
+TOLERANCIA_DEFASAGEM_CAMBIO = timedelta(days=4)
+
 
 @dataclass(frozen=True)
 class PontoIndicador:
     data: date
     valor: Decimal
+
+
+@dataclass(frozen=True)
+class CambioVigente:
+    """Câmbio usado numa avaliação e se ele está defasado (BRL: 1, data ``None``)."""
+
+    moeda: str
+    valor: Decimal
+    data: date | None
+    defasado: bool = False
+
+    @property
+    def aviso(self) -> str | None:
+        if not self.defasado or self.data is None:
+            return None
+        return f"Câmbio {self.moeda}/BRL defasado: último registro em {formatar_data(self.data)}."
 
 
 class SerieIndicador:
@@ -106,3 +128,17 @@ class Indicadores:
             raise CambioAusenteError(
                 f"Câmbio {moeda}/BRL indisponível para {formatar_data(dia)}: {erro.mensagem}"
             ) from erro
+
+    def cambio_vigente(self, moeda: str, dia: date) -> CambioVigente:
+        """Último câmbio até ``dia`` para avaliação, marcado como defasado se antigo demais.
+
+        Levanta ``CambioAusenteError`` se não houver nenhum câmbio até ``dia``.
+        """
+        valor = self.cambio_em(moeda, dia)
+        ponto = (
+            None if moeda == MOEDA_BASE else self.serie(TipoIndicador.CAMBIO, moeda).ponto_em(dia)
+        )
+        if ponto is None:
+            return CambioVigente(moeda, valor, None)
+        defasado = dia - ponto.data > TOLERANCIA_DEFASAGEM_CAMBIO
+        return CambioVigente(moeda, valor, ponto.data, defasado)
