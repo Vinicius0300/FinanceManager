@@ -62,7 +62,9 @@ docs/  scripts/
 | Testes frontend | `npm test` (raiz) |
 | Lint/tipos/format frontend | `npm run lint && npm run typecheck && npm run format:check` (raiz) |
 | Checar o Rust | `cd apps/desktop/src-tauri && cargo check` |
-| Migrações (a partir da Parte 2) | `cd backend && alembic upgrade head` |
+| Cobertura dos testes backend | `cd backend && .venv\Scripts\python -m pytest --cov` |
+| Migrações (rodam sozinhas ao abrir o app) | `cd backend && .venv\Scripts\alembic upgrade head` |
+| Nova migração após mudar model | `cd backend && .venv\Scripts\alembic revision --autogenerate -m "descricao"` (revisar à mão) |
 | Gerar contrato OpenAPI + tipos TS | `npm run contrato` (raiz; `scripts/contrato.py`) |
 | Verificar contrato (CI/build) | `npm run contrato:verificar` (falha se desatualizado) |
 | Build do instalador (Parte 5) | script único em `scripts/` (checa contrato e testes antes) |

@@ -11,6 +11,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.domain.erros import ConflitoError, DominioError, NaoEncontradoError
+
 logger = logging.getLogger(__name__)
 
 MENSAGENS_HTTP = {
@@ -61,6 +63,23 @@ async def _tratar_aplicacao(_: Request, exc: Exception) -> JSONResponse:
     return _resposta(exc.status_code, ErroApi(codigo=exc.codigo, mensagem=exc.mensagem), headers)
 
 
+def status_do_dominio(exc: DominioError) -> int:
+    if isinstance(exc, NaoEncontradoError):
+        return 404
+    if isinstance(exc, ConflitoError):
+        return 409
+    return 422
+
+
+async def _tratar_dominio(_: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, DominioError)  # noqa: S101
+    detalhes = [DetalheErro(campo=d.campo, mensagem=d.mensagem) for d in exc.detalhes] or None
+    return _resposta(
+        status_do_dominio(exc),
+        ErroApi(codigo=exc.codigo, mensagem=exc.mensagem, detalhes=detalhes),
+    )
+
+
 async def _tratar_http(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, StarletteHTTPException)  # noqa: S101
     mensagem = MENSAGENS_HTTP.get(exc.status_code, "Erro na requisição.")
@@ -94,6 +113,7 @@ async def _tratar_inesperado(request: Request, exc: Exception) -> JSONResponse:
 
 def registrar_tratadores(app: FastAPI) -> None:
     app.add_exception_handler(AplicacaoError, _tratar_aplicacao)
+    app.add_exception_handler(DominioError, _tratar_dominio)
     app.add_exception_handler(StarletteHTTPException, _tratar_http)
     app.add_exception_handler(RequestValidationError, _tratar_validacao)
     app.add_exception_handler(Exception, _tratar_inesperado)

@@ -16,19 +16,19 @@ O visual final segue imagens de referência que o dono enviará na Parte 5; até
 ## 2. Roadmap (5 partes, cada uma validada pelo dono antes da próxima)
 | Parte | Conteúdo | Situação |
 |---|---|---|
-| 1 | Fundação: monorepo, Tauri + React + sidecar FastAPI, `/health` e rota protegida, encerramento limpo, instância única, estado da janela, contrato OpenAPI → TS, docs | **Entregue (aguardando validação)** |
-| 2 | *Proposta:* modelo de dados (SQLite + SQLAlchemy + Alembic com backup prévio), domínio de carteira e lançamentos com `Decimal`, API CRUD | A definir pelo dono |
+| 1 | Fundação: monorepo, Tauri + React + sidecar FastAPI, `/health` e rota protegida, encerramento limpo, instância única, estado da janela, contrato OpenAPI → TS, docs | **Validada** |
+| 2 | Modelos e banco (SQLite + SQLAlchemy + Alembic com backup prévio), registry de tipos de ativo, services de cálculo com `Decimal` (posição, caixa por instituição, eventos, câmbio, renda fixa, poupança, alocação, série de patrimônio, resumo mensal), estrutura de `analytics/` e testes. **Sem endpoints novos** | **Entregue (aguardando validação)** |
 | 3 | *Proposta:* providers de cotação (registry), jobs de atualização, estado defasado, eventos em tempo real (SSE) | A definir pelo dono |
 | 4 | *Proposta:* telas funcionais (Dashboard, Carteira, Movimentações, Receitas e Despesas, Configurações), gráficos, backup/restauração | A definir pelo dono |
 | 5 | Visual final a partir das imagens de referência; empacotamento do backend (PyInstaller) e instalador | A definir pelo dono |
 
-> O conteúdo das Partes 2 a 4 é uma proposta inicial e pode ser reordenado pelo dono.
+> O conteúdo das Partes 3 e 4 é uma proposta inicial e pode ser reordenado pelo dono. Os endpoints REST dos services da Parte 2 (CRUD e consultas) ainda não têm parte definida.
 
 ## 3. Decisões de arquitetura (definitivas)
 - **Desktop:** Tauri 2 (WebView2). Rust mínimo: inicialização, ciclo de vida do backend, plugins (dialog, single-instance, window-state) e configuração.
 - **Frontend:** React 18 + TypeScript strict + Vite, Tailwind CSS 4 + shadcn/ui, React Router, TanStack Query, Zustand.
 - **Backend:** Python 3.11+ com FastAPI, rodando como sidecar local (uvicorn).
-- **Banco (a partir da Parte 2):** SQLite (WAL) + SQLAlchemy 2.0 + Alembic em `%APPDATA%\Financas\`.
+- **Banco:** SQLite (WAL) + SQLAlchemy 2.0 + Alembic em `%APPDATA%\Financas\financas.db`; pandas para séries.
 - **Contrato:** OpenAPI do FastAPI → `docs/openapi.json` → tipos TS em `apps/web/src/api/schema.ts`.
 - **Dinheiro:** sempre `Decimal` no backend; no front só formatação (sem aritmética em `number`).
 
@@ -63,15 +63,23 @@ apps/web/src/
   theme/                      tokens (index.css) e preferência de tema (Zustand)
 backend/
   entrypoint.py               ponto de entrada do sidecar
+  alembic.ini, migrations/    Alembic (env.py + versions/); rodam sozinhas na inicialização
   app/api                     rotas (só validam/orquestram/serializam)
-  app/core                    config, paths, logs, segurança, erros, watchdog
-  app/{domain,services,repositories,providers,asset_types,jobs,analytics}
-                              camadas reservadas (só __init__ com a responsabilidade)
-  tests/
-docs/                         CONTEXTO.md, openapi.json
+  app/core                    config, paths, logs, segurança, erros, watchdog,
+                              banco (engine/pragmas/sessão), backup, migracoes
+  app/domain                  regras puras: numeros, calendario, posicao, montante,
+                              renda_fixa, poupanca, conta_corrente, metricas, carteira,
+                              serie_patrimonio, lancamentos, indicadores, precos, erros
+  app/asset_types             base (contrato), registry, catalogo (registro único), 6 handlers
+  app/repositories            modelos (SQLAlchemy), tipos (DecimalTexto, DataHoraUTC), repositórios
+  app/services                cadastros, mercado, caixa, transacoes, posicoes, carteira,
+                              patrimonio, financeiro
+  app/analytics               protocolos (Protocol) e registry de modelos (sem modelos)
+  app/{providers,jobs}        reservados para a Parte 3
+  tests/                      fabricas.py (dados sintéticos) + testes por camada
+docs/                         CONTEXTO.md, CALCULOS.md, TIPOS_DE_ATIVO.md, ANALYTICS.md, openapi.json
 scripts/                      contrato.py, 1_instalar_ferramentas.bat, 2_preparar_projeto.bat
 ```
-`backend/migrations/` será criado na Parte 2, junto com o primeiro modelo.
 
 ## 6. Convenções
 - Idioma: pt-BR em mensagens ao usuário, docs e comentários; identificadores de domínio em português.
@@ -82,7 +90,11 @@ scripts/                      contrato.py, 1_instalar_ferramentas.bat, 2_prepara
 - **Front:** sem cores fixas em componentes (tokens em `theme/index.css`, incluindo `sucesso`, `aviso`, `perigo`); toda tela com carregando/vazio/erro; falhas viram texto via `mensagemDeErro`.
 - **Tema:** **escuro por padrão**; só dois modos (escuro e claro), alternados por um switch no topo (`components/SeletorTema.tsx`, ligado = escuro). A escolha fica no `localStorage` da janela (`financas-tema`, Zustand persist). O `index.html` já nasce com `class="dark"` para não piscar claro na abertura. Não há modo "igual ao sistema" (decisão do dono, Parte 1).
 - **Cliente da API:** `openapi-fetch` tipado por `schema.ts`; obtido com `useClienteApi()` (só existe depois que o portão liberou a UI).
-- **Testes:** nenhum depende da internet; backend com `TestClient` e pasta de dados temporária; front com Vitest + Testing Library e `fetch` falso.
+- **Testes:** nenhum depende da internet nem do relógio real (datas injetadas); backend com `TestClient`, pasta de dados temporária e SQLite temporário (fixtures `engine`/`sessao`); dados sintéticos em `tests/fabricas.py`; front com Vitest + Testing Library e `fetch` falso.
+- **Camadas do backend:** `domain` não acessa banco nem rede; `repositories` não fazem `commit` nem regra de negócio; `services` recebem a `Session` e também não fazem `commit` (a unidade de trabalho é de quem chama: `core.banco.sessao_transacional` ou, quando houver API, a dependência de sessão).
+- **Erros de domínio:** `app/domain/erros.py` (`DominioError` e subclasses, mensagens pt-BR, sem HTTP). A API converte: `NaoEncontradoError` → 404, `ConflitoError` → 409, demais → 422, com `detalhes` por campo.
+- **Dinheiro no banco:** colunas `DecimalTexto` (TEXT exato) e `DataHoraUTC` (UTC com fuso); CHECKs usam `CAST(col AS NUMERIC)`. Buscas por nome usam a função SQL `casefold` registrada em cada conexão (o `lower()` do SQLite não trata acentos).
+- **Mudou um model?** Crie a migração (`alembic revision --autogenerate`), revise à mão e rode os testes: `test_models_e_migracao_estao_sincronizados` falha se model e migração divergirem.
 
 ## 7. Decisões tomadas na Parte 1
 - **Gerador do cliente:** `openapi-typescript` (tipos) + `openapi-fetch` (cliente fino tipado). Mais leve que orval e sem código gerado de runtime.
@@ -96,6 +108,28 @@ scripts/                      contrato.py, 1_instalar_ferramentas.bat, 2_prepara
 - **Tema:** padrão escuro e switch claro/escuro, sem modo "sistema" (pedido do dono após a primeira entrega).
 - **Node:** recomendada a versão LTS (24). Com Node 25 a instalação funciona, mas o npm avisa que o jsdom não suporta oficialmente versões ímpares.
 
-## 8. Pendências conhecidas
+## 8. Decisões tomadas na Parte 2
+Regras de cálculo completas e exemplos em `docs/CALCULOS.md`.
+- **Custo:** preço médio ponderado. Taxas de compra entram no custo; taxas de venda reduzem o lucro realizado. Venda maior que a posição é erro.
+- **Proventos (opção A):** não alteram PM nem o valor da posição; vão para a conta corrente da instituição (valor **líquido**, com imposto retido em campo próprio). Métricas: valorização (só preço) e rentabilidade total = (valor − custo restante + lucro realizado + proventos + rendimentos de bonificação) / total investido.
+- **Bonificação (opção A):** custo unitário informado pela empresa soma ao custo (regra da Receita); sem informação, zero. O custo atribuído também conta como rendimento na rentabilidade total (decisão técnica derivada, para não subestimar o resultado: *conferir na validação*).
+- **Eventos:** proporção `de:para`, na data "ex", antes das transações do mesmo dia, valendo para todas as instituições; frações de grupamento ficam na posição (o leilão é registrado como venda).
+- **Instituições e caixa:** toda transação informa a instituição; posição calculada por (ativo, instituição), com **Análise Geral** (consolidada) e **Análise por Instituição**. Cada instituição tem uma conta corrente por moeda: depósito/saque manuais; compra/aporte debitam, venda/resgate e proventos creditam automaticamente. Saldo nunca negativo (checado no fim de cada dia, inclusive retroativamente): compra além do saldo devolve aviso e, se aceita, gera `ajuste_saldo`. Caixa entra no patrimônio e na alocação (fatia `caixa`) e não rende.
+- **Multimoeda:** câmbio da data guardado em cada transação (ou buscado nos indicadores, até 7 dias); conta em USD fica em USD.
+- **Renda fixa:** accrual em 252 dias úteis com feriados nacionais embutidos, valor bruto (sem IR/IOF), origem `calculado`; resgate proporcional ao saldo; renda fixa e poupança só em BRL e sem taxas.
+- **Poupança simplificada:** aniversário mensal, 0,5% ou 70% da Selic, TR = 0, resgate proporcional.
+- **Ativo sem cotação:** vale o custo (origem `calculado`, defasado, com aviso). Defasado: preço mais antigo que 4 dias (cripto: 1).
+- **Arredondamento:** contexto de 28 dígitos e `ROUND_HALF_EVEN`; arredonda só na apresentação (2 casas moeda, 8 quantidade).
+- **Proventos não entram em Receitas e Despesas.**
+- **Tipo de ativo:** texto livre validado pelo registry (sem CHECK), para um tipo novo não exigir migração. Registro único em `asset_types/catalogo.py`; exemplo do 7º tipo em `docs/TIPOS_DE_ATIVO.md`.
+- **Migrações:** rodam na inicialização; backup validado (`backups\financas-AAAAMMDD-HHMMSS-pre-migracao.db`, 10 mais recentes) só quando há banco com dados e migração pendente; falha restaura o backup (ou apaga o banco novo incompleto); banco de versão mais nova do app é recusado. A migração não importa tipos do app (usa String/DateTime equivalentes).
+- **Fuso:** instantes em UTC; a data de um preço é a data local de Brasília (`tzdata` incluído para o Windows).
+- **Analytics:** só Protocols e registry versionado; tabelas `previsoes` e `sugestoes` apenas planejadas (`docs/ANALYTICS.md`); ML fica em extra opcional, importado dentro das fábricas.
+- **Novas dependências:** `sqlalchemy`, `alembic`, `pandas`, `tzdata`; dev: `pandas-stubs`, `pytest-cov`.
+
+## 9. Pendências conhecidas
 - Build de release ainda não inclui o backend empacotado (Parte 5): `tauri build` gera o app, mas ele mostrará "Executável do serviço interno não encontrado".
 - Atualização por cima, assinatura de código e SmartScreen: Parte 5.
+- Empacotamento (Parte 5): incluir a pasta `backend/migrations` e os dados do `tzdata` no executável do PyInstaller (`core/migracoes.PASTA_MIGRACOES` aponta para ela).
+- Os services da Parte 2 ainda não têm endpoints; o aviso de saldo insuficiente (`ResultadoTransacao.aviso`) precisará de um fluxo de confirmação na API/UI.
+- Restauração de backup pela UI (com backup de segurança e confirmação): Parte 4. Hoje só existe `core/backup.restaurar_backup`, usada pela migração.

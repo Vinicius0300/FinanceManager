@@ -1,1 +1,1 @@
-"""Casos de uso: orquestram domínio, repositórios e providers. Preenchido a partir da Parte 2."""
+"""Casos de uso: orquestram domínio, repositórios e registry de tipos de ativo."""

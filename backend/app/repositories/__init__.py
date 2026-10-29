@@ -1,1 +1,1 @@
-"""Acesso ao banco (SQLAlchemy), sem regra de negócio. Preenchido a partir da Parte 2."""
+"""Acesso ao banco (SQLAlchemy 2.0): models, tipos de coluna e repositórios sem regra de negócio."""

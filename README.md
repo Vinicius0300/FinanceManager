@@ -37,6 +37,9 @@ Stack: Tauri 2 (Rust mínimo) + React/TypeScript (Vite, Tailwind, shadcn/ui) + b
 | Abrir o app em desenvolvimento (Vite + Tauri + backend com reload) | `npm run dev` |
 | Só o front no navegador (sem backend; mostra a tela de erro) | `npm run web:dev` |
 | Testes do backend | `cd backend; .venv\Scripts\python -m pytest` |
+| Testes do backend com cobertura | `cd backend; .venv\Scripts\python -m pytest --cov` |
+| Aplicar migrações do banco à mão (o app já faz isso ao abrir) | `cd backend; .venv\Scripts\alembic upgrade head` |
+| Criar migração depois de mudar um model | `cd backend; .venv\Scripts\alembic revision --autogenerate -m "descricao"` (revise o arquivo gerado) |
 | Lint/tipos do backend | `cd backend; .venv\Scripts\ruff check .; .venv\Scripts\ruff format --check .; .venv\Scripts\mypy app entrypoint.py tests` |
 | Testes do frontend | `npm test` |
 | Lint, tipos e formatação do frontend | `npm run lint`, `npm run typecheck`, `npm run format:check` |
@@ -55,8 +58,15 @@ $env:FINANCAS_TOKEN = "<64 caracteres quaisquer>"; $env:FINANCAS_DEV = "1"
 Swagger em http://127.0.0.1:8765/docs (use **Authorize** com o mesmo token).
 
 ## Onde ficam os dados
-- `%APPDATA%\Financas\` : banco (a partir da Parte 2), `logs\backend.log`, `backups\`, `models\`.
+- `%APPDATA%\Financas\` : banco `financas.db`, `logs\backend.log`, `backups\` (cópia automática antes de cada migração do banco) e `models\`.
 - Nada é gravado na pasta de instalação.
+- Para testar com um banco descartável, defina `FINANCAS_DATA_DIR` com outra pasta antes de rodar o backend ou o `alembic`.
+
+## Documentação
+- [`docs/CONTEXTO.md`](docs/CONTEXTO.md): visão, decisões e roadmap.
+- [`docs/CALCULOS.md`](docs/CALCULOS.md): regras de cálculo (preço médio, caixa, renda fixa, poupança...).
+- [`docs/TIPOS_DE_ATIVO.md`](docs/TIPOS_DE_ATIVO.md): registry de tipos de ativo e como criar um novo.
+- [`docs/ANALYTICS.md`](docs/ANALYTICS.md): plano da futura camada de previsão e sugestões.
 
 ## Contrato da API
 `docs/openapi.json` e `apps/web/src/api/schema.ts` são **gerados**: nunca edite à mão. Mudou a API? Rode `npm run contrato` e commite os dois arquivos junto com a mudança.
