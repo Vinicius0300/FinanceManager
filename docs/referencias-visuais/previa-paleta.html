@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prévia da paleta</title>
+<style>
+  .tema-claro {
+    --background:#F6F5FB; --foreground:#16142B; --card:#FFFFFF; --primary:#5B3DF5; --primary-foreground:#FFFFFF;
+    --secondary:#EEEBFB; --secondary-foreground:#2A2560; --muted:#F0EFF5; --muted-foreground:#5E5B73;
+    --accent:#ECE8FE; --accent-foreground:#3B2AA8; --border:#E3E1EC; --input:#CFCCDD; --ring:#5B3DF5;
+    --lateral:#17153F; --lateral-foreground:#D6D4EE; --lateral-ativo:#FFFFFF; --lateral-ativo-foreground:#17153F;
+    --positivo:#0B7A53; --negativo:#C8243F; --sucesso:#0B7A53; --sucesso-foreground:#FFFFFF;
+    --perigo:#D92D4A; --perigo-foreground:#FFFFFF; --aviso:#F59E0B; --aviso-foreground:#2B1A00; --aviso-texto:#9A5B00; --info:#2563EB;
+    --g1:#5B3DF5; --g2:#F59E0B; --g3:#EC4899; --g4:#3B82F6; --g5:#14B8A6; --g6:#F05252; --gc:#A3A0B8;
+  }
+  .tema-escuro {
+    --background:#0E0D1F; --foreground:#ECEBF7; --card:#17162E; --primary:#8B7BFF; --primary-foreground:#0E0D1F;
+    --secondary:#24223F; --secondary-foreground:#ECEBF7; --muted:#211F3A; --muted-foreground:#A3A0BD;
+    --accent:#2A2650; --accent-foreground:#D9D3FF; --border:#2B2947; --input:#45416B; --ring:#8B7BFF;
+    --lateral:#0A0918; --lateral-foreground:#B9B6D3; --lateral-ativo:#8B7BFF; --lateral-ativo-foreground:#0E0D1F;
+    --positivo:#34D399; --negativo:#FF6B81; --sucesso:#34D399; --sucesso-foreground:#0E0D1F;
+    --perigo:#FF6B81; --perigo-foreground:#0E0D1F; --aviso:#FBBF24; --aviso-foreground:#2B1A00; --aviso-texto:#FBBF24; --info:#60A5FA;
+    --g1:#8B7BFF; --g2:#FBBF24; --g3:#F472B6; --g4:#60A5FA; --g5:#2DD4BF; --g6:#FB7185; --gc:#6E6B8A;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif; background:#d9d7e3; color:#16142B; }
+  h1.pagina { font-size:20px; margin:24px 24px 4px; }
+  p.pagina { margin:0 24px 16px; color:#4a4760; font-size:14px; }
+  .grade { display:grid; grid-template-columns:1fr; gap:24px; padding:0 24px 32px; }
+  @media (min-width:2300px) { .grade { grid-template-columns:1fr 1fr; } }
+  .grade section { max-width:1200px; }
+  td.n, .metrica strong, .metrica .var, .selo { white-space:nowrap; }
+  .rotulo { font-size:13px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:#4a4760; margin-bottom:8px; }
+
+  .app { display:flex; min-height:640px; border-radius:14px; overflow:hidden; background:var(--background); color:var(--foreground);
+         box-shadow:0 10px 30px rgba(20,18,50,.18); font-size:14px; }
+  .lateral { width:200px; flex:none; background:var(--lateral); color:var(--lateral-foreground); padding:18px 12px; display:flex; flex-direction:column; gap:4px; }
+  .marca { display:flex; align-items:center; gap:8px; font-weight:700; font-size:17px; color:#fff; padding:4px 10px 18px; }
+  .marca i { width:22px; height:22px; border-radius:50%; background:conic-gradient(var(--g1),var(--g3),var(--g2),var(--g1)); }
+  .item { padding:9px 12px; border-radius:999px; display:flex; gap:10px; align-items:center; }
+  .item b { width:14px; height:14px; border:2px solid currentColor; border-radius:4px; opacity:.8; }
+  .item.ativo { background:var(--lateral-ativo); color:var(--lateral-ativo-foreground); font-weight:600; }
+  .principal { flex:1; min-width:0; padding:20px 22px; display:flex; flex-direction:column; gap:16px; }
+  .topo { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  .topo h2 { margin:0; font-size:20px; }
+  .acoes { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .btn { border:1px solid transparent; border-radius:8px; padding:7px 12px; font:inherit; font-weight:600; cursor:pointer; }
+  .btn.prim { background:var(--primary); color:var(--primary-foreground); }
+  .btn.sec { background:var(--secondary); color:var(--secondary-foreground); }
+  .btn.foco { outline:2px solid var(--ring); outline-offset:2px; }
+  .busca { border:1px solid var(--input); background:var(--card); color:var(--muted-foreground); border-radius:8px; padding:7px 12px; min-width:150px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .metricas { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+  .metrica small { color:var(--muted-foreground); display:block; margin-bottom:6px; }
+  .metrica strong { font-size:19px; font-variant-numeric:tabular-nums; }
+  .metrica .var { display:block; margin-top:4px; font-weight:600; font-size:13px; }
+  .pos { color:var(--positivo); } .neg { color:var(--negativo); } .zero { color:var(--muted-foreground); }
+  .meio { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(0,1fr); gap:12px; }
+  .card h3 { margin:0 0 10px; font-size:14px; display:flex; justify-content:space-between; align-items:center; }
+  .periodos { display:flex; gap:2px; font-size:12px; font-weight:500; }
+  .periodos span { padding:3px 8px; border-radius:6px; color:var(--muted-foreground); }
+  .periodos span.on { background:var(--accent); color:var(--accent-foreground); font-weight:700; }
+  svg { display:block; width:100%; height:auto; }
+  .legenda { display:flex; flex-wrap:wrap; gap:6px 12px; font-size:12px; color:var(--muted-foreground); margin-top:8px; }
+  .legenda span::before { content:""; display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--c); margin-right:5px; }
+  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  th { text-align:left; font-size:12px; font-weight:600; color:var(--muted-foreground); background:var(--muted); padding:8px 10px; }
+  td { padding:9px 10px; border-top:1px solid var(--border); }
+  th.n, td.n { text-align:right; }
+  .selo { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .selo.aviso { background:var(--aviso); color:var(--aviso-foreground); }
+  .selo.ok { background:var(--sucesso); color:var(--sucesso-foreground); }
+  .selo.erro { background:var(--perigo); color:var(--perigo-foreground); }
+  .selo.manual { background:var(--secondary); color:var(--secondary-foreground); }
+  .ticker { font-weight:700; color:var(--info); }
+  .alerta { display:flex; gap:10px; align-items:center; border:1px solid var(--border); border-left:4px solid var(--aviso); background:var(--card); padding:10px 12px; border-radius:10px; color:var(--aviso-texto); font-weight:600; }
+  .amostras { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .amostras div { font-size:11px; padding:6px 8px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--fg, inherit); }
+  @media (max-width:900px) { .metricas { grid-template-columns:repeat(2,minmax(0,1fr)); } .meio { grid-template-columns:1fr; } .lateral { display:none; } }
+</style>
+</head>
+<body>
+<h1 class="pagina">Prévia da paleta: Dashboard de exemplo</h1>
+<p class="pagina">Dados fictícios. Mostra só as cores; layout, ícones e tipografia finais ficam para a Parte 5.</p>
+<div class="grade">
+  <section><div class="rotulo">Tema escuro (padrão)</div><div class="app tema-escuro" data-tema></div></section>
+  <section><div class="rotulo">Tema claro</div><div class="app tema-claro" data-tema></div></section>
+</div>
+
+<template id="modelo">
+  <nav class="lateral">
+    <div class="marca"><i></i>Finanças</div>
+    <div class="item ativo"><b></b>Dashboard</div>
+    <div class="item"><b></b>Carteira</div>
+    <div class="item"><b></b>Movimentações</div>
+    <div class="item"><b></b>Receitas e Despesas</div>
+    <div class="item"><b></b>Configurações</div>
+  </nav>
+  <main class="principal">
+    <div class="topo">
+      <h2>Dashboard</h2>
+      <div class="acoes">
+        <div class="busca">Buscar ativo…</div>
+        <button class="btn sec">Análise por Instituição</button>
+        <button class="btn prim foco">Atualizar cotações</button>
+      </div>
+    </div>
+    <div class="metricas">
+      <div class="card metrica"><small>Patrimônio total</small><strong>R$ 284.512,37</strong><span class="var pos">▲ +1,24% no dia</span></div>
+      <div class="card metrica"><small>Variação do dia</small><strong>R$ 3.487,90</strong><span class="var pos">▲ +R$ 3.487,90</span></div>
+      <div class="card metrica"><small>Rentabilidade (12 meses)</small><strong>11,82%</strong><span class="var neg">▼ −0,34 p.p. vs. CDI</span></div>
+      <div class="card metrica"><small>Saldo do mês</small><strong>R$ 2.140,00</strong><span class="var zero">= sem variação</span></div>
+    </div>
+    <div class="alerta">⚠ 2 ativos com cotação defasada: usando o último valor salvo (28/10/2026 17:05).</div>
+    <div class="meio">
+      <div class="card">
+        <h3>Evolução do patrimônio <span class="periodos"><span>1M</span><span>6M</span><span class="on">1A</span></span></h3>
+        <svg viewBox="0 0 600 220" role="img" aria-label="Evolução do patrimônio">
+          <defs><linearGradient id="ID-area" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="var(--g1)" stop-opacity=".35"/><stop offset="1" stop-color="var(--g1)" stop-opacity="0"/>
+          </linearGradient></defs>
+          <g stroke="var(--border)" stroke-width="1">
+            <line x1="40" y1="20" x2="600" y2="20"/><line x1="40" y1="80" x2="600" y2="80"/><line x1="40" y1="140" x2="600" y2="140"/><line x1="40" y1="200" x2="600" y2="200"/>
+          </g>
+          <g fill="var(--muted-foreground)" font-size="11">
+            <text x="0" y="24">300k</text><text x="0" y="84">250k</text><text x="0" y="144">200k</text><text x="0" y="204">150k</text>
+            <text x="40" y="216">nov/25</text><text x="300" y="216">mai/26</text><text x="560" y="216">out/26</text>
+          </g>
+          <path d="M40,170 L90,160 L140,165 L190,140 L240,128 L290,135 L340,110 L390,96 L440,104 L490,78 L540,70 L600,56 L600,200 L40,200 Z" fill="url(#ID-area)"/>
+          <path d="M40,170 L90,160 L140,165 L190,140 L240,128 L290,135 L340,110 L390,96 L440,104 L490,78 L540,70 L600,56" fill="none" stroke="var(--g1)" stroke-width="2.5"/>
+          <circle cx="600" cy="56" r="4" fill="var(--g1)"/>
+        </svg>
+      </div>
+      <div class="card">
+        <h3>Alocação</h3>
+        <svg viewBox="0 0 200 160" role="img" aria-label="Alocação por tipo">
+          <g transform="translate(100,80)" fill="none" stroke-width="26">
+            <circle r="56" stroke="var(--g1)" stroke-dasharray="105.6 246.3" transform="rotate(-90)"/>
+            <circle r="56" stroke="var(--g2)" stroke-dasharray="70.4 281.5" transform="rotate(18)"/>
+            <circle r="56" stroke="var(--g3)" stroke-dasharray="52.8 299.1" transform="rotate(90)"/>
+            <circle r="56" stroke="var(--g4)" stroke-dasharray="42.2 309.7" transform="rotate(144)"/>
+            <circle r="56" stroke="var(--g5)" stroke-dasharray="35.2 316.7" transform="rotate(187.2)"/>
+            <circle r="56" stroke="var(--g6)" stroke-dasharray="21.1 330.8" transform="rotate(223.2)"/>
+            <circle r="56" stroke="var(--gc)" stroke-dasharray="24.6 327.3" transform="rotate(244.8)"/>
+          </g>
+        </svg>
+        <div class="legenda">
+          <span style="--c:var(--g1)">Ações BR 30%</span><span style="--c:var(--g2)">Renda fixa 20%</span>
+          <span style="--c:var(--g3)">Ações US 15%</span><span style="--c:var(--g4)">Fundos 12%</span>
+          <span style="--c:var(--g5)">Tesouro 10%</span><span style="--c:var(--g6)">Cripto 6%</span>
+          <span style="--c:var(--gc)">Caixa 7%</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Maiores ativos</h3>
+      <table>
+        <thead><tr><th>Ativo</th><th class="n">Qtd.</th><th class="n">Preço</th><th class="n">Valor</th><th class="n">Lucro</th><th>Cotação</th></tr></thead>
+        <tbody>
+          <tr><td><span class="ticker">PETR4</span> Petrobras PN</td><td class="n">800</td><td class="n">R$ 38,12</td><td class="n">R$ 30.496,00</td><td class="n pos">+R$ 4.210,40</td><td><span class="selo ok">Automático</span></td></tr>
+          <tr><td><span class="ticker">AAPL</span> Apple Inc</td><td class="n">25</td><td class="n">US$ 231,40</td><td class="n">R$ 31.120,55</td><td class="n neg">−R$ 1.083,20</td><td><span class="selo aviso">Defasado</span></td></tr>
+          <tr><td><span class="ticker">CDB</span> Banco X 110% CDI</td><td class="n">1</td><td class="n">—</td><td class="n">R$ 25.871,09</td><td class="n pos">+R$ 2.871,09</td><td><span class="selo manual">Calculado</span></td></tr>
+          <tr><td><span class="ticker">BTC</span> Bitcoin</td><td class="n">0,05</td><td class="n">—</td><td class="n">R$ 19.540,00</td><td class="n zero">R$ 0,00</td><td><span class="selo erro">Erro no provider</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</template>
+
+<script>
+  const modelo = document.getElementById("modelo");
+  document.querySelectorAll("[data-tema]").forEach((alvo, i) => {
+    const copia = modelo.content.cloneNode(true);
+    copia.querySelectorAll("[id], [fill^='url']").forEach((el) => {
+      if (el.id) el.id = el.id.replace("ID", "t" + i);
+      const f = el.getAttribute("fill");
+      if (f && f.startsWith("url")) el.setAttribute("fill", f.replace("ID", "t" + i));
+    });
+    alvo.appendChild(copia);
+  });
+</script>
+</body>
+</html>

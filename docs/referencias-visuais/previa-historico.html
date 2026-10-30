@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="pt-BR" class="tema-escuro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prévia do histórico</title>
+<style>
+  .tema-claro {
+    --background:#F6F5FB; --foreground:#16142B; --card:#FFFFFF; --primary:#5B3DF5; --primary-foreground:#FFFFFF;
+    --secondary:#EEEBFB; --secondary-foreground:#2A2560; --muted:#F0EFF5; --muted-foreground:#5E5B73;
+    --accent:#ECE8FE; --accent-foreground:#3B2AA8; --border:#E3E1EC; --input:#CFCCDD; --ring:#5B3DF5;
+    --lateral:#17153F; --lateral-foreground:#D6D4EE; --lateral-ativo:#FFFFFF; --lateral-ativo-foreground:#17153F;
+    --positivo:#0B7A53; --negativo:#C8243F; --aviso:#F59E0B; --aviso-foreground:#2B1A00; --info:#2563EB;
+    --g1:#5B3DF5; --g2:#F59E0B; --g3:#EC4899; --g4:#3B82F6; --g5:#14B8A6; --g6:#F05252; --gc:#A3A0B8;
+  }
+  .tema-escuro {
+    --background:#0E0D1F; --foreground:#ECEBF7; --card:#17162E; --primary:#8B7BFF; --primary-foreground:#0E0D1F;
+    --secondary:#24223F; --secondary-foreground:#ECEBF7; --muted:#211F3A; --muted-foreground:#A3A0BD;
+    --accent:#2A2650; --accent-foreground:#D9D3FF; --border:#2B2947; --input:#45416B; --ring:#8B7BFF;
+    --lateral:#0A0918; --lateral-foreground:#B9B6D3; --lateral-ativo:#8B7BFF; --lateral-ativo-foreground:#0E0D1F;
+    --positivo:#34D399; --negativo:#FF6B81; --aviso:#FBBF24; --aviso-foreground:#2B1A00; --info:#60A5FA;
+    --g1:#8B7BFF; --g2:#FBBF24; --g3:#F472B6; --g4:#60A5FA; --g5:#2DD4BF; --g6:#FB7185; --gc:#6E6B8A;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif; background:var(--background); color:var(--foreground); font-size:14px; }
+  .app { display:flex; min-height:100vh; }
+  .lateral { width:200px; flex:none; background:var(--lateral); color:var(--lateral-foreground); padding:18px 12px; display:flex; flex-direction:column; gap:4px; }
+  .marca { display:flex; align-items:center; gap:8px; font-weight:700; font-size:17px; color:#fff; padding:4px 10px 18px; }
+  .marca i { width:22px; height:22px; border-radius:50%; background:conic-gradient(var(--g1),var(--g3),var(--g2),var(--g1)); }
+  .item { padding:9px 12px; border-radius:999px; display:flex; gap:10px; align-items:center; }
+  .item b { width:14px; height:14px; border:2px solid currentColor; border-radius:4px; opacity:.8; }
+  .item.ativo { background:var(--lateral-ativo); color:var(--lateral-ativo-foreground); font-weight:600; }
+  .principal { flex:1; min-width:0; padding:20px 22px; display:flex; flex-direction:column; gap:14px; }
+  .topo { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  .topo h2 { margin:0; font-size:20px; }
+  .abas { display:flex; gap:4px; border-bottom:1px solid var(--border); }
+  .abas span { padding:8px 14px; color:var(--muted-foreground); border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .abas span.on { color:var(--foreground); font-weight:600; border-color:var(--primary); }
+  .btn { border:1px solid transparent; border-radius:8px; padding:7px 12px; font:inherit; font-weight:600; cursor:pointer; }
+  .btn.prim { background:var(--primary); color:var(--primary-foreground); }
+  .btn.sec { background:var(--secondary); color:var(--secondary-foreground); }
+  .btn.fantasma { background:transparent; color:var(--muted-foreground); }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .filtros { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px 12px; }
+  .campo { display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .campo label { font-size:12px; color:var(--muted-foreground); font-weight:600; }
+  select, input[type=search] { width:100%; font:inherit; background:var(--card); color:var(--foreground); border:1px solid var(--input); border-radius:8px; padding:7px 9px; }
+  .linha2 { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:12px; }
+  .chip { border:1px solid var(--input); background:transparent; color:var(--muted-foreground); border-radius:999px; padding:4px 11px; font:inherit; font-size:13px; cursor:pointer; }
+  .chip[aria-pressed=true] { background:color-mix(in oklab, var(--c) 22%, transparent); border-color:var(--c); color:var(--foreground); font-weight:600; }
+  .chip .p { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--c); margin-right:6px; }
+  .sep { flex:1; }
+  .alternar { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted-foreground); }
+  .ativos-filtro { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .tag { font-size:12px; background:var(--accent); color:var(--accent-foreground); border-radius:999px; padding:3px 6px 3px 10px; display:flex; align-items:center; gap:4px; }
+  .tag button { border:0; background:transparent; color:inherit; cursor:pointer; font-size:13px; padding:0 4px; }
+  .metricas { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; }
+  .metrica small { color:var(--muted-foreground); display:block; margin-bottom:6px; }
+  .metrica strong { font-size:18px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .metrica em { display:block; font-style:normal; font-size:12px; color:var(--muted-foreground); margin-top:3px; }
+  .pos { color:var(--positivo); } .neg { color:var(--negativo); } .zero { color:var(--muted-foreground); }
+  .card h3 { margin:0 0 10px; font-size:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .legenda { display:flex; gap:12px; font-size:12px; color:var(--muted-foreground); font-weight:400; }
+  .legenda span::before { content:""; display:inline-block; width:9px; height:9px; border-radius:2px; background:var(--c); margin-right:5px; }
+  svg { display:block; width:100%; height:auto; }
+  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  th { text-align:left; font-size:12px; font-weight:600; color:var(--muted-foreground); background:var(--muted); padding:8px 10px; white-space:nowrap; }
+  th.ord::after { content:" ↓"; color:var(--primary); }
+  td { padding:9px 10px; border-top:1px solid var(--border); vertical-align:middle; }
+  th.n, td.n { text-align:right; white-space:nowrap; }
+  tr.mes td { background:color-mix(in oklab, var(--muted) 60%, transparent); font-size:12px; font-weight:700; color:var(--muted-foreground); padding:6px 10px; }
+  tr.mes td span { font-weight:500; margin-left:10px; }
+  tr.op:hover td { background:color-mix(in oklab, var(--accent) 50%, transparent); }
+  .tipo { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:2px 9px; border-radius:999px;
+          background:color-mix(in oklab, var(--c) 20%, transparent); color:var(--foreground); white-space:nowrap; }
+  .tipo::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--c); }
+  .ticker { font-weight:700; color:var(--info); }
+  .sub { display:block; font-size:12px; color:var(--muted-foreground); }
+  .vazio { text-align:center; padding:36px 10px; color:var(--muted-foreground); }
+  .rodape { display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:13px; color:var(--muted-foreground); flex-wrap:wrap; gap:8px; }
+  .paginas { display:flex; gap:4px; }
+  .paginas span { min-width:28px; text-align:center; padding:4px 6px; border-radius:6px; }
+  .paginas span.on { background:var(--primary); color:var(--primary-foreground); font-weight:700; }
+  .trocar-tema { position:fixed; right:16px; bottom:16px; z-index:5; }
+  @media (max-width:1100px) { .filtros { grid-template-columns:repeat(3,minmax(0,1fr)); } .metricas { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+  @media (max-width:760px) { .lateral { display:none; } .filtros, .metricas { grid-template-columns:repeat(2,minmax(0,1fr)); } .ocultar-movel { display:none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="lateral">
+    <div class="marca"><i></i>Finanças</div>
+    <div class="item"><b></b>Dashboard</div>
+    <div class="item"><b></b>Carteira</div>
+    <div class="item ativo"><b></b>Movimentações</div>
+    <div class="item"><b></b>Receitas e Despesas</div>
+    <div class="item"><b></b>Configurações</div>
+  </nav>
+  <main class="principal">
+    <div class="topo">
+      <h2>Movimentações</h2>
+      <div style="display:flex;gap:8px"><button class="btn sec">Exportar CSV</button><button class="btn prim">+ Nova movimentação</button></div>
+    </div>
+    <div class="abas"><span class="on">Histórico de operações</span><span>Eventos corporativos</span><span>Caixa</span></div>
+
+    <section class="card" aria-label="Filtros">
+      <div class="filtros">
+        <div class="campo"><label for="f-busca">Ativo</label><input id="f-busca" type="search" placeholder="Ticker ou nome…"></div>
+        <div class="campo"><label for="f-tipo">Tipo de ativo</label><select id="f-tipo"></select></div>
+        <div class="campo"><label for="f-inst">Instituição</label><select id="f-inst"></select></div>
+        <div class="campo"><label for="f-periodo">Período</label>
+          <select id="f-periodo"><option value="12">Últimos 12 meses</option><option value="3">Últimos 3 meses</option><option value="mes">Este mês</option><option value="ano">Este ano (2026)</option><option value="tudo">Todo o histórico</option><option value="pers">Personalizado…</option></select></div>
+        <div class="campo"><label for="f-moeda">Moeda</label><select id="f-moeda"><option value="">Todas</option><option>BRL</option><option>USD</option></select></div>
+        <div class="campo"><label for="f-situacao">Situação do ativo</label><select id="f-situacao"><option value="">Todas</option><option value="aberta">Ainda na carteira</option><option value="encerrada">Posição encerrada</option></select></div>
+      </div>
+      <div class="linha2" id="chips">
+        <span style="font-size:12px;font-weight:600;color:var(--muted-foreground)">Operação:</span>
+      </div>
+      <div class="linha2">
+        <label class="alternar"><input type="checkbox" id="f-lucro"> Só vendas com prejuízo</label>
+        <label class="alternar"><input type="checkbox" id="f-taxas"> Só com taxas ou imposto</label>
+        <span class="sep"></span>
+        <span id="contagem" style="font-size:13px;color:var(--muted-foreground)"></span>
+        <button class="btn fantasma" id="limpar">Limpar filtros</button>
+      </div>
+      <div class="ativos-filtro" id="ativos"></div>
+    </section>
+
+    <section class="metricas" id="metricas" aria-label="Resumo do filtro"></section>
+
+    <section class="card">
+      <h3>Compras × vendas por mês
+        <span class="legenda"><span style="--c:var(--g4)">Compras e aportes</span><span style="--c:var(--g3)">Vendas e resgates</span><span style="--c:var(--g5)">Proventos</span></span>
+      </h3>
+      <svg id="grafico" viewBox="0 0 900 200" role="img" aria-label="Compras e vendas por mês"></svg>
+    </section>
+
+    <section class="card">
+      <table>
+        <thead><tr>
+          <th class="ord">Data</th><th>Operação</th><th>Ativo</th><th class="ocultar-movel">Instituição</th>
+          <th class="n">Qtd.</th><th class="n ocultar-movel">Preço unit.</th><th class="n ocultar-movel">Taxas</th><th class="n">Valor total</th><th class="n">Resultado</th>
+        </tr></thead>
+        <tbody id="linhas"></tbody>
+      </table>
+      <div class="rodape"><span id="rodape-info"></span><span class="paginas" id="paginas"></span></div>
+    </section>
+  </main>
+</div>
+<button class="btn sec trocar-tema" id="tema">Ver tema claro</button>
+
+<script>
+  const OPS = {
+    compra: { nome: "Compra", c: "var(--g4)" }, aporte: { nome: "Aporte", c: "var(--g1)" },
+    venda: { nome: "Venda", c: "var(--g3)" }, resgate: { nome: "Resgate", c: "var(--g6)" },
+    provento: { nome: "Provento", c: "var(--g5)" },
+  };
+  const TIPOS = { acao_br: "Ação BR", acao_us: "Ação US", fundo: "Fundo", renda_fixa: "Renda fixa", tesouro: "Tesouro Direto", cripto: "Cripto", poupanca: "Poupança" };
+  const INST = ["XP Investimentos", "Nubank", "Inter", "Avenue", "Binance"];
+  // Dados fictícios. resultado = lucro/prejuízo realizado da venda (ou valor líquido do provento).
+  const D = [
+    ["2026-10-24","compra","PETR4","Petrobras PN","acao_br","XP Investimentos","BRL",200,"38,12",2,7626,null,true],
+    ["2026-10-15","provento","PETR4","Petrobras PN · dividendo","acao_br","XP Investimentos","BRL",null,null,0,412.30,412.30,true],
+    ["2026-10-08","venda","WEGE3","WEG ON","acao_br","XP Investimentos","BRL",150,"52,40",3.5,7856.5,-612.40,false],
+    ["2026-10-02","compra","AAPL","Apple Inc","acao_us","Avenue","USD",5,"US$ 229,10",0,6342.80,null,true],
+    ["2026-09-20","aporte","CDB","Banco Inter 110% CDI","renda_fixa","Inter","BRL",null,null,0,10000,null,true],
+    ["2026-09-12","venda","BTC","Bitcoin","cripto","Binance","USD",0.02,"US$ 61.400",9.8,6890.20,1240.55,true],
+    ["2026-08-28","compra","Tesouro IPCA+ 2035","Título público","tesouro","Nubank","BRL",1.5,"3.210,44",0,4815.66,null,true],
+    ["2026-08-10","resgate","CDB","Banco Inter 105% CDI","renda_fixa","Inter","BRL",null,null,0,5320.10,320.10,false],
+    ["2026-07-22","venda","MGLU3","Magazine Luiza ON","acao_br","XP Investimentos","BRL",500,"9,12",4,4556,-1844,false],
+    ["2026-07-05","compra","HGLG11","CSHG Logística FII","fundo","XP Investimentos","BRL",30,"162,90",1.5,4888.50,null,true],
+    ["2026-06-18","provento","HGLG11","CSHG Logística · rendimento","fundo","XP Investimentos","BRL",null,null,0,39,39,true],
+    ["2026-05-30","compra","BTC","Bitcoin","cripto","Binance","USD",0.05,"US$ 58.900",12.4,15640.30,null,true],
+    ["2026-04-14","venda","AAPL","Apple Inc","acao_us","Avenue","USD",3,"US$ 214,00",0,3530.40,410.20,true],
+    ["2026-02-03","compra","WEGE3","WEG ON","acao_br","XP Investimentos","BRL",150,"56,48",3.5,8475.50,null,false],
+  ];
+  const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  const qtd = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 8 });
+  const mesNome = (iso) => new Date(iso + "T12:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const dataBr = (iso) => iso.split("-").reverse().join("/");
+  const $ = (id) => document.getElementById(id);
+
+  $("f-tipo").innerHTML = '<option value="">Todos</option>' + Object.entries(TIPOS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+  $("f-inst").innerHTML = '<option value="">Todas</option>' + INST.map((i) => `<option>${i}</option>`).join("");
+  const ativas = new Set(Object.keys(OPS));
+  for (const [k, o] of Object.entries(OPS)) {
+    const b = document.createElement("button");
+    b.className = "chip"; b.style.setProperty("--c", o.c); b.setAttribute("aria-pressed", "true"); b.dataset.op = k;
+    b.innerHTML = `<span class="p"></span>${o.nome}`;
+    b.onclick = () => { ativas.has(k) ? ativas.delete(k) : ativas.add(k); b.setAttribute("aria-pressed", ativas.has(k)); render(); };
+    $("chips").appendChild(b);
+  }
+
+  function filtrar() {
+    const busca = $("f-busca").value.trim().toLowerCase(), tipo = $("f-tipo").value, inst = $("f-inst").value;
+    const moeda = $("f-moeda").value, sit = $("f-situacao").value, per = $("f-periodo").value;
+    const limite = { "12": "2025-10-30", "3": "2026-07-30", mes: "2026-10-01", ano: "2026-01-01", tudo: "0000", pers: "0000" }[per];
+    return D.filter((r) =>
+      ativas.has(r[1]) && r[0] >= limite &&
+      (!busca || (r[2] + " " + r[3]).toLowerCase().includes(busca)) &&
+      (!tipo || r[4] === tipo) && (!inst || r[5] === inst) && (!moeda || r[6] === moeda) &&
+      (!sit || (sit === "aberta") === r[12]) &&
+      (!$("f-lucro").checked || (r[1] === "venda" && r[11] < 0)) &&
+      (!$("f-taxas").checked || r[9] > 0));
+  }
+
+  function render() {
+    const L = filtrar();
+    const soma = (f) => L.filter(f).reduce((s, r) => s + r[10], 0);
+    const comprado = soma((r) => r[1] === "compra" || r[1] === "aporte");
+    const vendido = soma((r) => r[1] === "venda" || r[1] === "resgate");
+    const proventos = soma((r) => r[1] === "provento");
+    const taxas = L.reduce((s, r) => s + r[9], 0);
+    const resultado = L.filter((r) => r[1] === "venda" || r[1] === "resgate").reduce((s, r) => s + (r[11] || 0), 0);
+    const cls = (v) => (v > 0 ? "pos" : v < 0 ? "neg" : "zero");
+    const sinal = (v) => (v > 0 ? "▲ +" : v < 0 ? "▼ −" : "= ") + brl.format(Math.abs(v));
+    $("metricas").innerHTML = `
+      <div class="card metrica"><small>Total comprado</small><strong>${brl.format(comprado)}</strong><em>compras e aportes</em></div>
+      <div class="card metrica"><small>Total vendido</small><strong>${brl.format(vendido)}</strong><em>vendas e resgates</em></div>
+      <div class="card metrica"><small>Lucro realizado</small><strong class="${cls(resultado)}">${sinal(resultado)}</strong><em>vendas e resgates do filtro</em></div>
+      <div class="card metrica"><small>Proventos recebidos</small><strong>${brl.format(proventos)}</strong><em>líquidos de imposto</em></div>
+      <div class="card metrica"><small>Taxas pagas</small><strong>${brl.format(taxas)}</strong><em>${L.length} operações</em></div>`;
+    $("contagem").textContent = `${L.length} de ${D.length} operações`;
+    $("paginas").innerHTML = L.length > 10 ? '<span class="on">1</span><span>2</span>' : "";
+    $("rodape-info").textContent = `Mostrando ${L.length} operações · ordenado por data (mais recentes primeiro)`;
+
+    const tags = [];
+    if ($("f-tipo").value) tags.push(["f-tipo", "Tipo: " + TIPOS[$("f-tipo").value]]);
+    if ($("f-inst").value) tags.push(["f-inst", "Instituição: " + $("f-inst").value]);
+    if ($("f-moeda").value) tags.push(["f-moeda", "Moeda: " + $("f-moeda").value]);
+    if ($("f-busca").value) tags.push(["f-busca", "Ativo: " + $("f-busca").value]);
+    $("ativos").innerHTML = tags.map(([id, t]) => `<span class="tag">${t}<button aria-label="Remover filtro" data-id="${id}">×</button></span>`).join("");
+
+    let html = "", mesAtual = "";
+    for (const r of L) {
+      const m = r[0].slice(0, 7);
+      if (m !== mesAtual) {
+        mesAtual = m;
+        const doMes = L.filter((x) => x[0].startsWith(m));
+        html += `<tr class="mes"><td colspan="9">${mesNome(r[0])}<span>${doMes.length} ${doMes.length === 1 ? "operação" : "operações"}</span></td></tr>`;
+      }
+      const res = r[11] == null ? '<span class="zero">—</span>' : `<span class="${cls(r[11])}">${r[11] > 0 ? "+" : "−"}${brl.format(Math.abs(r[11]))}</span>`;
+      html += `<tr class="op"><td>${dataBr(r[0])}</td><td><span class="tipo" style="--c:${OPS[r[1]].c}">${OPS[r[1]].nome}</span></td>
+        <td><span class="ticker">${r[2]}</span><span class="sub">${r[3]} · ${TIPOS[r[4]]}</span></td>
+        <td class="ocultar-movel">${r[5]}</td><td class="n">${r[7] == null ? "—" : qtd.format(r[7])}</td>
+        <td class="n ocultar-movel">${r[8] ? (r[8].startsWith("US$") ? r[8] : "R$ " + r[8]) : "—"}</td>
+        <td class="n ocultar-movel">${r[9] ? brl.format(r[9]) : "—"}</td><td class="n">${brl.format(r[10])}</td><td class="n">${res}</td></tr>`;
+    }
+    $("linhas").innerHTML = html || '<tr><td colspan="9" class="vazio">Nenhuma operação com esses filtros.<br><button class="btn sec" style="margin-top:10px" onclick="limpar()">Limpar filtros</button></td></tr>';
+    grafico(L);
+  }
+
+  function grafico(L) {
+    const meses = ["nov","dez","jan","fev","mar","abr","mai","jun","jul","ago","set","out"];
+    const chaves = ["2025-11","2025-12","2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07","2026-08","2026-09","2026-10"];
+    const dados = chaves.map((k) => {
+      const doMes = L.filter((r) => r[0].startsWith(k));
+      const s = (ops) => doMes.filter((r) => ops.includes(r[1])).reduce((a, r) => a + r[10], 0);
+      return [s(["compra","aporte"]), s(["venda","resgate"]), s(["provento"])];
+    });
+    const max = Math.max(1, ...dados.flat());
+    const H = 150, base = 170, larg = 900 / 12;
+    let svg = `<g stroke="var(--border)"><line x1="0" y1="${base}" x2="900" y2="${base}"/><line x1="0" y1="${base - H / 2}" x2="900" y2="${base - H / 2}" stroke-dasharray="3 4"/></g>`;
+    dados.forEach((d, i) => {
+      const x0 = i * larg + 12, w = (larg - 30) / 3;
+      ["var(--g4)", "var(--g3)", "var(--g5)"].forEach((c, j) => {
+        const h = (d[j] / max) * H;
+        if (h > 0) svg += `<rect x="${x0 + j * (w + 3)}" y="${base - h}" width="${w}" height="${h}" rx="3" fill="${c}"><title>${meses[i]}: ${brl.format(d[j])}</title></rect>`;
+      });
+      svg += `<text x="${i * larg + larg / 2 - 4}" y="192" text-anchor="middle" font-size="12" fill="var(--muted-foreground)">${meses[i]}</text>`;
+    });
+    svg += `<text x="4" y="${base - H / 2 - 4}" font-size="11" fill="var(--muted-foreground)">${brl.format(max / 2)}</text>`;
+    $("grafico").innerHTML = svg;
+  }
+
+  function limpar() {
+    ["f-busca","f-tipo","f-inst","f-moeda","f-situacao"].forEach((id) => ($(id).value = ""));
+    $("f-periodo").value = "12"; $("f-lucro").checked = false; $("f-taxas").checked = false;
+    Object.keys(OPS).forEach((k) => ativas.add(k));
+    document.querySelectorAll(".chip").forEach((b) => b.setAttribute("aria-pressed", "true"));
+    render();
+  }
+  $("limpar").onclick = limpar;
+  $("ativos").onclick = (e) => { const id = e.target.dataset?.id; if (id) { $(id).value = ""; render(); } };
+  document.querySelectorAll("select, input").forEach((el) => el.addEventListener("input", render));
+  $("tema").onclick = () => {
+    const claro = document.documentElement.classList.toggle("tema-claro");
+    document.documentElement.classList.toggle("tema-escuro", !claro);
+    $("tema").textContent = claro ? "Ver tema escuro" : "Ver tema claro";
+  };
+  if (location.hash === "#claro") $("tema").click();
+  if (location.hash === "#filtro") { $("f-tipo").value = "acao_br"; $("f-inst").value = "XP Investimentos"; }
+  render();
+</script>
+</body>
+</html>
