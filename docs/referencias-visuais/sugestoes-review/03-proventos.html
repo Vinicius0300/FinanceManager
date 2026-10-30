@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Sugestão: Proventos</title><link rel="stylesheet" href="base.css"></head>
+<body>
+<aside>
+  <div class="marca"><i></i>Finanças</div>
+  <div class="nav">Dashboard</div><div class="nav">Carteira</div><div class="nav ativo">Proventos</div>
+  <div class="nav">Movimentações</div><div class="nav">Receitas e Despesas</div><div class="nav">Configurações</div>
+</aside>
+<main>
+  <div class="topo">
+    <h1>Proventos <span class="novo">TELA NOVA</span></h1>
+    <div class="segmento"><span>12 meses</span><span class="on">2026</span><span>2025</span><span>Tudo</span></div>
+    <div class="segmento"><span class="on">Líquido</span><span>Bruto</span></div>
+    <div class="botao primario">Registrar provento</div>
+  </div>
+
+  <div class="grade" style="grid-template-columns:repeat(4,1fr)">
+    <div class="cartao"><div class="rotulo">Recebido no ano (líquido)</div><div class="valor">R$ 8.214,60</div><span class="pos">▲ +22,4% vs. 2025</span></div>
+    <div class="cartao"><div class="rotulo">Média mensal</div><div class="valor">R$ 821,46</div><span class="rotulo">10 meses com provento</span></div>
+    <div class="cartao"><div class="rotulo">Imposto retido</div><div class="valor">R$ 612,30</div><span class="rotulo">JCP 15% · EUA 30%</span></div>
+    <div class="cartao"><div class="rotulo">Yield on cost da carteira</div><div class="valor">4,12%</div><span class="rotulo">proventos 12m ÷ custo atual</span></div>
+  </div>
+
+  <div class="grade" style="grid-template-columns:1.7fr 1fr">
+    <div class="cartao">
+      <div class="cab"><h2>Proventos por mês</h2><div class="segmento"><span class="on">Por ativo</span><span>Por tipo</span><span>Por instituição</span></div></div>
+      <div id="mensal"></div>
+      <div class="legenda" style="margin-top:6px">
+        <span><i class="ponto" style="background:var(--g1)"></i>PETR4</span><span><i class="ponto" style="background:var(--g2)"></i>VALE3</span>
+        <span><i class="ponto" style="background:var(--g3)"></i>ITSA4</span><span><i class="ponto" style="background:var(--g4)"></i>AAPL</span>
+        <span><i class="ponto" style="background:var(--g5)"></i>Tesouro (cupom)</span><span><i class="ponto" style="background:var(--positivo)"></i>Média móvel 3m</span>
+      </div>
+      <div class="nota">Dados: GET /api/transacoes/resumo com tipos=provento já devolve a série mensal; falta só agrupar por ativo.</div>
+    </div>
+    <div class="cartao">
+      <div class="cab"><h2>Yield on cost por ativo</h2></div>
+      <div id="yoc"></div>
+      <div class="cab" style="margin-top:14px"><h2>Últimos recebidos</h2></div>
+      <table>
+        <tr><td>28/10 · PETR4 · Dividendo</td><td>R$ 412,00</td></tr>
+        <tr><td>15/10 · ITSA4 · JCP</td><td>R$ 88,40</td></tr>
+        <tr><td>12/10 · AAPL · Dividendo</td><td>US$ 6,30</td></tr>
+        <tr><td>01/10 · Tesouro IPCA+ · Cupom</td><td>R$ 504,11</td></tr>
+      </table>
+    </div>
+  </div>
+</main>
+<script src="graficos.js"></script>
+<script>
+const r = (v) => `R$ ${Math.round(v)}`;
+barras("#mensal", "auto", 470, [
+  { cor: cor("--g1"), valores: [220,0,412,180,0,390,205,0,410,412] },
+  { cor: cor("--g2"), valores: [0,310,0,0,280,0,0,350,0,0] },
+  { cor: cor("--g3"), valores: [80,80,85,80,82,88,80,86,88,88] },
+  { cor: cor("--g4"), valores: [30,0,0,31,0,0,32,0,0,33] },
+  { cor: cor("--g5"), valores: [0,0,0,0,498,0,0,0,0,504] },
+], ["jan","fev","mar","abr","mai","jun","jul","ago","set","out"], r,
+{ empilhar: true, linha: { cor: cor("--positivo"), valores: [330,360,390,370,520,560,520,420,420,620] } });
+barrasHorizontais("#yoc", "auto", [
+  { nome: "PETR4", v: 9.8, r: "9,8%" }, { nome: "ITSA4", v: 7.1, r: "7,1%" },
+  { nome: "VALE3", v: 6.4, r: "6,4%" }, { nome: "IPCA+ 29", v: 5.9, r: "5,9%" }, { nome: "AAPL", v: 0.6, r: "0,6%" },
+], cor("--g2"));
+</script>
+</body>
+</html>

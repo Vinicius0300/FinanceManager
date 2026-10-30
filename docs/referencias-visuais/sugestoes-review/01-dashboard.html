@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Sugestão: Dashboard</title><link rel="stylesheet" href="base.css"></head>
+<body>
+<aside>
+  <div class="marca"><i></i>Finanças</div>
+  <div class="nav ativo">Dashboard</div><div class="nav">Carteira</div><div class="nav">Proventos <span class="novo">NOVO</span></div>
+  <div class="nav">Movimentações</div><div class="nav">Receitas e Despesas</div><div class="nav">Configurações</div>
+</aside>
+<main>
+  <div class="topo">
+    <h1>Dashboard</h1>
+    <span class="chip"><span class="ponto" style="background:var(--positivo)"></span>14 em dia
+      <span class="ponto" style="background:var(--aviso)"></span>1 defasada
+      <span class="ponto" style="background:var(--negativo)"></span>1 com erro <span class="novo">NOVO</span></span>
+    <span class="rotulo">Atualizado às 14:35</span>
+    <div class="segmento"><span class="on">Análise Geral</span><span>Por Instituição</span></div>
+    <div class="botao primario">Atualizar cotações</div>
+  </div>
+
+  <div class="grade" style="grid-template-columns:repeat(4,1fr)">
+    <div class="cartao"><div class="rotulo">Patrimônio total</div><div class="valor">R$ 284.512,37</div>
+      <div style="display:flex;justify-content:space-between;align-items:end"><span class="pos">▲ +17,0% em 12 meses</span><span id="f1"></span></div></div>
+    <div class="cartao"><div class="rotulo">Variação do dia</div><div class="valor">R$ 3.487,90</div>
+      <div style="display:flex;justify-content:space-between;align-items:end"><span class="pos">▲ +1,24%</span><span id="f2"></span></div></div>
+    <div class="cartao"><div class="rotulo">Rentabilidade 12 meses</div><div class="valor">11,82%</div>
+      <div style="display:flex;justify-content:space-between;align-items:end"><span class="neg">▼ −0,34 p.p. vs. CDI</span><span id="f3"></span></div></div>
+    <div class="cartao"><div class="rotulo">Proventos 12 meses <span class="novo">NOVO</span></div><div class="valor">R$ 9.842,15</div>
+      <div style="display:flex;justify-content:space-between;align-items:end"><span class="rotulo">média R$ 820/mês</span><span id="f4"></span></div></div>
+  </div>
+
+  <div class="grade" style="grid-template-columns:2.1fr 1fr">
+    <div class="cartao">
+      <div class="cab"><h2>Evolução do patrimônio <span class="novo">NOVO: por grupo</span></h2>
+        <div class="segmento"><span>Total</span><span class="on">Por tipo</span><span>Por instituição</span></div>
+        <div class="segmento"><span class="on">R$</span><span>%</span></div>
+        <div class="segmento"><span>6M</span><span class="on">1A</span><span>Máx</span></div></div>
+      <div id="evolucao"></div>
+      <div class="legenda" style="margin-top:6px">
+        <span><i class="ponto" style="background:var(--g1)"></i>Ações BR</span><span><i class="ponto" style="background:var(--g2)"></i>Renda fixa</span>
+        <span><i class="ponto" style="background:var(--g3)"></i>Fundos</span><span><i class="ponto" style="background:var(--g4)"></i>Ações US</span>
+        <span><i class="ponto" style="background:var(--g5)"></i>Tesouro</span><span><i class="ponto" style="background:var(--gcaixa)"></i>Caixa</span>
+      </div>
+      <div class="nota">Empilhado mostra de onde veio o crescimento (ref. 02). "%" troca R$ pela participação de cada grupo.</div>
+    </div>
+    <div class="grade" style="grid-template-rows:auto auto">
+      <div class="cartao">
+        <div class="cab"><h2>Altas e baixas do dia <span class="novo">NOVO</span></h2></div>
+        <table>
+          <tr><td><b>PETR4</b></td><td class="pos">▲ +3,12%</td><td>+R$ 921,60</td></tr>
+          <tr><td><b>VALE3</b></td><td class="pos">▲ +1,48%</td><td>+R$ 402,10</td></tr>
+          <tr><td><b>AAPL</b></td><td class="neg">▼ −2,05%</td><td class="neg">−R$ 638,20</td></tr>
+          <tr><td><b>BTC</b></td><td class="neg">▼ −1,10%</td><td class="neg">−R$ 214,95</td></tr>
+        </table>
+      </div>
+      <div class="cartao">
+        <div class="cab"><h2>Próximos vencimentos <span class="novo">NOVO</span></h2></div>
+        <table>
+          <tr><td>CDB Banco X 110% CDI</td><td>15/12/2026</td><td>R$ 25.871,09</td></tr>
+          <tr><td>Tesouro IPCA+ 2029</td><td>15/05/2029</td><td>R$ 18.204,77</td></tr>
+          <tr><td>LCI Banco Y 95% CDI</td><td>02/03/2027</td><td>R$ 10.040,00</td></tr>
+        </table>
+        <div class="rotulo" style="margin-top:8px">Vem dos metadados (vencimento) que já existem.</div>
+      </div>
+    </div>
+  </div>
+</main>
+<script src="graficos.js"></script>
+<script>
+const meses = ["nov/25","jan/26","mar/26","mai/26","jul/26","set/26","out/26"];
+const k = (v) => `${Math.round(v)}k`;
+areasEmpilhadas("#evolucao", "auto", 470, [
+  { cor: cor("--gcaixa"), valores: [14,15,12,13,16,18,17,19,20,18,19,20] },
+  { cor: cor("--g5"), valores: [18,19,20,21,22,23,24,25,26,27,28,29] },
+  { cor: cor("--g4"), valores: [30,32,29,34,37,36,40,42,41,44,46,45] },
+  { cor: cor("--g3"), valores: [28,28,29,30,30,31,32,33,33,34,35,35] },
+  { cor: cor("--g2"), valores: [50,51,52,53,54,55,56,57,58,59,60,61] },
+  { cor: cor("--g1"), valores: [60,58,62,66,64,70,74,72,78,80,79,84] },
+], ["nov/25","jan/26","mar/26","mai/26","jul/26","set/26","out/26"], k);
+faisca("#f1", [243,246,251,248,260,265,270,275,278,284], cor("--positivo"));
+faisca("#f2", [2,-1,1,3,-2,1,2,0,1,3], cor("--positivo"));
+faisca("#f3", [12.4,12.2,12.5,12.1,11.9,12,11.8,11.9,11.7,11.8], cor("--negativo"));
+faisca("#f4", [610,820,700,940,760,880,690,1010,830,900], cor("--g2"));
+</script>
+</body>
+</html>

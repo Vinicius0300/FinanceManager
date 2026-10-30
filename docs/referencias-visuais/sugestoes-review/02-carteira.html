@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Sugestão: Carteira</title><link rel="stylesheet" href="base.css"></head>
+<body>
+<aside>
+  <div class="marca"><i></i>Finanças</div>
+  <div class="nav">Dashboard</div><div class="nav ativo">Carteira</div><div class="nav">Proventos <span class="novo">NOVO</span></div>
+  <div class="nav">Movimentações</div><div class="nav">Receitas e Despesas</div><div class="nav">Configurações</div>
+</aside>
+<main>
+  <div class="topo">
+    <h1>Carteira</h1>
+    <div class="segmento"><span>Lista</span><span class="on">Mapa</span><span>Por instituição</span></div>
+    <div class="segmento"><span class="on">Análise Geral</span><span>Por Instituição</span></div>
+    <div class="botao">Novo ativo</div><div class="botao primario">Nova operação</div>
+  </div>
+
+  <div class="grade" style="grid-template-columns:1.55fr 1fr">
+    <div class="cartao">
+      <div class="cab"><h2>Mapa da carteira <span class="novo">NOVO</span></h2>
+        <span class="rotulo">Área = valor atual · Cor = rentabilidade total</span>
+        <div class="segmento"><span class="on">Rentab. total</span><span>Variação do dia</span></div></div>
+      <div id="mapa"></div>
+      <div class="legenda" style="margin-top:8px;align-items:center">
+        <span>−30%</span><span style="width:220px;height:8px;border-radius:4px;background:linear-gradient(90deg,#ff6b81,#211f3a,#34d399)"></span><span>+30%</span>
+      </div>
+      <div class="nota">Mostra num relance o que pesa e o que rende. Usa só /api/portfolio/posicoes (valor_brl e rentabilidade_total).</div>
+    </div>
+
+    <div class="cartao">
+      <div class="cab"><h2>Por instituição, com subtotais <span class="novo">NOVO</span></h2></div>
+      <table>
+        <tr><th>Ativo</th><th>Valor</th><th>Resultado</th><th>%</th></tr>
+        <tr class="sub"><td>RICO</td><td>R$ 96.410,20</td><td class="pos">+R$ 14.902,11</td><td>33,9%</td></tr>
+        <tr><td>PETR4</td><td>R$ 30.496,00</td><td class="pos">+R$ 4.210,40</td><td>10,7%</td></tr>
+        <tr><td>VALE3</td><td>R$ 27.170,00</td><td class="pos">+R$ 3.012,50</td><td>9,5%</td></tr>
+        <tr><td>Caixa</td><td>R$ 3.214,20</td><td class="rotulo">—</td><td>1,1%</td></tr>
+        <tr class="sub"><td>Avenue (USD)</td><td>R$ 58.940,75</td><td class="neg">−R$ 1.083,20</td><td>20,7%</td></tr>
+        <tr><td>AAPL</td><td>R$ 31.120,55</td><td class="neg">−R$ 1.083,20</td><td>10,9%</td></tr>
+        <tr><td>MSFT</td><td>R$ 27.820,20</td><td class="pos">+R$ 2.140,00</td><td>9,8%</td></tr>
+        <tr class="sub"><td>Banco X</td><td>R$ 54.115,86</td><td class="pos">+R$ 4.115,86</td><td>19,0%</td></tr>
+        <tr><td>CDB 110% CDI</td><td>R$ 25.871,09</td><td class="pos">+R$ 2.871,09</td><td>9,1%</td></tr>
+        <tr><td>Tesouro IPCA+ 2029</td><td>R$ 18.204,77</td><td class="pos">+R$ 1.244,77</td><td>6,4%</td></tr>
+        <tr class="sub"><td>Binance</td><td>R$ 19.540,00</td><td class="pos">+R$ 5.320,00</td><td>6,9%</td></tr>
+      </table>
+      <div class="nota">Linha da instituição é recolhível. O backend já tem /api/portfolio/instituicoes.</div>
+    </div>
+  </div>
+</main>
+<script src="graficos.js"></script>
+<script>
+mapaArvore("#mapa", "auto", 610, [
+  { nome: "AAPL", valor: 31120, rent: -3.4, rotulo: "R$ 31.120,55 · Ações US" },
+  { nome: "PETR4", valor: 30496, rent: 16.0, rotulo: "R$ 30.496,00 · Ações BR" },
+  { nome: "MSFT", valor: 27820, rent: 8.3, rotulo: "R$ 27.820,20 · Ações US" },
+  { nome: "VALE3", valor: 27170, rent: 12.5, rotulo: "R$ 27.170,00 · Ações BR" },
+  { nome: "CDB X", valor: 25871, rent: 12.5, rotulo: "R$ 25.871,09 · Renda fixa" },
+  { nome: "BTC", valor: 19540, rent: 37.4, rotulo: "R$ 19.540,00 · Cripto" },
+  { nome: "IPCA+ 29", valor: 18204, rent: 7.3, rotulo: "R$ 18.204,77 · Tesouro" },
+  { nome: "Fundo MM", valor: 14200, rent: -6.8, rotulo: "R$ 14.200,00 · Fundos" },
+  { nome: "LCI Y", valor: 10040, rent: 0.4, rotulo: "R$ 10.040,00" },
+  { nome: "ITSA4", valor: 7800, rent: -12.0, rotulo: "R$ 7.800,00" },
+  { nome: "Caixa", valor: 5400, rent: 0, rotulo: "R$ 5.400,00" },
+]);
+</script>
+</body>
+</html>
