@@ -24,6 +24,10 @@ Cada handler declara:
 - `agenda`: quando a coleta automática busca a cotação. Padrão `AGENDA_DIARIA`; ações usam `AGENDA_B3`/`AGENDA_EUA` (intervalo configurável, só até o fechamento fora do pregão) e cripto `AGENDA_CONTINUA` (24 h). Ver `domain/agenda.py`;
 - `aceita_taxas`: `False` recusa taxas em compra/venda (Tesouro Direto);
 - `campos_identificacao`: campos que identificam o ativo **na fonte** (CNPJ do fundo; título e vencimento do Tesouro). Mudá-los na edição apaga os preços automáticos e baixa o histórico de novo.
+- `lista_simbolos` (Parte 4.1): lista oficial de tickers usada na busca do cadastro (`"B3"` ou `"EUA"`); `busca_por_ticker` liga a busca por ticker sem lista (cripto, pela pesquisa da CoinGecko);
+- `sufixo_simbolo_externo` / `separador_classe`: formato do ticker na fonte (`.SA` dos papéis da B3; `BRK.B` = `BRK-B` nos EUA). `normalizar_simbolo` grava o ticker sem o sufixo e `simbolo_externo_padrao` preenche o símbolo na fonte quando o usuário não informa;
+- `mesma_identidade(a, b)` (deduplicação do cadastro): padrão = campos de identificação + símbolo externo; sem eles, o ticker normalizado; montante nunca. Cripto compara o id da CoinGecko (ou o símbolo, se algum ainda não tem id); poupança é sempre o mesmo ativo;
+- `semelhante(a, b)`: parece o mesmo investimento sem ser idêntico (o cadastro pergunta). Renda fixa: emissor (sem acento/maiúsculas), indexador, taxa e vencimento.
 
 A validação genérica (`validar_metadados`) cobre:
 - campo desconhecido;
@@ -36,8 +40,11 @@ Os metadados normalizados são gravados em JSON: decimais e datas como texto, nu
 
 | slug | Base | Moedas | Provider | Campos específicos | Transações |
 |---|---|---|---|---|---|
-| `acao_br` | Cotado | BRL | yfinance | tipo de papel (opcional), setor (opcional) | compra, venda, provento |
+| `acao_br` | Cotado | BRL | yfinance | tipo de papel ON/PN/UNIT/BDR (opcional), setor (opcional) | compra, venda, provento |
+| `fundo_listado` | Cotado | BRL | yfinance | nenhum (FII, Fiagro, FI-Infra: categoria `FUNDS` da B3) | compra, venda, provento |
+| `etf_br` | Cotado | BRL | yfinance | nenhum (ETFs de ações, de índice estrangeiro e de renda fixa) | compra, venda, provento |
 | `acao_us` | Cotado | USD | yfinance | bolsa (opcional) | compra, venda, provento |
+| `etf_us` | Cotado | USD | yfinance | bolsa (opcional) | compra, venda, provento |
 | `fundo` | Cotado | BRL | cvm | CNPJ (obrigatório, dígitos verificados), classe | compra, venda, provento |
 | `cripto` | Cotado | BRL, USD | coingecko | nenhum | compra, venda |
 | `renda_fixa` | Montante | BRL | nenhum (CDI/IPCA dos indicadores) | indexador, taxa, aplicação, vencimento, emissor, liquidez | aporte, resgate |
@@ -51,7 +58,7 @@ Cada fonte é uma classe em `backend/app/providers/` com interface comum (`Provi
 
 | Provider (`nome`) | Fonte | Tipos | Identificação |
 |---|---|---|---|
-| `yfinance` | Yahoo Finance (endpoint de gráfico, sem a biblioteca `yfinance`) | `acao_br`, `acao_us`; reserva do câmbio | ticker; ação BR ganha `.SA`; `simbolo_externo` prevalece |
+| `yfinance` | Yahoo Finance (endpoint de gráfico, sem a biblioteca `yfinance`) | `acao_br`, `fundo_listado`, `etf_br`, `acao_us`, `etf_us`; reserva do câmbio | ticker; papéis da B3 ganham `.SA` (gravado em `simbolo_externo` no cadastro); `simbolo_externo` prevalece |
 | `coingecko` | CoinGecko (plano público) | `cripto` | tabela embutida (BTC → bitcoin) ou pesquisa (maior valor de mercado); o id é gravado em `simbolo_externo` |
 | `tesouro` | Tesouro Transparente (CSV) | `tesouro_direto` | título + vencimento |
 | `cvm` | CVM, informe diário (ZIP mensal) | `fundo` | CNPJ; fundo com subclasses usa o id da subclasse em `simbolo_externo` |
@@ -101,7 +108,7 @@ class Fii(HandlerCotado):
    - valor atual conferido à mão;
    - presença do tipo no registry.
 
-   O teste `test_tipo_novo_entra_sem_alterar_os_existentes` (em `tests/test_tipos_de_ativo.py`) usa exatamente esta classe e confere que os schemas dos outros sete tipos não mudam.
+   O teste `test_tipo_novo_entra_sem_alterar_os_existentes` (em `tests/test_tipos_de_ativo.py`) usa exatamente esta classe e confere que os schemas dos outros tipos não mudam.
 4. Não precisa migração nem mudança nos services: compra, venda, provento, eventos, caixa, avaliação, série de patrimônio e coleta automática (pelo provider `yfinance`, que já existe) funcionam pelo modo `cotas`. Para ser coletado no pregão, declare também `agenda: ClassVar[Agenda] = AGENDA_B3`.
 
 Um tipo **sem cotação pública** (ex.: imóvel) pode herdar de `HandlerCotado` com quantidade 1 e preços `manual`. Um tipo com **rendimento calculado** (ex.: debênture) herda de `HandlerMontante` e implementa `criar_fator`.

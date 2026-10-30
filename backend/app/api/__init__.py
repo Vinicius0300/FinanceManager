@@ -10,8 +10,10 @@ from app.api import (
     financeiro,
     indicadores,
     instituicoes,
+    movimentacoes,
     portfolio,
     precos,
+    simbolos,
     transacoes,
 )
 
@@ -19,6 +21,8 @@ ROTEADORES: tuple[APIRouter, ...] = (
     instituicoes.router,
     ativos.router,
     transacoes.router,
+    movimentacoes.router,
+    simbolos.router,
     precos.router,
     indicadores.router,
     portfolio.router,

@@ -18,8 +18,12 @@ import { aplicarErrosDaApi } from "@/lib/formularios";
 import { SecaoBackups } from "./Backups";
 import { esquemaIntervalo } from "./definicoes";
 import { SecaoIndicadores } from "./Indicadores";
+import { SecaoListasTickers } from "./ListasTickers";
 
-/** Intervalo de atualização, tema, indicadores, backup/restauração e serviço interno. */
+/**
+ * Intervalo de atualização, tema, indicadores, lista de tickers, backup/restauração e
+ * serviço interno.
+ */
 export function TelaConfiguracoes({ agora = new Date() }: { agora?: Date }) {
   return (
     <div className="flex flex-col gap-4">
@@ -43,6 +47,7 @@ export function TelaConfiguracoes({ agora = new Date() }: { agora?: Date }) {
         </Secao>
       </div>
       <SecaoIndicadores agora={agora} />
+      <SecaoListasTickers />
       <SecaoBackups />
       <Secao titulo="Serviço interno">
         <TelaStatusBackend />

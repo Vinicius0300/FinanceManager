@@ -7,12 +7,15 @@ const tipo = (slug: string) =>
   (TIPOS_ATIVO as TipoAtivo[]).find((t) => t.slug === slug) as TipoAtivo;
 
 describe("esquema gerado a partir do schema do tipo de ativo (registry real)", () => {
-  it("os 7 tipos estão no contrato", () => {
+  it("os 10 tipos estão no contrato", () => {
     expect(TIPOS_ATIVO.map((t) => t.slug).sort()).toEqual([
       "acao_br",
       "acao_us",
       "cripto",
+      "etf_br",
+      "etf_us",
       "fundo",
+      "fundo_listado",
       "poupanca",
       "renda_fixa",
       "tesouro_direto",

@@ -37,6 +37,7 @@ from app.providers.base import (
     ResultadoCotacao,
     ResultadoHistorico,
     SimboloNaoEncontradoError,
+    SugestaoNome,
     valor_cambio,
     valor_cotacao,
 )
@@ -211,3 +212,51 @@ class ProviderYahoo:
             PontoIndicador(f.data, valor_cambio(f.valor, f"{ROTULO} {simbolo}"))
             for f in fechamentos
         ]
+
+
+# ------------------------------------------------------------ pesquisa por texto
+
+URL_PESQUISA = "https://query1.finance.yahoo.com/v1/finance/search"
+LIMITE_PESQUISA = 10
+
+
+class BuscaYahoo:
+    """Pesquisa de papéis por texto (sugere o nome no cadastro; nunca decide o tipo).
+
+    Usa um cliente próprio, de uma tentativa e timeout curto: a pesquisa responde ao
+    usuário enquanto ele digita e não deve esperar a fila da coleta.
+    """
+
+    nome = NOME
+
+    def __init__(self, http: ClienteHttp) -> None:
+        self._http = http
+
+    def buscar(self, texto: str) -> list[SugestaoNome]:
+        params: dict[str, str | int] = {
+            "q": texto,
+            "quotesCount": LIMITE_PESQUISA,
+            "newsCount": 0,
+            "listsCount": 0,
+        }
+        dados = self._http.get_json(URL_PESQUISA, params, ttl=TTL_CACHE_S)
+        cotacoes = dados.get("quotes") if isinstance(dados, dict) else None
+        if not isinstance(cotacoes, list):
+            raise RespostaInvalidaError(f"{ROTULO}: resposta inesperada na pesquisa.")
+        sugestoes: list[SugestaoNome] = []
+        for item in cotacoes:
+            if not isinstance(item, dict):
+                continue
+            simbolo = str(item.get("symbol") or "").strip().upper()
+            nome = str(item.get("longname") or item.get("shortname") or "").strip()
+            if not simbolo:
+                continue
+            sugestoes.append(
+                SugestaoNome(
+                    simbolo=simbolo,
+                    nome=nome or simbolo,
+                    simbolo_externo=simbolo,
+                    bolsa=str(item.get("exchange") or "") or None,
+                )
+            )
+        return sugestoes

@@ -21,6 +21,7 @@ from typing import Protocol
 
 from app.domain.enums import TipoIndicador
 from app.domain.indicadores import PontoIndicador
+from app.domain.listas import ItemListado
 from app.domain.numeros import CASAS_CAMBIO, CASAS_PRECO, CONTEXTO, ZERO, arredondar, dec
 
 
@@ -151,3 +152,46 @@ def valor_cambio(bruto: object, rotulo: str) -> Decimal:
 def valor_taxa(bruto: object, rotulo: str) -> Decimal:
     """Taxa em % (pode ser zero ou negativa, como IPCA de deflação), até 8 casas."""
     return _arredondado(_decimal(bruto, rotulo), CASAS_PRECO)
+
+
+# ------------------------------------------------------------------ listas e busca de nomes
+
+
+@dataclass(frozen=True)
+class ListaBaixada:
+    """Lista oficial de uma bolsa já classificada (ver ``domain/listas.py``)."""
+
+    bolsa: str
+    itens: list[ItemListado]
+    data_arquivo: date | None = None
+    status_arquivo: str | None = None  # ex.: "Parcial" (B3)
+    nao_mapeados: list[tuple[str, str]] = field(default_factory=list)
+
+
+class FonteListaSimbolos(Protocol):
+    """Fonte da lista oficial de tickers de uma bolsa (importada uma vez, atualizável)."""
+
+    bolsa: str
+    rotulo: str
+
+    def baixar(self, hoje: date) -> ListaBaixada:
+        """Baixa e classifica a lista mais recente; levanta ``ProviderError`` se falhar."""
+        ...
+
+
+@dataclass(frozen=True)
+class SugestaoNome:
+    """Resultado de uma pesquisa por texto numa fonte externa (nome e identificador)."""
+
+    simbolo: str
+    nome: str
+    simbolo_externo: str  # como a fonte identifica (Yahoo: PETR4.SA; CoinGecko: bitcoin)
+    bolsa: str | None = None  # código da bolsa na fonte (Yahoo: SAO, NMS, NYQ...)
+
+
+class ProviderBusca(Protocol):
+    """Pesquisa por texto (sugere nomes no cadastro; nunca decide o tipo do papel)."""
+
+    nome: str
+
+    def buscar(self, texto: str) -> list[SugestaoNome]: ...

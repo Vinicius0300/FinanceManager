@@ -224,6 +224,20 @@
         "title": "AtualizacaoIniciada",
         "type": "object"
       },
+      "AtualizacaoListaIniciada": {
+        "additionalProperties": false,
+        "properties": {
+          "mensagem": {
+            "title": "Mensagem",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mensagem"
+        ],
+        "title": "AtualizacaoListaIniciada",
+        "type": "object"
+      },
       "AtualizacaoStatus": {
         "additionalProperties": false,
         "properties": {
@@ -311,6 +325,57 @@
           "criado_em"
         ],
         "title": "BackupSaida",
+        "type": "object"
+      },
+      "BuscaSimbolosSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "atualizando_lista": {
+            "title": "Atualizando Lista",
+            "type": "boolean"
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "bolsa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bolsa"
+          },
+          "itens": {
+            "items": {
+              "$ref": "#/components/schemas/ItemBuscaSaida"
+            },
+            "title": "Itens",
+            "type": "array"
+          },
+          "lista_disponivel": {
+            "title": "Lista Disponivel",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "itens",
+          "bolsa",
+          "lista_disponivel",
+          "atualizando_lista",
+          "aviso"
+        ],
+        "title": "BuscaSimbolosSaida",
         "type": "object"
       },
       "CaixaSaida": {
@@ -1162,6 +1227,93 @@
         "title": "InstituicaoSaida",
         "type": "object"
       },
+      "ItemBuscaSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "ativo_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ativo Id"
+          },
+          "campos_sugeridos": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Campos Sugeridos",
+            "type": "object"
+          },
+          "categoria": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria"
+          },
+          "nome": {
+            "title": "Nome",
+            "type": "string"
+          },
+          "origem": {
+            "title": "Origem",
+            "type": "string"
+          },
+          "simbolo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Simbolo"
+          },
+          "simbolo_externo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Simbolo Externo"
+          },
+          "tipo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo"
+          }
+        },
+        "required": [
+          "simbolo",
+          "nome",
+          "tipo",
+          "origem",
+          "ativo_id",
+          "simbolo_externo",
+          "categoria",
+          "campos_sugeridos"
+        ],
+        "title": "ItemBuscaSaida",
+        "type": "object"
+      },
       "LancamentoEntrada": {
         "additionalProperties": false,
         "properties": {
@@ -1297,6 +1449,88 @@
         "title": "LancamentoSaida",
         "type": "object"
       },
+      "ListaSimbolosSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "atualizado_em": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Atualizado Em"
+          },
+          "bolsa": {
+            "title": "Bolsa",
+            "type": "string"
+          },
+          "data_arquivo": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Arquivo"
+          },
+          "quantidade": {
+            "title": "Quantidade",
+            "type": "integer"
+          },
+          "status_arquivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Arquivo"
+          },
+          "ultima_tentativa": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultima Tentativa"
+          },
+          "ultimo_erro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultimo Erro"
+          }
+        },
+        "required": [
+          "bolsa",
+          "quantidade",
+          "atualizado_em",
+          "ultima_tentativa",
+          "status_arquivo",
+          "data_arquivo",
+          "ultimo_erro"
+        ],
+        "title": "ListaSimbolosSaida",
+        "type": "object"
+      },
       "MetricasSaida": {
         "additionalProperties": false,
         "properties": {
@@ -1408,6 +1642,193 @@
           "rentabilidade_total"
         ],
         "title": "MetricasSaida",
+        "type": "object"
+      },
+      "MovimentacaoEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "aceitar_ajuste": {
+            "default": false,
+            "title": "Aceitar Ajuste",
+            "type": "boolean"
+          },
+          "ativo_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ativo Id"
+          },
+          "cambio": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cambio"
+          },
+          "confirmar_novo": {
+            "default": false,
+            "title": "Confirmar Novo",
+            "type": "boolean"
+          },
+          "data": {
+            "format": "date",
+            "title": "Data",
+            "type": "string"
+          },
+          "imposto_retido": {
+            "default": "0",
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Imposto Retido",
+            "type": "string"
+          },
+          "instituicao_id": {
+            "title": "Instituicao Id",
+            "type": "integer"
+          },
+          "novo_ativo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AtivoEntrada"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observacao": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observacao"
+          },
+          "preco_unitario": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preco Unitario"
+          },
+          "quantidade": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantidade"
+          },
+          "subtipo_provento": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SubtipoProvento"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "taxas": {
+            "default": "0",
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Taxas",
+            "type": "string"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoTransacao"
+          },
+          "usar_ativo_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usar Ativo Id"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor"
+          }
+        },
+        "required": [
+          "instituicao_id",
+          "tipo",
+          "data"
+        ],
+        "title": "MovimentacaoEntrada",
+        "type": "object"
+      },
+      "MovimentacaoSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "ativo": {
+            "$ref": "#/components/schemas/AtivoSaida"
+          },
+          "ativo_criado": {
+            "title": "Ativo Criado",
+            "type": "boolean"
+          },
+          "transacao": {
+            "$ref": "#/components/schemas/TransacaoSaida"
+          }
+        },
+        "required": [
+          "transacao",
+          "ativo",
+          "ativo_criado"
+        ],
+        "title": "MovimentacaoSaida",
         "type": "object"
       },
       "MovimentoEntrada": {
@@ -2501,6 +2922,28 @@
         "title": "ResumoSaida",
         "type": "object"
       },
+      "SituacaoListasSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "em_andamento": {
+            "title": "Em Andamento",
+            "type": "boolean"
+          },
+          "listas": {
+            "items": {
+              "$ref": "#/components/schemas/ListaSimbolosSaida"
+            },
+            "title": "Listas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "em_andamento",
+          "listas"
+        ],
+        "title": "SituacaoListasSaida",
+        "type": "object"
+      },
       "SituacaoPosicao": {
         "enum": [
           "aberta",
@@ -2682,6 +3125,10 @@
             "title": "Aceita Taxas",
             "type": "boolean"
           },
+          "busca_por_ticker": {
+            "title": "Busca Por Ticker",
+            "type": "boolean"
+          },
           "campos": {
             "items": {
               "$ref": "#/components/schemas/CampoTipo"
@@ -2692,6 +3139,17 @@
           "descricao": {
             "title": "Descricao",
             "type": "string"
+          },
+          "lista_simbolos": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lista Simbolos"
           },
           "modo": {
             "title": "Modo",
@@ -2745,6 +3203,8 @@
           "provider",
           "tipos_transacao",
           "aceita_taxas",
+          "busca_por_ticker",
+          "lista_simbolos",
           "campos"
         ],
         "title": "TipoAtivoSaida",
@@ -6313,6 +6773,83 @@
         ]
       }
     },
+    "/api/movimentacoes": {
+      "post": {
+        "description": "Informe `ativo_id` ou `novo_ativo`. O ativo novo passa pela deduplicação do tipo (o mesmo ticker, CNPJ, id de cripto ou título é reaproveitado). Só compra e aporte criam ativo. 409 `saldo_insuficiente`: reenvie com `aceitar_ajuste=true`. 409 `ativo_semelhante`: reenvie com `usar_ativo_id` ou `confirmar_novo=true`.",
+        "operationId": "registrar_movimentacao",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MovimentacaoEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovimentacaoSaida"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Registro não encontrado."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Conflito com os dados atuais."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Dados inválidos ou regra de negócio violada."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Registra uma movimentação, criando o ativo se ele ainda não existir",
+        "tags": [
+          "movimentações"
+        ]
+      }
+    },
     "/api/movimentos": {
       "post": {
         "description": "Saque maior que o saldo disponível é recusado (422, `saldo_insuficiente`).",
@@ -7455,6 +7992,162 @@
         "summary": "Receitas, despesas, saldo e totais por categoria do mês",
         "tags": [
           "receitas e despesas"
+        ]
+      }
+    },
+    "/api/simbolos/atualizar": {
+      "post": {
+        "description": "Roda em segundo plano (B3 e EUA); o fim chega pelos eventos `lista_atualizada` ou `erro_lista`. Se já houver uma atualização rodando, responde 409.",
+        "operationId": "atualizar_listas",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AtualizacaoListaIniciada"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Conflito com os dados atuais."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Baixa de novo as listas oficiais de tickers",
+        "tags": [
+          "símbolos"
+        ]
+      }
+    },
+    "/api/simbolos/busca": {
+      "get": {
+        "description": "Ativos já cadastrados, a lista oficial da bolsa do tipo (com o tipo oficial de cada papel) e, se o ticker não estiver na lista, a pesquisa externa (só para sugerir o nome). Cripto: pesquisa da CoinGecko.",
+        "operationId": "buscar_simbolos",
+        "parameters": [
+          {
+            "description": "Slug do tipo de ativo escolhido.",
+            "in": "query",
+            "name": "tipo",
+            "required": true,
+            "schema": {
+              "description": "Slug do tipo de ativo escolhido.",
+              "title": "Tipo",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Ticker ou parte do nome.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Ticker ou parte do nome.",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuscaSimbolosSaida"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Dados inválidos ou regra de negócio violada."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Busca um ativo para o cadastro de movimentações",
+        "tags": [
+          "símbolos"
+        ]
+      }
+    },
+    "/api/simbolos/listas": {
+      "get": {
+        "operationId": "obter_listas",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SituacaoListasSaida"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Situação das listas oficiais de tickers",
+        "tags": [
+          "símbolos"
         ]
       }
     },

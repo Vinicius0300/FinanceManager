@@ -177,12 +177,18 @@ def test_tipos_de_ativo_e_crud_de_ativos(api: TestClient) -> None:
         "acao_br",
         "acao_us",
         "cripto",
+        "etf_br",
+        "etf_us",
         "fundo",
+        "fundo_listado",
         "poupanca",
         "renda_fixa",
         "tesouro_direto",
     }
     assert tipos["tesouro_direto"]["aceita_taxas"] is False
+    assert tipos["fundo_listado"]["lista_simbolos"] == "B3"
+    assert tipos["cripto"]["busca_por_ticker"] is True
+    assert tipos["renda_fixa"]["busca_por_ticker"] is False
     assert api.get("/api/tipos-ativo/fii").json()["codigo"] == "validacao"
 
     tesouro = criar(

@@ -73,7 +73,11 @@ export function prepararFatias(
   return [...prontas, ...caixa.map((f) => ({ ...f, cor: cores.caixa }))];
 }
 
-/** Ordem fixa das categorias de tipo de ativo (os 6 primeiros têm cor própria). */
+/**
+ * Ordem fixa das categorias de tipo de ativo (os 6 primeiros têm cor própria). Os tipos da
+ * Parte 4.1 entram no fim para não mudar a cor dos existentes; presentes no gráfico, usam a
+ * primeira cor livre (ou "Outros" acima de 6 categorias). Rever na Parte 5.
+ */
 export const ORDEM_TIPOS_ATIVO = [
   "acao_br",
   "renda_fixa",
@@ -82,4 +86,7 @@ export const ORDEM_TIPOS_ATIVO = [
   "tesouro_direto",
   "cripto",
   "poupanca",
+  "fundo_listado",
+  "etf_br",
+  "etf_us",
 ] as const;

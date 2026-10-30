@@ -26,6 +26,7 @@ from app.jobs.eventos import CanalEventos
 from app.providers.catalogo import criar_registro_providers
 from app.providers.registry import RegistroProviders
 from app.services.coleta import Coletor
+from app.services.simbolos import ImportadorListas
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +61,12 @@ async def _ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:
     canal = CanalEventos()
     canal.vincular(asyncio.get_running_loop())
     coletor = Coletor(fabrica, providers, relogio=app.state.relogio, publicar=canal.publicar)
-    agendador = Agendador(coletor, fabrica)
+    importador = ImportadorListas(
+        fabrica, providers, relogio=app.state.relogio, publicar=canal.publicar
+    )
+    agendador = Agendador(coletor, fabrica, importador=importador)
     app.state.canal_eventos = canal
+    app.state.registro_providers = providers
     app.state.agendador = agendador
     if settings.atualizacao_automatica:
         agendador.iniciar()

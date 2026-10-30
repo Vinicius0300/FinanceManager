@@ -1,5 +1,6 @@
 """Banco: tipos de coluna, pragmas, constraints, backup e migrações com backup prévio."""
 
+import json
 import sqlite3
 from contextlib import closing
 from datetime import UTC, date, datetime, timedelta, timezone
@@ -45,8 +46,10 @@ TABELAS = {
     "indicadores",
     "instituicoes",
     "lancamentos",
+    "listas_simbolos",
     "movimentos_conta",
     "precos",
+    "simbolos_listados",
     "transacoes",
 }
 
@@ -74,7 +77,7 @@ def test_migra_banco_novo_ate_a_head_sem_backup(banco: Path, pasta_backups: Path
     banco.parent.mkdir(parents=True)
     resultado = migrar_banco(banco, pasta_backups)
     assert resultado.revisao_anterior is None
-    assert resultado.revisao_atual == "0003_precos_diarios_estado_coleta"
+    assert resultado.revisao_atual == "0004_listas_simbolos"
     assert resultado.migrou
     assert resultado.backup is None
     assert tabelas(banco) == TABELAS
@@ -261,6 +264,34 @@ def test_migracao_0003_deixa_um_preco_por_dia_mantendo_o_ultimo(banco: Path) -> 
         # O CHECK antigo continua valendo depois da recriação da tabela.
         with pytest.raises(sqlite3.IntegrityError, match="provider_automatico"):
             conexao.execute("UPDATE precos SET origem = 'automatico' WHERE id = 4")
+
+
+def test_migracao_0004_tira_o_tipo_de_papel_etf_sem_mudar_o_tipo(banco: Path) -> None:
+    # ETF passou a ter tipo próprio: o campo opcional "ETF" sai (senão a edição recusaria
+    # a opção extinta); o ativo continua acao_br e os demais metadados ficam.
+    banco.parent.mkdir(parents=True)
+    configuracao = configuracao_alembic(banco)
+    command.upgrade(configuracao, "0003_precos_diarios_estado_coleta")
+    with closing(sqlite3.connect(banco)) as conexao:
+        conexao.executescript(
+            """
+            INSERT INTO ativos VALUES
+                (1, 'acao_br', 'BOVA11', 'B', 'BRL', NULL, NULL,
+                 '{"tipo_papel": "ETF", "setor": "Índice"}', '2025-01-01'),
+                (2, 'acao_br', 'PETR4', 'P', 'BRL', NULL, NULL,
+                 '{"tipo_papel": "PN"}', '2025-01-01'),
+                (3, 'acao_us', 'SPY', 'S', 'USD', NULL, NULL, '{"bolsa": "OUTRA"}', '2025-01-01');
+            """
+        )
+        conexao.commit()
+    command.upgrade(configuracao, "head")
+    with closing(sqlite3.connect(banco)) as conexao:
+        linhas = conexao.execute("SELECT id, tipo, metadados FROM ativos ORDER BY id").fetchall()
+    assert [(i, t, json.loads(md)) for i, t, md in linhas] == [
+        (1, "acao_br", {"setor": "Índice"}),
+        (2, "acao_br", {"tipo_papel": "PN"}),
+        (3, "acao_us", {"bolsa": "OUTRA"}),
+    ]
 
 
 def test_estado_coleta_e_removido_com_o_ativo(sessao: Session) -> None:

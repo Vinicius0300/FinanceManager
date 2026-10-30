@@ -375,3 +375,37 @@ class Configuracao(Base):
     chave: Mapped[str] = mapped_column(String(80), primary_key=True)
     valor: Mapped[Any] = mapped_column(JSON)
     atualizado_em: Mapped[datetime] = mapped_column(default=agora_utc, onupdate=agora_utc)
+
+
+class ListaSimbolos(Base):
+    """Situação da lista oficial de tickers de uma bolsa (``B3`` ou ``EUA``)."""
+
+    __tablename__ = "listas_simbolos"
+
+    bolsa: Mapped[str] = mapped_column(String(10), primary_key=True)
+    ultima_tentativa: Mapped[datetime | None]
+    atualizado_em: Mapped[datetime | None]  # último sucesso
+    quantidade: Mapped[int] = mapped_column(Integer, default=0)
+    status_arquivo: Mapped[str | None] = mapped_column(String(60))  # ex.: "Parcial"
+    data_arquivo: Mapped[date | None]
+    ultimo_erro: Mapped[str | None] = mapped_column(String(500))
+
+
+class SimboloListado(Base):
+    """Papel da lista oficial (só ticker, nome e classificação; nunca preços)."""
+
+    __tablename__ = "simbolos_listados"
+    __table_args__ = (
+        UniqueConstraint("bolsa", "simbolo"),
+        Index("ix_simbolos_listados_simbolo", "simbolo"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bolsa: Mapped[str] = mapped_column(String(10))
+    simbolo: Mapped[str] = mapped_column(String(30))
+    nome: Mapped[str] = mapped_column(String(150))
+    tipo: Mapped[str] = mapped_column(String(40))  # slug do tipo de ativo do app
+    tipo_papel: Mapped[str | None] = mapped_column(String(20))
+    bolsa_eua: Mapped[str | None] = mapped_column(String(10))
+    categoria: Mapped[str] = mapped_column(String(60))  # categoria original da fonte
+    simbolo_yahoo: Mapped[str] = mapped_column(String(60))

@@ -55,6 +55,9 @@ const EVENTOS_QUE_INVALIDAM = new Set([
   "fim_ciclo",
 ]);
 
+/** Lista oficial de tickers importada (ou falhou): refaz a busca do cadastro e a situação. */
+const EVENTOS_DE_LISTA = new Set(["lista_atualizada", "erro_lista"]);
+
 export function invalidarCotacoes(queryClient: QueryClient): Promise<void> {
   return queryClient.invalidateQueries({
     predicate: (consulta) =>
@@ -77,6 +80,10 @@ export function useAtualizacaoTempoReal(): void {
 
   useEventosTempoReal((evento) => {
     registrar(evento);
+    if (EVENTOS_DE_LISTA.has(evento.tipo)) {
+      void queryClient.invalidateQueries({ queryKey: ["simbolos"] });
+      return;
+    }
     if (!EVENTOS_QUE_INVALIDAM.has(evento.tipo)) return;
     if (temporizador.current) return;
     temporizador.current = setTimeout(() => {

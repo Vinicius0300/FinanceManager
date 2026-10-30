@@ -2,13 +2,15 @@
   {
     "slug": "acao_br",
     "nome": "Ação (Brasil)",
-    "descricao": "Ações, units, ETFs e BDRs negociados na B3.",
+    "descricao": "Ações, units e BDRs negociados na B3.",
     "modo": "cotas",
     "moeda_padrao": "BRL",
     "moedas_aceitas": ["BRL"],
     "provider": "yfinance",
     "tipos_transacao": ["compra", "provento", "venda"],
     "aceita_taxas": true,
+    "busca_por_ticker": true,
+    "lista_simbolos": "B3",
     "campos": [
       {
         "nome": "tipo_papel",
@@ -28,10 +30,6 @@
           {
             "valor": "UNIT",
             "rotulo": "Unit"
-          },
-          {
-            "valor": "ETF",
-            "rotulo": "ETF"
           },
           {
             "valor": "BDR",
@@ -58,13 +56,15 @@
   {
     "slug": "acao_us",
     "nome": "Ação (EUA)",
-    "descricao": "Ações e ETFs negociados em bolsas dos Estados Unidos, em dólar.",
+    "descricao": "Ações negociadas em bolsas dos Estados Unidos, em dólar.",
     "modo": "cotas",
     "moeda_padrao": "USD",
     "moedas_aceitas": ["USD"],
     "provider": "yfinance",
     "tipos_transacao": ["compra", "provento", "venda"],
     "aceita_taxas": true,
+    "busca_por_ticker": true,
+    "lista_simbolos": "EUA",
     "campos": [
       {
         "nome": "bolsa",
@@ -106,7 +106,66 @@
     "provider": "coingecko",
     "tipos_transacao": ["compra", "venda"],
     "aceita_taxas": true,
+    "busca_por_ticker": true,
+    "lista_simbolos": null,
     "campos": []
+  },
+  {
+    "slug": "etf_br",
+    "nome": "ETF (Brasil)",
+    "descricao": "Fundos de índice negociados na B3, como BOVA11, IVVB11 e FIXA11.",
+    "modo": "cotas",
+    "moeda_padrao": "BRL",
+    "moedas_aceitas": ["BRL"],
+    "provider": "yfinance",
+    "tipos_transacao": ["compra", "provento", "venda"],
+    "aceita_taxas": true,
+    "busca_por_ticker": true,
+    "lista_simbolos": "B3",
+    "campos": []
+  },
+  {
+    "slug": "etf_us",
+    "nome": "ETF (EUA)",
+    "descricao": "Fundos de índice negociados nos Estados Unidos, em dólar (ex.: SPY, VOO).",
+    "modo": "cotas",
+    "moeda_padrao": "USD",
+    "moedas_aceitas": ["USD"],
+    "provider": "yfinance",
+    "tipos_transacao": ["compra", "provento", "venda"],
+    "aceita_taxas": true,
+    "busca_por_ticker": true,
+    "lista_simbolos": "EUA",
+    "campos": [
+      {
+        "nome": "bolsa",
+        "rotulo": "Bolsa",
+        "tipo": "escolha",
+        "obrigatorio": false,
+        "ajuda": null,
+        "opcoes": [
+          {
+            "valor": "NYSE",
+            "rotulo": "NYSE"
+          },
+          {
+            "valor": "NASDAQ",
+            "rotulo": "NASDAQ"
+          },
+          {
+            "valor": "AMEX",
+            "rotulo": "NYSE American (AMEX)"
+          },
+          {
+            "valor": "OUTRA",
+            "rotulo": "Outra"
+          }
+        ],
+        "minimo": null,
+        "maximo": null,
+        "tamanho_maximo": null
+      }
+    ]
   },
   {
     "slug": "fundo",
@@ -118,6 +177,8 @@
     "provider": "cvm",
     "tipos_transacao": ["compra", "provento", "venda"],
     "aceita_taxas": true,
+    "busca_por_ticker": false,
+    "lista_simbolos": null,
     "campos": [
       {
         "nome": "cnpj",
@@ -165,6 +226,20 @@
     ]
   },
   {
+    "slug": "fundo_listado",
+    "nome": "Fundo listado (FII, Fiagro, FI-Infra)",
+    "descricao": "Cotas de fundos negociadas na B3, como FIIs, Fiagros e FI-Infra.",
+    "modo": "cotas",
+    "moeda_padrao": "BRL",
+    "moedas_aceitas": ["BRL"],
+    "provider": "yfinance",
+    "tipos_transacao": ["compra", "provento", "venda"],
+    "aceita_taxas": true,
+    "busca_por_ticker": true,
+    "lista_simbolos": "B3",
+    "campos": []
+  },
+  {
     "slug": "poupanca",
     "nome": "Poupança",
     "descricao": "Caderneta de poupança, com rendimento creditado no aniversário mensal.",
@@ -174,6 +249,8 @@
     "provider": null,
     "tipos_transacao": ["aporte", "resgate"],
     "aceita_taxas": true,
+    "busca_por_ticker": false,
+    "lista_simbolos": null,
     "campos": []
   },
   {
@@ -186,6 +263,8 @@
     "provider": null,
     "tipos_transacao": ["aporte", "resgate"],
     "aceita_taxas": true,
+    "busca_por_ticker": false,
+    "lista_simbolos": null,
     "campos": [
       {
         "nome": "indexador",
@@ -287,6 +366,8 @@
     "provider": "tesouro",
     "tipos_transacao": ["compra", "provento", "venda"],
     "aceita_taxas": false,
+    "busca_por_ticker": false,
+    "lista_simbolos": null,
     "campos": [
       {
         "nome": "titulo",

@@ -4,7 +4,6 @@ import { invalidarCotacoes } from "@/features/tempo-real/atualizacao";
 import { exigir } from "@/lib/api";
 import { useClienteApi } from "@/lib/cliente-api";
 import { useGravacao } from "@/lib/consultas-comuns";
-import type { AtivoEntrada } from "./esquemaAtivo";
 
 export type StatusAtivo = components["schemas"]["StatusAtivoSaida"];
 export type Preco = components["schemas"]["PrecoSaida"];
@@ -57,13 +56,6 @@ export function usePrecos(ativoId: number, inicio: string) {
         }),
       ),
   });
-}
-
-export function useCriarAtivo() {
-  const { cliente } = useClienteApi();
-  return useGravacao(async (corpo: AtivoEntrada) =>
-    exigir(await cliente.POST("/api/ativos", { body: corpo })),
-  );
 }
 
 export function useEditarAtivo() {

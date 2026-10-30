@@ -33,6 +33,7 @@ from app.services.cadastros import (
     _texto_opcional,
     handler_do_ativo,
     obter_ativo,
+    simbolo_externo_efetivo,
 )
 from app.services.coleta import chave_ativo
 from app.services.mercado import carregar_indicadores
@@ -83,13 +84,15 @@ def editar_ativo(
     ativo = obter_ativo(sessao, ativo_id)
     handler = handler_do_ativo(ativo, registro)
     nome = _texto_obrigatorio(dados.nome, "nome", "O nome do ativo", TAMANHO_NOME_ATIVO)
-    externo = _texto_opcional(
+    informado = _texto_opcional(
         dados.simbolo_externo, "simbolo_externo", "O símbolo externo", TAMANHO_SIMBOLO_EXTERNO
     )
+    externo = simbolo_externo_efetivo(handler, informado, ativo.simbolo)
+    anterior = simbolo_externo_efetivo(handler, ativo.simbolo_externo, ativo.simbolo)
     metadados = dict(handler.validar_metadados(dados.metadados))
     if metadados != ativo.metadados:
         _validar_operacoes(sessao, ativo, metadados, registro)
-    identificacao_mudou = externo != ativo.simbolo_externo or any(
+    identificacao_mudou = externo != anterior or any(
         metadados.get(campo) != ativo.metadados.get(campo) for campo in handler.campos_identificacao
     )
     ativo.nome = nome

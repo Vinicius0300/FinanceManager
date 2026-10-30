@@ -48,7 +48,8 @@ describe("fatias com cor fixa por categoria", () => {
   });
 
   it("acima de 6 categorias o resto vira Outros (soma exata, cor de caixa)", () => {
-    // 7 tipos + caixa: a 7ª categoria na ordem fixa (poupança) vai para "Outros".
+    // 10 tipos + caixa: da 7ª categoria na ordem fixa em diante (poupança, fundo listado,
+    // ETF BR e ETF EUA) tudo vai para "Outros".
     const entrada = [
       ...ORDEM_TIPOS_ATIVO.map((t, i) => fatia(t, `${i + 1}0.10`, "0.1")),
       fatia("desconhecido", "0.05", "0.005"),
@@ -57,11 +58,12 @@ describe("fatias com cor fixa por categoria", () => {
     const prontas = prepararFatias(entrada, ORDEM_TIPOS_ATIVO, CORES);
     expect(prontas).toHaveLength(8);
     const outros = prontas.find((f) => f.categoria === "outros");
-    // poupança 70,10 + desconhecido 0,05 = 70,15; percentuais 0,1 + 0,005 = 0,105.
+    // 70,10 + 80,10 + 90,10 + 100,10 + desconhecido 0,05 = 340,45;
+    // percentuais 4 × 0,1 + 0,005 = 0,405.
     expect(outros).toMatchObject({
       rotulo: "Outros",
-      valor: "70.15",
-      percentual: "0.105",
+      valor: "340.45",
+      percentual: "0.405",
       cor: "cx",
     });
     expect(prontas.at(-1)?.categoria).toBe("caixa");

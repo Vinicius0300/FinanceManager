@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Campo } from "@/components/Campo";
 import { Carregando, EstadoErro } from "@/components/Estados";
 import {
@@ -11,9 +10,13 @@ import {
 import { Select } from "@/components/ui/input";
 import { useTiposAtivo, type Ativo } from "@/lib/consultas-comuns";
 import { FormularioAtivo } from "./FormularioAtivo";
-import { useCriarAtivo, useEditarAtivo } from "./consultas";
+import { useEditarAtivo } from "./consultas";
 
-/** Cadastro (tipo escolhível) ou edição (tipo, moeda e símbolo bloqueados) de um ativo. */
+/**
+ * Edição de um ativo (nome, símbolo na fonte e campos específicos). Tipo, moeda e ticker
+ * ficam bloqueados. Desde a Parte 4.1 o cadastro é feito na própria movimentação
+ * (formulário único em Movimentações); não há mais "Novo ativo" separado.
+ */
 export function DialogoAtivo({
   aberto,
   aoMudar,
@@ -21,18 +24,13 @@ export function DialogoAtivo({
 }: {
   aberto: boolean;
   aoMudar: (aberto: boolean) => void;
-  ativo?: Ativo;
+  ativo: Ativo;
 }) {
   const tipos = useTiposAtivo();
-  const [slug, setSlug] = useState<string>(ativo?.tipo ?? "acao_br");
-  const criar = useCriarAtivo();
   const editar = useEditarAtivo();
-  const edicao = ativo !== undefined;
-  const tipo = tipos.data?.find((t) => t.slug === (ativo?.tipo ?? slug));
-  const mutacao = edicao ? editar : criar;
+  const tipo = tipos.data?.find((t) => t.slug === ativo.tipo);
 
   const fechar = () => {
-    criar.reset();
     editar.reset();
     aoMudar(false);
   };
@@ -47,9 +45,7 @@ export function DialogoAtivo({
     >
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>
-            {edicao ? `Editar ${ativo.simbolo ?? ativo.nome}` : "Novo ativo"}
-          </DialogTitle>
+          <DialogTitle>{`Editar ${ativo.simbolo ?? ativo.nome}`}</DialogTitle>
           <DialogDescription>
             Os campos mudam conforme o tipo de ativo. Valores com vírgula: 1.234,56.
           </DialogDescription>
@@ -60,18 +56,8 @@ export function DialogoAtivo({
           <EstadoErro erro={tipos.error} />
         ) : (
           <>
-            <Campo
-              rotulo="Tipo de ativo"
-              ajuda={edicao ? "O tipo não pode ser alterado." : tipo?.descricao}
-            >
-              <Select
-                value={ativo?.tipo ?? slug}
-                disabled={edicao}
-                onChange={(e) => {
-                  setSlug(e.target.value);
-                  criar.reset();
-                }}
-              >
+            <Campo rotulo="Tipo de ativo" ajuda="O tipo não pode ser alterado.">
+              <Select value={ativo.tipo} disabled>
                 {tipos.data.map((t) => (
                   <option key={t.slug} value={t.slug}>
                     {t.nome}
@@ -84,22 +70,18 @@ export function DialogoAtivo({
                 key={tipo.slug}
                 tipo={tipo}
                 ativo={ativo}
-                ocupado={mutacao.isPending}
-                erro={mutacao.error}
+                ocupado={editar.isPending}
+                erro={editar.error}
                 aoCancelar={fechar}
                 aoSalvar={async (entrada) => {
-                  if (edicao) {
-                    await editar.mutateAsync({
-                      id: ativo.id,
-                      corpo: {
-                        nome: entrada.nome,
-                        simbolo_externo: entrada.simbolo_externo ?? null,
-                        metadados: entrada.metadados ?? {},
-                      },
-                    });
-                  } else {
-                    await criar.mutateAsync(entrada);
-                  }
+                  await editar.mutateAsync({
+                    id: ativo.id,
+                    corpo: {
+                      nome: entrada.nome,
+                      simbolo_externo: entrada.simbolo_externo ?? null,
+                      metadados: entrada.metadados ?? {},
+                    },
+                  });
                   fechar();
                 }}
               />

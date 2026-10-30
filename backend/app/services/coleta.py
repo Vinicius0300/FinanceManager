@@ -74,7 +74,14 @@ RECOLETA_IPCA = timedelta(days=100)
 DIAS_CAMBIO_INTRADIARIO = 4
 TAMANHO_ERRO = 500
 
-TipoEvento = Literal["preco_atualizado", "indicador_atualizado", "erro_provider", "fim_ciclo"]
+TipoEvento = Literal[
+    "preco_atualizado",
+    "indicador_atualizado",
+    "erro_provider",
+    "fim_ciclo",
+    "lista_atualizada",  # lista oficial de tickers importada (services/simbolos.py)
+    "erro_lista",
+]
 
 
 @dataclass(frozen=True)

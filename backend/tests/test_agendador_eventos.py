@@ -205,3 +205,85 @@ def test_tipos_de_evento_viram_mensagens(tipo: str) -> None:
         assert (mensagem.evento, mensagem.dados) == (tipo, {"x": 1})
 
     asyncio.run(cenario())
+
+
+# ---------------------------------------------------------------- listas de tickers
+
+
+class ImportadorFalso:
+    """Importador de listas programável (sem rede): registra as bolsas pedidas."""
+
+    def __init__(self, pendentes: list[str]) -> None:
+        self._pendentes = pendentes
+        self.execucoes: list[list[str] | None] = []
+        self.liberar = threading.Event()
+        self.liberar.set()
+
+    def pendentes(self) -> list[str]:
+        return list(self._pendentes)
+
+    def executar(self, bolsas: list[str] | None = None) -> list[object]:
+        self.liberar.wait(timeout=5)
+        self.execucoes.append(None if bolsas is None else list(bolsas))
+        return []
+
+
+def agendador_com_listas(engine: Engine, importador: ImportadorFalso) -> Agendador:
+    from app.services.simbolos import ImportadorListas
+
+    return Agendador(
+        cast(Coletor, ColetorFalso()),
+        criar_fabrica_sessoes(engine),
+        importador=cast(ImportadorListas, importador),
+    )
+
+
+def test_ao_iniciar_importa_so_as_bolsas_sem_lista(engine: Engine) -> None:
+    async def cenario() -> None:
+        com_pendente = ImportadorFalso(["EUA"])
+        ag = agendador_com_listas(engine, com_pendente)
+        ag.iniciar()
+        await asyncio.sleep(0.1)
+        await ag.parar()
+        assert com_pendente.execucoes == [["EUA"]]
+
+        sem_pendente = ImportadorFalso([])
+        ag2 = agendador_com_listas(engine, sem_pendente)
+        ag2.iniciar()
+        await asyncio.sleep(0.1)
+        await ag2.parar()
+        assert sem_pendente.execucoes == []  # nada a importar: nem chama
+
+    asyncio.run(cenario())
+
+
+def test_atualizar_listas_recusa_uma_segunda_ao_mesmo_tempo(engine: Engine) -> None:
+    async def cenario() -> None:
+        importador = ImportadorFalso([])
+        importador.liberar.clear()
+        ag = agendador_com_listas(engine, importador)
+        assert ag.importar_listas(["B3"]).iniciado
+        await asyncio.sleep(0.05)
+        assert ag.importando_listas
+        segunda = ag.importar_listas()
+        assert not segunda.iniciado
+        assert segunda.mensagem == "A lista de tickers já está sendo atualizada."
+        importador.liberar.set()
+        await asyncio.sleep(0.1)
+        assert not ag.importando_listas
+        assert importador.execucoes == [["B3"]]
+        # Sem o loop do agendador rodando (iniciar não chamado), pedir de outra thread
+        # não agenda nada.
+        assert ag.importar_listas_de_outra_thread(["B3"]) is False
+
+    asyncio.run(cenario())
+
+
+def test_sem_importador_a_atualizacao_de_listas_e_recusada(engine: Engine) -> None:
+    async def cenario() -> None:
+        ag = agendador(engine, ColetorFalso())
+        disparo = ag.importar_listas()
+        assert not disparo.iniciado
+        assert ag.importar_listas_de_outra_thread(["B3"]) is False
+
+    asyncio.run(cenario())

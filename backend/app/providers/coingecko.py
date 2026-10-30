@@ -26,6 +26,7 @@ from app.providers.base import (
     ResultadoCotacao,
     ResultadoHistorico,
     SimboloNaoEncontradoError,
+    SugestaoNome,
     valor_cotacao,
 )
 from app.providers.http import ClienteHttp
@@ -35,6 +36,7 @@ NOME = "coingecko"
 ROTULO = "CoinGecko"
 DIAS_MAXIMOS_HISTORICO = 364
 TTL_CACHE_S = 60.0
+LIMITE_PESQUISA = 10
 
 IDS_CONHECIDOS = {
     "BTC": "bitcoin",
@@ -185,4 +187,32 @@ class ProviderCoinGecko:
         return [
             Fechamento(dia, valor_cotacao(valor, f"{ROTULO} {identificador}"))
             for dia, (_, valor) in sorted(ultimo_do_dia.items())
+        ]
+
+
+class BuscaCoinGecko:
+    """Pesquisa de criptomoedas por símbolo ou nome (id da CoinGecko como identificador).
+
+    Cliente próprio, de uma tentativa e timeout curto (a pesquisa responde ao usuário
+    enquanto ele digita). Resultados por valor de mercado (maior primeiro).
+    """
+
+    nome = NOME
+
+    def __init__(self, http: ClienteHttp) -> None:
+        self._http = http
+
+    def buscar(self, texto: str) -> list[SugestaoNome]:
+        dados = self._http.get_json(f"{URL_BASE}/search", {"query": texto}, ttl=TTL_CACHE_S)
+        moedas = dados.get("coins") if isinstance(dados, dict) else None
+        if not isinstance(moedas, list):
+            raise RespostaInvalidaError(f"{ROTULO}: resposta inesperada na pesquisa.")
+        validas = [m for m in moedas if isinstance(m, dict) and m.get("id") and m.get("symbol")]
+        return [
+            SugestaoNome(
+                simbolo=str(m["symbol"]).upper(),
+                nome=str(m.get("name") or m["symbol"]),
+                simbolo_externo=str(m["id"]),
+            )
+            for m in sorted(validas, key=_rank)[:LIMITE_PESQUISA]
         ]

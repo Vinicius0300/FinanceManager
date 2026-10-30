@@ -20,6 +20,7 @@ A paleta de cores é definitiva desde a Parte 4 (seção 8.3); o restante do vis
 | 2 | Modelos e banco (SQLite + SQLAlchemy + Alembic com backup prévio), registry de tipos de ativo, services de cálculo com `Decimal` (posição, caixa por instituição, eventos, câmbio, renda fixa, poupança, alocação, série de patrimônio, resumo mensal), estrutura de `analytics/` e testes, com o code review aplicado | **Validada** |
 | 3 | Providers de cotação (Yahoo, CoinGecko, SGS, Tesouro Transparente, CVM) em registry; tipo Tesouro Direto; um preço por dia e histórico de 1 ano; atualização em segundo plano (asyncio) com estado por alvo; services de edição; API REST completa (OpenAPI) com 409 de saldo insuficiente; backup/restauração pela API; SSE; cliente TS e hook de exemplo | **Validada** |
 | 4 | Frontend funcional com a paleta definitiva: Dashboard, Carteira, Movimentações (Histórico com filtros, resumo e Excel; Eventos; Caixa), Receitas e Despesas, Configurações (indicadores, backup); gráficos; consumo do SSE; backend do histórico | **Entregue (aguardando validação)** |
+| 4.1 | Ajuste de fluxo da Parte 4: formulário único de movimentação (o ativo é cadastrado junto com a compra/aporte), deduplicação por tipo, listas oficiais de tickers (B3 e NASDAQ) para busca e identificação do tipo, tipos `fundo_listado`, `etf_br` e `etf_us` | **Entregue (aguardando validação)** |
 | 5 | Visual final a partir das imagens de referência; empacotamento do backend (PyInstaller) e instalador; script único de build | A fazer |
 
 ## 3. Decisões de arquitetura (definitivas)
@@ -71,20 +72,22 @@ backend/
   alembic.ini, migrations/    Alembic (env.py + versions/); rodam sozinhas na inicialização
   app/api                     rotas por recurso (só validam/orquestram/serializam):
                               instituicoes (e caixa), ativos, transacoes (e eventos),
-                              precos, indicadores, portfolio, financeiro, configuracoes,
+                              movimentacoes (cadastro + transação), simbolos (listas), precos, indicadores, portfolio, financeiro, configuracoes,
                               backup, eventos (SSE); dependencias.py e schemas.py comuns
   app/core                    config, paths, logs, segurança, erros, watchdog,
                               banco (engine/pragmas/sessão), backup, migracoes, contrato
   app/domain                  regras puras: numeros, calendario, posicao, montante, historico,
                               renda_fixa, poupanca, conta_corrente, metricas, carteira,
-                              serie_patrimonio, lancamentos, indicadores, precos, agenda, erros
-  app/asset_types             base (contrato), registry, catalogo (registro único), 7 handlers
+                              serie_patrimonio, lancamentos, indicadores, precos, agenda, erros,
+                              listas (classificação oficial dos tickers)
+  app/asset_types             base (contrato), registry, catalogo (registro único), 10 handlers
   app/repositories            modelos (SQLAlchemy), tipos (DecimalTexto, DataHoraUTC), repositórios
   app/services                cadastros, ativos, mercado, caixa, transacoes, posicoes, carteira,
                               patrimonio, portfolio, financeiro, configuracoes, coleta,
-                              status_cotacoes, backup, historico, exportacao (Excel)
+                              status_cotacoes, backup, historico, exportacao (Excel),
+                              movimentacoes (ativo + transação), simbolos (listas e busca)
   app/providers               base (contrato), http (retry/rate limit/cache), registry, catalogo,
-                              yahoo, coingecko, sgs, tesouro, cvm
+                              yahoo, coingecko, sgs, tesouro, cvm, listas_b3, listas_nasdaq
   app/jobs                    agendador (asyncio) e eventos (canal + gerador SSE)
   app/analytics               protocolos (Protocol) e registry de modelos (sem modelos)
   tests/                      fabricas.py (dados sintéticos) + testes por camada
@@ -194,8 +197,35 @@ Decisões técnicas desta parte:
 - **Estado de UI:** filtros, ordem, página e visão do histórico ficam na URL (`?tipo_ativo=…&ops=venda,resgate&periodo=ano…`, sem os valores padrão); a aba de Movimentações em `?aba=`; o seletor Análise Geral/por Instituição é compartilhado entre Dashboard e Carteira (Zustand, só na sessão). Busca com espera de 300 ms. Períodos em meses de calendário ("últimos 12 meses" = dia 1º de 11 meses atrás até hoje).
 - **Tempo real:** o layout assina o SSE; `preco_atualizado`, `indicador_atualizado`, `erro_provider` e `fim_ciclo` invalidam as consultas de cotação, agrupadas numa janela de 800 ms; o topo mostra a hora do último ciclo e as falhas.
 - **Indicadores na tela:** último valor de cada série nos últimos 120 dias; lançamento manual (IPCA no dia 1º) e edição do último valor (que passa a ser manual).
-- **Testes do front:** `src/test/api-falsa.tsx` (rotas falsas que conferem o token e registram as chamadas) com o schema real dos 7 tipos de ativo (`src/test/dados/tipos-ativo.json`, exportado do registry). Os gráficos viram marcadores no `setup.tsx` e os invólucros têm testes próprios.
+- **Testes do front:** `src/test/api-falsa.tsx` (rotas falsas que conferem o token e registram as chamadas) com o schema real dos tipos de ativo (10 desde a Parte 4.1) (`src/test/dados/tipos-ativo.json`, exportado do registry). Os gráficos viram marcadores no `setup.tsx` e os invólucros têm testes próprios.
 - `.prettierignore` ignora `docs/referencias-visuais` (prévias do dono, não são código do app).
+
+## 8.4 Decisões tomadas na Parte 4.1
+Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 4.1.md`):
+- **Sem passo separado de cadastro:** a entidade `ativos` continua (cotações, eventos, coleta e posições dependem dela), mas o ativo é criado na própria movimentação. Só **compra e aporte** criam ativo; venda, resgate e provento usam um ativo existente. A Carteira perdeu "Novo ativo" (ganhou "Nova movimentação"); a edição do ativo continua no detalhe.
+- **Tipo pelo cadastro oficial, nunca pelo texto do ticker** (o final 11 é unit, FII ou ETF). Conferido no `InstrumentsConsolidatedFile` da B3 de 30/10/2026 (2.916 papéis classificados):
+  - mercado à vista (`CASH`/`EQUITY-CASH`): `SHARES` ON → ação ON; PN, PNA, PNB, PNC, PND, PRA, PRB, PNV → ação PN; `UNIT` → ação (unit); `BDR` → ação (BDR; BDR de ETF continua BDR); `ETF EQUITIES`/`ETF FOREIGN INDEX` → `etf_br`; `FUNDS` → `fundo_listado`;
+  - ETF de renda fixa: `FORWARD` + `FIXED INCOME TRADABLE INSTRUMENT T1` **e** linha `ETF PRIMARY MARKET` do mesmo `Asst` (76 no arquivo; nenhum papel da categoria ficou sem o mercado primário);
+  - fora da lista: `SHARES`/`DIA` (taxas de financiamento do termo), `SHARES`/`REC`, recibos, direitos, warrants e índices;
+  - **não mapeado** (fica fora e vai para o log, nunca vira "ação"): qualquer categoria nova e as especificações `CPA`/`TPR` (7 papéis no arquivo);
+  - EUA: diretório da NASDAQ, coluna `ETF` (Y → `etf_us`, N → `acao_us`); emissões de teste e símbolos com sufixo especial (preferenciais `$`, warrants, direitos, units) ficam fora; `BRK.B` vira `BRK-B`. O cabeçalho real do `nasdaqlisted.txt` ainda não foi conferido (o parser exige a coluna `ETF` e recusa o arquivo sem ela).
+- **FII, Fiagro e FI-Infra num tipo só** (`fundo_listado`, "Fundo listado (FII, Fiagro, FI-Infra)"): a B3 põe todos em `FUNDS` e o CFI não os separa (HGLG11 e RZAG11 têm o mesmo `CICIRU`). É diferente de `fundo` (fundo aberto da CVM, pelo CNPJ, sem ticker).
+- **ETFs com tipo próprio:** `etf_br` (BRL, agenda B3) e `etf_us` (USD, agenda EUA). Ação (Brasil) perdeu a opção "ETF" do tipo de papel; a migração tira esse campo dos ativos que o tinham, **sem reclassificar** o tipo.
+- **Ticker fora das listas:** a busca baixa a lista do dia em segundo plano (no máximo uma vez por dia e por bolsa) e, enquanto isso, a pesquisa do Yahoo só **sugere o nome** (tipo "não identificado"). O cadastro manual é permitido, com o aviso "a cotação pode falhar".
+- **Renda fixa repetida: perguntar e somar.** Mesmos emissor (sem acento/maiúsculas), indexador, taxa e vencimento de um título existente → 409 `ativo_semelhante`; "Somar ao existente" grava aporte nele, "Criar título separado" cadastra outro.
+- **Trava de venda mantida:** vender/resgatar além da posição continua bloqueado no backend; o formulário mostra "Disponível: N" (posição na instituição e na data) e avisa antes de enviar.
+
+Decisões técnicas desta parte:
+- **Deduplicação no handler** (`mesma_identidade`/`semelhante`, `normalizar_simbolo`, `simbolo_externo_padrao`; ver `docs/TIPOS_DE_ATIVO.md`), aplicada em `services/cadastros` (o cadastro avulso também recusa duplicado) e em `services/movimentacoes`. Ticker repetido no mesmo tipo com outra identificação (ex.: duas criptos "BTC" com ids diferentes) é recusado com 409, em vez de estourar a constraint.
+- **Papéis da B3 gravam o símbolo na fonte** (`HGLG11.SA`) no cadastro; ações BR antigas sem ele continuam funcionando (o Yahoo acrescenta `.SA` para `acao_br`). A edição compara o símbolo efetivo, então não reinicia a coleta à toa.
+- **`POST /api/movimentacoes` atômica:** `ativo_id` **ou** `novo_ativo` + dados da transação, `usar_ativo_id`/`confirmar_novo` (resposta ao `ativo_semelhante`) e `aceitar_ajuste`. Qualquer erro, inclusive os 409, desfaz tudo: o ativo novo nunca fica órfão. A edição continua em `PUT /api/transacoes/{id}`.
+- **Listas em tabelas próprias** (migração `0004_listas_simbolos`): `simbolos_listados` (bolsa, ticker, nome, tipo, tipo de papel, bolsa americana, categoria original, símbolo no Yahoo) e `listas_simbolos` (situação por bolsa: tentativa, sucesso, quantidade, status e data do arquivo, erro). Preferido a `estados_coleta` porque guarda status, data do arquivo e quantidade.
+- **Fontes de lista** em `providers/` (`listas_b3.py`: token + download em dois passos, CSV latin-1 lido em streaming de um temporário, volta até 7 dias quando não há arquivo; `listas_nasdaq.py`); classificação pura em `domain/listas.py`; registro em `RegistroProviders.registrar_lista`.
+- **Importação** (`services/simbolos.ImportadorListas`): rede sem sessão aberta, troca da lista inteira numa transação (falha mantém a anterior), eventos SSE `lista_atualizada`/`erro_lista`. O agendador importa na abertura as bolsas sem lista e atende "Atualizar lista" e a busca, sempre **com o mesmo lock** da coleta e da restauração de backup. Com `FINANCAS_SEM_ATUALIZACAO=1`, só o botão importa.
+- **Pesquisa por texto** (`BuscaYahoo`, `BuscaCoinGecko`, registradas com `registrar_busca`): clientes próprios com uma tentativa e timeout de 5 s (a busca responde enquanto o usuário digita). Fora do ar, a busca devolve o que tem, com aviso.
+- **Rotas novas:** `GET /api/simbolos/busca?tipo=&q=`, `GET /api/simbolos/listas`, `POST /api/simbolos/atualizar` (202; 409 se já houver uma), `POST /api/movimentacoes`. `TipoAtivoSaida` ganhou `busca_por_ticker` e `lista_simbolos`.
+- **Front:** `DialogoTransacao` virou o formulário único (tipo → operação → data/instituição → ativo → dados). Compra/aporte: combobox `BuscaAtivo` nos tipos com ticker (↑/↓/Enter/Esc; carteira, lista e pesquisa; cadastro manual só depois que a busca respondeu) ou lista do tipo + "Novo" (fundo, renda fixa, Tesouro, poupança). Venda/resgate: posições de `/api/portfolio/posicoes` na instituição e na data. A data de aplicação de um título novo é a data da operação (campo escondido). Diálogos de confirmação para saldo insuficiente e título semelhante. `DialogoAtivo` ficou só de edição. Configurações ganhou "Lista de tickers". O evento `lista_atualizada` invalida as consultas `["simbolos", ...]`.
+- Os 3 tipos novos entram no **fim** de `ORDEM_TIPOS_ATIVO` (as cores dos existentes não mudam).
 
 ## 9. Pendências conhecidas
 - Build de release ainda não inclui o backend empacotado (Parte 5): `tauri build` gera o app, mas ele mostrará "Executável do serviço interno não encontrado".
@@ -203,7 +233,9 @@ Decisões técnicas desta parte:
 - Empacotamento (Parte 5): incluir a pasta `backend/migrations` e os dados do `tzdata` no executável do PyInstaller (`core/migracoes.PASTA_MIGRACOES` aponta para ela).
 - Fundos com subclasses (Resolução CVM 175) precisam do `ID_SUBCLASSE` em `simbolo_externo` (a tela de cadastro explica isso).
 - Parte 5: polimento visual (layout fino, tipografia, ícones, animações) sobre a paleta já definida.
-- Com os 7 tipos de ativo na carteira ao mesmo tempo, o 7º na ordem fixa (poupança) entra em "Outros" na pizza de alocação (regra das 6 cores).
+- Com 10 tipos de ativo, tudo além da 6ª categoria presente entra em "Outros" na pizza de alocação (regra das 6 cores); os tipos da Parte 4.1 estão no fim da ordem fixa. Rever na Parte 5.
+- Cabeçalho real do `nasdaqlisted.txt` não conferido (o parser exige a coluna `ETF`; sem ela, a lista dos EUA falha com mensagem e a da B3 segue).
+- Papéis da B3 com especificação `CPA`/`TPR` ficam fora da lista (não mapeados); só entram por cadastro manual.
 - A lista de lançamentos mostra até 500 por mês (máximo da API por página).
 - Feriados da bolsa americana não são considerados na agenda (só geram coletas extras sem efeito).
 - O ciclo de coleta roda numa thread: no encerramento ele para entre alvos, mas um download em andamento (ex.: ZIP da CVM) pode segurar o processo até o timeout; o Tauri força o fim após 3 s (Job Object).

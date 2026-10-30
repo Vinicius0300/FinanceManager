@@ -44,6 +44,8 @@ class TipoAtivoSaida(Modelo):
     provider: str | None
     tipos_transacao: list[str]
     aceita_taxas: bool
+    busca_por_ticker: bool  # o cadastro procura o ativo pelo ticker (lista/pesquisa)
+    lista_simbolos: str | None  # lista oficial de tickers (B3, EUA) ou null
     campos: list[CampoTipo]
 
 
@@ -74,7 +76,7 @@ class AtivoSaida(Modelo):
     criado_em: datetime
 
 
-def _ativo(ativo: m.Ativo) -> AtivoSaida:
+def saida_ativo(ativo: m.Ativo) -> AtivoSaida:
     return AtivoSaida(
         id=ativo.id,
         tipo=ativo.tipo,
@@ -88,7 +90,7 @@ def _ativo(ativo: m.Ativo) -> AtivoSaida:
     )
 
 
-def _coletar_depois(ativo: m.Ativo, agendador: Agendador, tarefas: BackgroundTasks) -> None:
+def coletar_depois(ativo: m.Ativo, agendador: Agendador, tarefas: BackgroundTasks) -> None:
     """Ativo cotado: coleta cotação e histórico logo depois da resposta (já gravado)."""
     if not isinstance(cadastros.handler_do_ativo(ativo), HandlerCotado):
         return
@@ -127,7 +129,7 @@ def obter_tipo_ativo(slug: str) -> TipoAtivoSaida:
     responses=respostas(),
 )
 def listar_ativos(sessao: SessaoDep, tipo: str | None = None) -> list[AtivoSaida]:
-    return [_ativo(a) for a in cadastros.listar_ativos(sessao, tipo)]
+    return [saida_ativo(a) for a in cadastros.listar_ativos(sessao, tipo)]
 
 
 @router.post(
@@ -158,8 +160,8 @@ def criar_ativo(
             metadados=dados.metadados,
         ),
     )
-    _coletar_depois(ativo, agendador, tarefas)
-    return _ativo(ativo)
+    coletar_depois(ativo, agendador, tarefas)
+    return saida_ativo(ativo)
 
 
 @router.get(
@@ -169,7 +171,7 @@ def criar_ativo(
     responses=respostas(404),
 )
 def obter_ativo(ativo_id: int, sessao: SessaoDep) -> AtivoSaida:
-    return _ativo(cadastros.obter_ativo(sessao, ativo_id))
+    return saida_ativo(cadastros.obter_ativo(sessao, ativo_id))
 
 
 @router.put(
@@ -196,8 +198,8 @@ def editar_ativo(
             nome=dados.nome, simbolo_externo=dados.simbolo_externo, metadados=dados.metadados
         ),
     )
-    _coletar_depois(ativo, agendador, tarefas)  # sem efeito se nada precisar ser coletado
-    return _ativo(ativo)
+    coletar_depois(ativo, agendador, tarefas)  # sem efeito se nada precisar ser coletado
+    return saida_ativo(ativo)
 
 
 @router.delete(

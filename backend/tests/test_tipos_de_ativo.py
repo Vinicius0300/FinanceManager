@@ -44,12 +44,15 @@ def erros_de(excecao: pytest.ExceptionInfo[ValidacaoError]) -> dict[str, str]:
 # ---------------------------------------------------------------- Registry e schema
 
 
-def test_registro_padrao_tem_os_sete_tipos() -> None:
+def test_registro_padrao_tem_os_dez_tipos() -> None:
     assert REGISTRO_PADRAO.slugs == [
         "acao_br",
         "acao_us",
         "cripto",
+        "etf_br",
+        "etf_us",
         "fundo",
+        "fundo_listado",
         "poupanca",
         "renda_fixa",
         "tesouro_direto",
@@ -72,6 +75,8 @@ def test_schemas_sao_serializaveis_e_completos() -> None:
             "provider",
             "tipos_transacao",
             "aceita_taxas",
+            "busca_por_ticker",
+            "lista_simbolos",
             "campos",
         }
         assert schema["moeda_padrao"] in schema["moedas_aceitas"]
@@ -190,7 +195,7 @@ def test_acao_br_campos_opcionais() -> None:
     with pytest.raises(ValidacaoError) as erro:
         handler.validar_metadados({"tipo_papel": "XX", "setor": "s" * 61})
     assert erros_de(erro) == {
-        "tipo_papel": "Opção inválida. Use uma de: ON, PN, UNIT, ETF, BDR.",
+        "tipo_papel": "Opção inválida. Use uma de: ON, PN, UNIT, BDR.",
         "setor": "Use no máximo 60 caracteres.",
     }
 
@@ -363,7 +368,7 @@ def test_tipo_novo_entra_sem_alterar_os_existentes(sessao: Session) -> None:
 
     assert registro.slugs == sorted([*schemas_antes, "fii"])
     assert {h.slug: h.schema() for h in registro.todos() if h.slug != "fii"} == schemas_antes
-    assert len(HANDLERS_PADRAO) == 7  # o catálogo padrão não mudou
+    assert len(HANDLERS_PADRAO) == 10  # o catálogo padrão não mudou
     ativo = criar_ativo(
         sessao,
         NovoAtivo(

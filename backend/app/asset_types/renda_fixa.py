@@ -3,12 +3,15 @@
 Tesouro Direto tem tipo próprio (``tesouro_direto``), cotado pelo PU do Tesouro.
 """
 
+import unicodedata
+from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal
 
 from app.asset_types.base import (
     CampoEspecifico,
     HandlerMontante,
+    Identidade,
     Metadados,
     Opcao,
     TipoCampo,
@@ -28,6 +31,25 @@ _INDICADOR_DO_INDEXADOR = {
     Indexador.CDI: frozenset({TipoIndicador.CDI}),
     Indexador.IPCA: frozenset({TipoIndicador.IPCA}),
 }
+
+
+def _texto_comparavel(texto: object) -> str:
+    """Sem acento, sem diferença de maiúsculas e de espaços repetidos ("Itaú " = "itau")."""
+    decomposto = unicodedata.normalize("NFKD", str(texto))
+    sem_acento = "".join(c for c in decomposto if not unicodedata.combining(c))
+    return " ".join(sem_acento.casefold().split())
+
+
+def _chave_titulo(metadados: Mapping[str, object]) -> tuple[str, str, Decimal, str] | None:
+    try:
+        return (
+            _texto_comparavel(metadados["emissor"]),
+            str(metadados["indexador"]),
+            ler_decimal(metadados, "taxa"),
+            str(metadados["vencimento"]),
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 def parametros(metadados: Metadados) -> ParametrosRendaFixa:
@@ -88,6 +110,15 @@ class RendaFixa(HandlerMontante):
                 DetalheCampo("vencimento", "O vencimento deve ser posterior à data de aplicação.")
             )
         return erros
+
+    def semelhante(self, a: Identidade, b: Identidade) -> bool:
+        """Mesmo emissor (sem acento/maiúsculas), indexador, taxa e vencimento.
+
+        A data de aplicação não entra: uma segunda aplicação no mesmo título pode virar
+        aporte (cada parcela rende desde a própria data).
+        """
+        chave = _chave_titulo(a.metadados)
+        return chave is not None and chave == _chave_titulo(b.metadados)
 
     def validar_transacao(self, metadados: Metadados, tipo: TipoTransacao, data: date) -> None:
         super().validar_transacao(metadados, tipo, data)

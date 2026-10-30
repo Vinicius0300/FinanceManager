@@ -3,7 +3,12 @@
 from collections.abc import Callable
 
 from app.domain.enums import TipoIndicador
-from app.providers.base import ProviderCotacao, ProviderIndicador
+from app.providers.base import (
+    FonteListaSimbolos,
+    ProviderBusca,
+    ProviderCotacao,
+    ProviderIndicador,
+)
 
 
 class RegistroProviders:
@@ -12,6 +17,8 @@ class RegistroProviders:
         self._indicadores: list[ProviderIndicador] = []
         self._cambio_intradiario: ProviderIndicador | None = None
         self._ao_fechar: list[Callable[[], None]] = []
+        self._listas: dict[str, FonteListaSimbolos] = {}
+        self._buscas: dict[str, ProviderBusca] = {}
 
     def registrar_cotacao(self, provider: ProviderCotacao) -> None:
         if provider.nome in self._cotacao:
@@ -31,6 +38,28 @@ class RegistroProviders:
     @property
     def cambio_intradiario(self) -> ProviderIndicador | None:
         return self._cambio_intradiario
+
+    def registrar_lista(self, fonte: FonteListaSimbolos) -> None:
+        """Fonte da lista oficial de tickers de uma bolsa (uma por bolsa)."""
+        if fonte.bolsa in self._listas:
+            raise ValueError(f"Lista de símbolos já registrada: {fonte.bolsa}.")
+        self._listas[fonte.bolsa] = fonte
+
+    def lista(self, bolsa: str) -> FonteListaSimbolos | None:
+        return self._listas.get(bolsa)
+
+    @property
+    def bolsas(self) -> list[str]:
+        return sorted(self._listas)
+
+    def registrar_busca(self, busca: ProviderBusca) -> None:
+        """Pesquisa por texto da fonte ``busca.nome`` (mesmo nome do provider de cotação)."""
+        if busca.nome in self._buscas:
+            raise ValueError(f"Pesquisa já registrada: {busca.nome}.")
+        self._buscas[busca.nome] = busca
+
+    def busca(self, nome: str | None) -> ProviderBusca | None:
+        return self._buscas.get(nome) if nome else None
 
     def ao_fechar(self, acao: Callable[[], None]) -> None:
         self._ao_fechar.append(acao)

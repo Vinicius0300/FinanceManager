@@ -196,5 +196,16 @@ describe("tempo real (SSE)", () => {
       },
       { timeout: JANELA_INVALIDACAO_MS * 4 },
     );
+
+    // Lista oficial de tickers importada: refaz só as consultas da busca/situação, na hora.
+    act(() => {
+      controle?.enqueue(
+        codificador.encode('event: lista_atualizada\ndata: {"bolsa":"B3","quantidade":2916}\n\n'),
+      );
+    });
+    await waitFor(() => {
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: ["simbolos"] });
+    });
+    expect(invalidar).toHaveBeenCalledTimes(2);
   });
 });

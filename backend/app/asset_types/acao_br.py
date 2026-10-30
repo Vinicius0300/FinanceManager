@@ -1,4 +1,8 @@
-"""Ações, units, ETFs e BDRs negociados na B3 (BRL)."""
+"""Ações, units e BDRs negociados na B3 (BRL).
+
+ETFs e fundos listados (FII, Fiagro, FI-Infra) têm tipos próprios (``etf_br`` e
+``fundo_listado``), identificados pela categoria oficial do cadastro da B3.
+"""
 
 from typing import ClassVar
 
@@ -9,10 +13,12 @@ from app.domain.agenda import AGENDA_B3, Agenda
 class AcaoBr(HandlerCotado):
     slug = "acao_br"
     nome = "Ação (Brasil)"
-    descricao = "Ações, units, ETFs e BDRs negociados na B3."
+    descricao = "Ações, units e BDRs negociados na B3."
     moedas_aceitas = ("BRL",)
     agenda: ClassVar[Agenda] = AGENDA_B3
     provider = "yfinance"
+    lista_simbolos: ClassVar[str | None] = "B3"
+    sufixo_simbolo_externo: ClassVar[str] = ".SA"
     campos = (
         CampoEspecifico(
             nome="tipo_papel",
@@ -23,7 +29,6 @@ class AcaoBr(HandlerCotado):
                 Opcao("ON", "Ordinária (ON)"),
                 Opcao("PN", "Preferencial (PN)"),
                 Opcao("UNIT", "Unit"),
-                Opcao("ETF", "ETF"),
                 Opcao("BDR", "BDR"),
             ),
         ),

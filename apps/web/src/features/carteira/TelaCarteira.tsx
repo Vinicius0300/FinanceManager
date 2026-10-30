@@ -29,9 +29,12 @@ import {
 } from "./consultas";
 import { DetalheAtivo } from "./DetalheAtivo";
 import { NOMES_ORIGEM } from "./rotulos";
-import { DialogoAtivo } from "./DialogoAtivo";
+import { DialogoTransacao } from "@/features/movimentacoes/transacao/DialogoTransacao";
 
-/** Posições com filtros, status da cotação de cada ativo e cadastro de ativos. */
+/**
+ * Posições com filtros e status da cotação de cada ativo. O ativo é cadastrado na própria
+ * movimentação ("Nova movimentação"); aqui ele pode ser editado pelo detalhe.
+ */
 export function TelaCarteira() {
   const instituicaoId = useInstituicaoAnalise();
   const [novo, setNovo] = useState(false);
@@ -58,7 +61,7 @@ export function TelaCarteira() {
               }}
             >
               <Plus aria-hidden />
-              Novo ativo
+              Nova movimentação
             </Button>
           </>
         }
@@ -74,7 +77,7 @@ export function TelaCarteira() {
       <Secao titulo="Ativos cadastrados">
         <AtivosCadastrados statusPorAtivo={statusPorAtivo} aoAbrir={setDetalhe} />
       </Secao>
-      {novo && <DialogoAtivo aberto={novo} aoMudar={setNovo} />}
+      {novo && <DialogoTransacao aberto={novo} aoMudar={setNovo} />}
       {ativoDetalhe && (
         <DetalheAtivo
           ativo={ativoDetalhe}
@@ -282,7 +285,7 @@ function Posicoes({
       ) : posicoes.data.length === 0 ? (
         <EstadoVazio
           titulo="Nenhuma posição aberta"
-          descricao="Cadastre um ativo e registre uma compra ou aporte em Movimentações."
+          descricao='Registre uma compra ou aporte em "Nova movimentação": o ativo é cadastrado junto.'
         />
       ) : filtradas.length === 0 ? (
         <EstadoVazio titulo="Nenhuma posição com esses filtros" />
@@ -365,7 +368,12 @@ function AtivosCadastrados({
   if (ativos.isPending) return <Carregando />;
   if (ativos.isError) return <MensagemErro erro={ativos.error} />;
   if (ativos.data.length === 0) {
-    return <EstadoVazio titulo="Nenhum ativo cadastrado" descricao='Use "Novo ativo".' />;
+    return (
+      <EstadoVazio
+        titulo="Nenhum ativo cadastrado"
+        descricao='Use "Nova movimentação": o ativo é cadastrado junto com a primeira compra.'
+      />
+    );
   }
   return (
     <TabelaDados

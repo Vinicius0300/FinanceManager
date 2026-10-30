@@ -8,7 +8,10 @@ from app.asset_types.acao_br import AcaoBr
 from app.asset_types.acao_us import AcaoUs
 from app.asset_types.base import HandlerTipoAtivo
 from app.asset_types.cripto import Cripto
+from app.asset_types.etf_br import EtfBr
+from app.asset_types.etf_us import EtfUs
 from app.asset_types.fundo import Fundo
+from app.asset_types.fundo_listado import FundoListado
 from app.asset_types.poupanca import Poupanca
 from app.asset_types.registry import RegistroTiposAtivo
 from app.asset_types.renda_fixa import RendaFixa
@@ -22,6 +25,9 @@ HANDLERS_PADRAO: tuple[type[HandlerTipoAtivo], ...] = (
     Cripto,
     Poupanca,
     TesouroDireto,
+    FundoListado,
+    EtfBr,
+    EtfUs,
 )
 
 

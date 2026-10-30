@@ -149,6 +149,20 @@ class Valoracao:
     aviso: str | None = None
 
 
+@dataclass(frozen=True)
+class Identidade:
+    """O que identifica um ativo para a deduplicação (cadastrado ou ainda por cadastrar)."""
+
+    simbolo: str | None
+    simbolo_externo: str | None
+    metadados: Mapping[str, object]
+
+
+def _externo(identidade: Identidade) -> str | None:
+    externo = (identidade.simbolo_externo or "").strip().lower()
+    return externo or None
+
+
 def ler_decimal(metadados: Mapping[str, object], nome: str) -> Decimal:
     valor = metadados[nome]
     if not isinstance(valor, str | int):
@@ -176,10 +190,62 @@ class HandlerTipoAtivo(ABC):
     campos_identificacao: ClassVar[frozenset[str]] = frozenset()
     """Campos específicos que identificam o ativo na fonte de cotação (ex.: CNPJ do fundo).
     Alterá-los reinicia a coleta (apaga preços automáticos e baixa o histórico de novo)."""
+    lista_simbolos: ClassVar[str | None] = None
+    """Lista oficial de tickers usada na busca do cadastro (``"B3"`` ou ``"EUA"``)."""
+    sufixo_simbolo_externo: ClassVar[str] = ""
+    """Sufixo do ticker na fonte de cotação (ex.: ``.SA`` do Yahoo para papéis da B3)."""
+    separador_classe: ClassVar[str | None] = None
+    """Separador de classe de ação no formato da fonte (``-`` no Yahoo: ``BRK.B`` = ``BRK-B``)."""
+    busca_por_ticker: ClassVar[bool] = False
+    """O cadastro procura o ativo pelo ticker (sempre que há ``lista_simbolos``)."""
 
     @property
     def moeda_padrao(self) -> str:
         return self.moedas_aceitas[0]
+
+    # ------------------------------------------------------------ identidade
+
+    def normalizar_simbolo(self, simbolo: str) -> str:
+        """Ticker como é gravado: maiúsculas, sem o sufixo da fonte e com a classe padronizada."""
+        texto = simbolo.strip().upper()
+        sufixo = self.sufixo_simbolo_externo.upper()
+        if sufixo and texto.endswith(sufixo):
+            texto = texto[: -len(sufixo)]
+        if self.separador_classe:
+            for separador in (".", "/", "-"):
+                texto = texto.replace(separador, self.separador_classe)
+        return texto
+
+    def simbolo_externo_padrao(self, simbolo: str | None) -> str | None:
+        """Símbolo na fonte quando o usuário não informa (``None``: a fonte usa o ticker)."""
+        if not simbolo or not self.sufixo_simbolo_externo:
+            return None
+        return self.normalizar_simbolo(simbolo) + self.sufixo_simbolo_externo
+
+    def mesma_identidade(self, a: Identidade, b: Identidade) -> bool:
+        """``True`` se os dois são o mesmo ativo (o cadastro reaproveita o existente).
+
+        Regra padrão: campos de identificação na fonte (ex.: CNPJ, título + vencimento)
+        mais o símbolo externo; sem eles, o ticker normalizado. Investimentos por montante
+        não são deduplicados por padrão (cada título é um ativo).
+        """
+        if self.modo is ModoPosicao.MONTANTE:
+            return False
+        if self.campos_identificacao:
+            return _externo(a) == _externo(b) and all(
+                a.metadados.get(campo) == b.metadados.get(campo)
+                for campo in self.campos_identificacao
+            )
+        if a.simbolo and b.simbolo:
+            return self.normalizar_simbolo(a.simbolo) == self.normalizar_simbolo(b.simbolo)
+        return False
+
+    def semelhante(self, a: Identidade, b: Identidade) -> bool:
+        """``True`` se ``b`` parece o mesmo investimento que ``a`` sem ser idêntico.
+
+        O cadastro pergunta antes de criar (ex.: renda fixa com os mesmos parâmetros).
+        """
+        return False
 
     def validar_moeda(self, moeda: str | None) -> str:
         escolhida = (moeda or self.moeda_padrao).strip().upper()
@@ -237,6 +303,8 @@ class HandlerTipoAtivo(ABC):
             "provider": self.provider,
             "tipos_transacao": sorted(t.value for t in self.tipos_transacao),
             "aceita_taxas": self.aceita_taxas,
+            "busca_por_ticker": self.busca_por_ticker or self.lista_simbolos is not None,
+            "lista_simbolos": self.lista_simbolos,
             "campos": [campo.para_schema() for campo in self.campos],
         }
 

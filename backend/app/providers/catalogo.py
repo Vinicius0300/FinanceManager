@@ -15,17 +15,21 @@ from datetime import date
 import httpx2
 
 from app.domain.tempo import hoje_local
-from app.providers.coingecko import ProviderCoinGecko
+from app.providers.coingecko import BuscaCoinGecko, ProviderCoinGecko
 from app.providers.cvm import ProviderCvm
-from app.providers.http import ClienteHttp
+from app.providers.http import TIMEOUT_PADRAO_S, ClienteHttp
+from app.providers.listas_b3 import FonteListaB3
+from app.providers.listas_nasdaq import FonteListaNasdaq
 from app.providers.registry import RegistroProviders
 from app.providers.sgs import ProviderSgs
 from app.providers.tesouro import ProviderTesouro
-from app.providers.yahoo import ProviderYahoo
+from app.providers.yahoo import BuscaYahoo, ProviderYahoo
 
 INTERVALO_COINGECKO_S = 4.0  # plano público: poucas chamadas por minuto
 INTERVALO_YAHOO_S = 0.3
 INTERVALO_PADRAO_S = 0.2
+TIMEOUT_PESQUISA_S = 5.0  # a pesquisa responde enquanto o usuário digita
+INTERVALO_PESQUISA_COINGECKO_S = 1.0
 
 
 def criar_registro_providers(
@@ -37,13 +41,16 @@ def criar_registro_providers(
 ) -> RegistroProviders:
     """Cria o registro padrão. ``transporte``/``dormir``/``relogio``/``hoje`` são para testes."""
 
-    def cliente(fonte: str, intervalo: float) -> ClienteHttp:
+    def cliente(fonte: str, intervalo: float, *, pesquisa: bool = False) -> ClienteHttp:
+        # Pesquisa: uma tentativa e timeout curto (sem retry enquanto o usuário espera).
         http = ClienteHttp(
             fonte,
             transporte=transporte,
             intervalo_minimo=intervalo,
             dormir=dormir,
             relogio=relogio,
+            tentativas=1 if pesquisa else 3,
+            timeout=TIMEOUT_PESQUISA_S if pesquisa else TIMEOUT_PADRAO_S,
         )
         registro.ao_fechar(http.fechar)
         return http
@@ -59,4 +66,11 @@ def criar_registro_providers(
     registro.registrar_indicador(ProviderSgs(cliente("Banco Central (SGS)", INTERVALO_PADRAO_S)))
     registro.registrar_indicador(yahoo)  # reserva do câmbio
     registro.registrar_cambio_intradiario(yahoo)  # dólar ao longo do dia
+    # Listas oficiais de tickers (busca do cadastro) e pesquisa de nomes por texto.
+    registro.registrar_lista(FonteListaB3(cliente("B3", INTERVALO_PADRAO_S)))
+    registro.registrar_lista(FonteListaNasdaq(cliente("NASDAQ", INTERVALO_PADRAO_S)))
+    registro.registrar_busca(BuscaYahoo(cliente("Yahoo Finance", INTERVALO_YAHOO_S, pesquisa=True)))
+    registro.registrar_busca(
+        BuscaCoinGecko(cliente("CoinGecko", INTERVALO_PESQUISA_COINGECKO_S, pesquisa=True))
+    )
     return registro

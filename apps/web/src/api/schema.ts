@@ -437,6 +437,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/movimentacoes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Registra uma movimentação, criando o ativo se ele ainda não existir
+         * @description Informe `ativo_id` ou `novo_ativo`. O ativo novo passa pela deduplicação do tipo (o mesmo ticker, CNPJ, id de cripto ou título é reaproveitado). Só compra e aporte criam ativo. 409 `saldo_insuficiente`: reenvie com `aceitar_ajuste=true`. 409 `ativo_semelhante`: reenvie com `usar_ativo_id` ou `confirmar_novo=true`.
+         */
+        post: operations["registrar_movimentacao"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/movimentos": {
         parameters: {
             query?: never;
@@ -668,6 +688,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/simbolos/atualizar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Baixa de novo as listas oficiais de tickers
+         * @description Roda em segundo plano (B3 e EUA); o fim chega pelos eventos `lista_atualizada` ou `erro_lista`. Se já houver uma atualização rodando, responde 409.
+         */
+        post: operations["atualizar_listas"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/simbolos/busca": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Busca um ativo para o cadastro de movimentações
+         * @description Ativos já cadastrados, a lista oficial da bolsa do tipo (com o tipo oficial de cada papel) e, se o ticker não estiver na lista, a pesquisa externa (só para sugerir o nome). Cripto: pesquisa da CoinGecko.
+         */
+        get: operations["buscar_simbolos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/simbolos/listas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Situação das listas oficiais de tickers */
+        get: operations["obter_listas"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tipos-ativo": {
         parameters: {
             query?: never;
@@ -882,6 +959,11 @@ export interface components {
             /** Mensagem */
             mensagem: string;
         };
+        /** AtualizacaoListaIniciada */
+        AtualizacaoListaIniciada: {
+            /** Mensagem */
+            mensagem: string;
+        };
         /** AtualizacaoStatus */
         AtualizacaoStatus: {
             /** Em Andamento */
@@ -906,6 +988,19 @@ export interface components {
             nome: string;
             /** Tamanho Bytes */
             tamanho_bytes: number;
+        };
+        /** BuscaSimbolosSaida */
+        BuscaSimbolosSaida: {
+            /** Atualizando Lista */
+            atualizando_lista: boolean;
+            /** Aviso */
+            aviso: string | null;
+            /** Bolsa */
+            bolsa: string | null;
+            /** Itens */
+            itens: components["schemas"]["ItemBuscaSaida"][];
+            /** Lista Disponivel */
+            lista_disponivel: boolean;
         };
         /** CaixaSaida */
         CaixaSaida: {
@@ -1219,6 +1314,27 @@ export interface components {
             nome: string;
             tipo: components["schemas"]["TipoInstituicao"];
         };
+        /** ItemBuscaSaida */
+        ItemBuscaSaida: {
+            /** Ativo Id */
+            ativo_id: number | null;
+            /** Campos Sugeridos */
+            campos_sugeridos: {
+                [key: string]: string;
+            };
+            /** Categoria */
+            categoria: string | null;
+            /** Nome */
+            nome: string;
+            /** Origem */
+            origem: string;
+            /** Simbolo */
+            simbolo: string | null;
+            /** Simbolo Externo */
+            simbolo_externo: string | null;
+            /** Tipo */
+            tipo: string | null;
+        };
         /** LancamentoEntrada */
         LancamentoEntrada: {
             /** Categoria Id */
@@ -1268,6 +1384,23 @@ export interface components {
              */
             valor: string;
         };
+        /** ListaSimbolosSaida */
+        ListaSimbolosSaida: {
+            /** Atualizado Em */
+            atualizado_em: string | null;
+            /** Bolsa */
+            bolsa: string;
+            /** Data Arquivo */
+            data_arquivo: string | null;
+            /** Quantidade */
+            quantidade: number;
+            /** Status Arquivo */
+            status_arquivo: string | null;
+            /** Ultima Tentativa */
+            ultima_tentativa: string | null;
+            /** Ultimo Erro */
+            ultimo_erro: string | null;
+        };
         /** MetricasSaida */
         MetricasSaida: {
             /**
@@ -1314,6 +1447,62 @@ export interface components {
             valor_atual: string;
             /** Valorizacao */
             valorizacao: string | null;
+        };
+        /** MovimentacaoEntrada */
+        MovimentacaoEntrada: {
+            /**
+             * Aceitar Ajuste
+             * @default false
+             */
+            aceitar_ajuste: boolean;
+            /** Ativo Id */
+            ativo_id?: number | null;
+            /** Cambio */
+            cambio?: string | null;
+            /**
+             * Confirmar Novo
+             * @default false
+             */
+            confirmar_novo: boolean;
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /**
+             * Imposto Retido
+             * @default 0
+             * @example 10.50
+             */
+            imposto_retido: string;
+            /** Instituicao Id */
+            instituicao_id: number;
+            novo_ativo?: components["schemas"]["AtivoEntrada"] | null;
+            /** Observacao */
+            observacao?: string | null;
+            /** Preco Unitario */
+            preco_unitario?: string | null;
+            /** Quantidade */
+            quantidade?: string | null;
+            subtipo_provento?: components["schemas"]["SubtipoProvento"] | null;
+            /**
+             * Taxas
+             * @default 0
+             * @example 10.50
+             */
+            taxas: string;
+            tipo: components["schemas"]["TipoTransacao"];
+            /** Usar Ativo Id */
+            usar_ativo_id?: number | null;
+            /** Valor */
+            valor?: string | null;
+        };
+        /** MovimentacaoSaida */
+        MovimentacaoSaida: {
+            ativo: components["schemas"]["AtivoSaida"];
+            /** Ativo Criado */
+            ativo_criado: boolean;
+            transacao: components["schemas"]["TransacaoSaida"];
         };
         /** MovimentoEntrada */
         MovimentoEntrada: {
@@ -1699,6 +1888,13 @@ export interface components {
              */
             variacao_dia_brl: string;
         };
+        /** SituacaoListasSaida */
+        SituacaoListasSaida: {
+            /** Em Andamento */
+            em_andamento: boolean;
+            /** Listas */
+            listas: components["schemas"]["ListaSimbolosSaida"][];
+        };
         /**
          * SituacaoPosicao
          * @enum {string}
@@ -1743,10 +1939,14 @@ export interface components {
         TipoAtivoSaida: {
             /** Aceita Taxas */
             aceita_taxas: boolean;
+            /** Busca Por Ticker */
+            busca_por_ticker: boolean;
             /** Campos */
             campos: components["schemas"]["CampoTipo"][];
             /** Descricao */
             descricao: string;
+            /** Lista Simbolos */
+            lista_simbolos: string | null;
             /** Modo */
             modo: string;
             /** Moeda Padrao */
@@ -3939,6 +4139,66 @@ export interface operations {
             };
         };
     };
+    registrar_movimentacao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MovimentacaoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovimentacaoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
     criar_movimento: {
         parameters: {
             query?: never;
@@ -4604,6 +4864,116 @@ export interface operations {
             };
             /** @description Dados inválidos ou regra de negócio violada. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    atualizar_listas: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtualizacaoListaIniciada"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    buscar_simbolos: {
+        parameters: {
+            query: {
+                /** @description Slug do tipo de ativo escolhido. */
+                tipo: string;
+                /** @description Ticker ou parte do nome. */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuscaSimbolosSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_listas: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SituacaoListasSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

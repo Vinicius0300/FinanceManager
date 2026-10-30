@@ -265,7 +265,8 @@ def _nova(dados: TransacaoEntrada) -> servico.NovaTransacao:
     )
 
 
-def _resultado(sessao: SessaoDep, resultado: servico.ResultadoTransacao) -> TransacaoSaida:
+def resposta_transacao(sessao: SessaoDep, resultado: servico.ResultadoTransacao) -> TransacaoSaida:
+    """Serializa o resultado; aviso de saldo insuficiente vira 409 (a sessão é desfeita)."""
     if resultado.aviso is not None:
         aviso = resultado.aviso
         instituicao = obter_instituicao(sessao, aviso.instituicao_id)
@@ -450,7 +451,7 @@ def criar_transacao(dados: TransacaoEntrada, sessao: SessaoDep) -> TransacaoSaid
     resultado = servico.registrar_transacao(
         sessao, _nova(dados), aceitar_ajuste=dados.aceitar_ajuste
     )
-    return _resultado(sessao, resultado)
+    return resposta_transacao(sessao, resultado)
 
 
 @router.get(
@@ -476,7 +477,7 @@ def editar_transacao(
     resultado = servico.editar_transacao(
         sessao, transacao_id, _nova(dados), aceitar_ajuste=dados.aceitar_ajuste
     )
-    return _resultado(sessao, resultado)
+    return resposta_transacao(sessao, resultado)
 
 
 @router.delete(

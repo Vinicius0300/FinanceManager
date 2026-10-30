@@ -18,6 +18,7 @@ from app.core.security import exigir_token
 from app.domain.tempo import data_local
 from app.jobs.agendador import Agendador
 from app.jobs.eventos import CanalEventos
+from app.providers.registry import RegistroProviders
 
 LIMITE_PADRAO = 50
 LIMITE_MAXIMO = 500
@@ -48,6 +49,11 @@ def obter_canal(request: Request) -> CanalEventos:
     return canal
 
 
+def obter_providers(request: Request) -> RegistroProviders:
+    providers: RegistroProviders = request.app.state.registro_providers
+    return providers
+
+
 def obter_engine(request: Request) -> Engine:
     engine: Engine = request.app.state.engine
     return engine
@@ -59,6 +65,7 @@ AgoraDep = Annotated[datetime, Depends(obter_agora)]
 AgendadorDep = Annotated[Agendador, Depends(obter_agendador)]
 CanalDep = Annotated[CanalEventos, Depends(obter_canal)]
 EngineDep = Annotated[Engine, Depends(obter_engine)]
+ProvidersDep = Annotated[RegistroProviders, Depends(obter_providers)]
 Limite = Annotated[int, Query(ge=1, le=LIMITE_MAXIMO, description="Itens por página (máximo 500).")]
 Deslocamento = Annotated[int, Query(ge=0, description="Quantos itens pular (paginação).")]
 

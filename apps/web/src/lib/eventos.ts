@@ -17,6 +17,8 @@ export type TipoEventoTempoReal =
   | "indicador_atualizado"
   | "erro_provider"
   | "fim_ciclo"
+  | "lista_atualizada"
+  | "erro_lista"
   | "heartbeat";
 
 export interface EventoTempoReal {
