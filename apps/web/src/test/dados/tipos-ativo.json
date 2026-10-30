@@ -1,0 +1,344 @@
+[
+  {
+    "slug": "acao_br",
+    "nome": "Ação (Brasil)",
+    "descricao": "Ações, units, ETFs e BDRs negociados na B3.",
+    "modo": "cotas",
+    "moeda_padrao": "BRL",
+    "moedas_aceitas": ["BRL"],
+    "provider": "yfinance",
+    "tipos_transacao": ["compra", "provento", "venda"],
+    "aceita_taxas": true,
+    "campos": [
+      {
+        "nome": "tipo_papel",
+        "rotulo": "Tipo de papel",
+        "tipo": "escolha",
+        "obrigatorio": false,
+        "ajuda": null,
+        "opcoes": [
+          {
+            "valor": "ON",
+            "rotulo": "Ordinária (ON)"
+          },
+          {
+            "valor": "PN",
+            "rotulo": "Preferencial (PN)"
+          },
+          {
+            "valor": "UNIT",
+            "rotulo": "Unit"
+          },
+          {
+            "valor": "ETF",
+            "rotulo": "ETF"
+          },
+          {
+            "valor": "BDR",
+            "rotulo": "BDR"
+          }
+        ],
+        "minimo": null,
+        "maximo": null,
+        "tamanho_maximo": null
+      },
+      {
+        "nome": "setor",
+        "rotulo": "Setor",
+        "tipo": "texto",
+        "obrigatorio": false,
+        "ajuda": null,
+        "opcoes": [],
+        "minimo": null,
+        "maximo": null,
+        "tamanho_maximo": 60
+      }
+    ]
+  },
+  {
+    "slug": "acao_us",
+    "nome": "Ação (EUA)",
+    "descricao": "Ações e ETFs negociados em bolsas dos Estados Unidos, em dólar.",
+    "modo": "cotas",
+    "moeda_padrao": "USD",
+    "moedas_aceitas": ["USD"],
+    "provider": "yfinance",
+    "tipos_transacao": ["compra", "provento", "venda"],
+    "aceita_taxas": true,
+    "campos": [
+      {
+        "nome": "bolsa",
+        "rotulo": "Bolsa",
+        "tipo": "escolha",
+        "obrigatorio": false,
+        "ajuda": null,
+        "opcoes": [
+          {
+            "valor": "NYSE",
+            "rotulo": "NYSE"
+          },
+          {
+            "valor": "NASDAQ",
+            "rotulo": "NASDAQ"
+          },
+          {
+            "valor": "AMEX",
+            "rotulo": "NYSE American (AMEX)"
+          },
+          {
+            "valor": "OUTRA",
+            "rotulo": "Outra"
+          }
+        ],
+        "minimo": null,
+        "maximo": null,
+        "tamanho_maximo": null
+      }
+    ]
+  },
+  {
+    "slug": "cripto",
+    "nome": "Criptomoeda",
+    "descricao": "Criptoativos como bitcoin e ethereum; negociados 24 horas por dia.",
+    "modo": "cotas",
+    "moeda_padrao": "BRL",
+    "moedas_aceitas": ["BRL", "USD"],
+    "provider": "coingecko",
+    "tipos_transacao": ["compra", "venda"],
+    "aceita_taxas": true,
+    "campos": []
+  },
+  {
+    "slug": "fundo",
+    "nome": "Fundo de investimento",
+    "descricao": "Fundos de renda fixa, multimercado, ações ou cambiais, cotados pela CVM.",
+    "modo": "cotas",
+    "moeda_padrao": "BRL",
+    "moedas_aceitas": ["BRL"],
+    "provider": "cvm",
+    "tipos_transacao": ["compra", "provento", "venda"],
+    "aceita_taxas": true,
+    "campos": [
+      {
+        "nome": "cnpj",
+        "rotulo": "CNPJ do fundo",
+        "tipo": "texto",
+        "obrigatorio": true,
+        "ajuda": "Usado para buscar o valor da cota na CVM.",
+        "opcoes": [],
+        "minimo": null,
+        "maximo": null,
+        "tamanho_maximo": 18
+      },
+      {
+        "nome": "classe",
+        "rotulo": "Classe",
+        "tipo": "escolha",
+        "obrigatorio": false,
+        "ajuda": null,
+        "opcoes": [
+          {
+            "valor": "renda_fixa",
+            "rotulo": "Renda fixa"
+          },
+          {
+            "valor": "multimercado",
+            "rotulo": "Multimercado"
+          },
+          {
+            "valor": "acoes",
+            "rotulo": "Ações"
+          },
+          {
+            "valor": "cambial",
+            "rotulo": "Cambial"
+          },
+          {
+            "valor": "outro",
+            "rotulo": "Outro"
+          }
+        ],
+        "minimo": null,
+        "maximo": null,
+        "tamanho_maximo": null
+      }
+    ]
+  },
+  {
+    "slug": "poupanca",
+    "nome": "Poupança",
+    "descricao": "Caderneta de poupança, com rendimento creditado no aniversário mensal.",
+    "modo": "montante",
+    "moeda_padrao": "BRL",
+    "moedas_aceitas": ["BRL"],
+    "provider": null,
+    "tipos_transacao": ["aporte", "resgate"],
+    "aceita_taxas": true,
+    "campos": []
+  },
+  {
+    "slug": "renda_fixa",
+    "nome": "Renda fixa",
+    "descricao": "CDB, LCI, LCA e outros títulos prefixados, pós-fixados em % do CDI ou atrelados ao IPCA, com valor estimado por accrual (Tesouro Direto tem tipo próprio).",
+    "modo": "montante",
+    "moeda_padrao": "BRL",
+    "moedas_aceitas": ["BRL"],
+    "provider": null,
+    "tipos_transacao": ["aporte", "resgate"],
+    "aceita_taxas": true,
+    "campos": [
+      {
+        "nome": "indexador",
+        "rotulo": "Indexador",
+        "tipo": "escolha",
+        "obrigatorio": true,
+        "ajuda": null,
+        "opcoes": [
+          {
+            "valor": "pre",
+            "rotulo": "Prefixado"
+          },
+          {
+            "valor": "cdi",
+            "rotulo": "% do CDI"
+          },
+          {
+            "valor": "ipca",
+            "rotulo": "IPCA +"
+          }
+        ],
+        "minimo": null,
+        "maximo": null,
+        "tamanho_maximo": null
+      },
+      {
+        "nome": "taxa",
+        "rotulo": "Taxa",
+        "tipo": "decimal",
+        "obrigatorio": true,
+        "ajuda": "Prefixado: % ao ano. % do CDI: percentual (ex.: 110). IPCA +: % ao ano.",
+        "opcoes": [],
+        "minimo": "0",
+        "maximo": "1000",
+        "tamanho_maximo": null
+      },
+      {
+        "nome": "data_aplicacao",
+        "rotulo": "Data de aplicação",
+        "tipo": "data",
+        "obrigatorio": true,
+        "ajuda": null,
+        "opcoes": [],
+        "minimo": null,
+        "maximo": null,
+        "tamanho_maximo": null
+      },
+      {
+        "nome": "vencimento",
+        "rotulo": "Vencimento",
+        "tipo": "data",
+        "obrigatorio": true,
+        "ajuda": null,
+        "opcoes": [],
+        "minimo": null,
+        "maximo": null,
+        "tamanho_maximo": null
+      },
+      {
+        "nome": "emissor",
+        "rotulo": "Emissor",
+        "tipo": "texto",
+        "obrigatorio": true,
+        "ajuda": null,
+        "opcoes": [],
+        "minimo": null,
+        "maximo": null,
+        "tamanho_maximo": 100
+      },
+      {
+        "nome": "liquidez",
+        "rotulo": "Liquidez",
+        "tipo": "escolha",
+        "obrigatorio": true,
+        "ajuda": null,
+        "opcoes": [
+          {
+            "valor": "diaria",
+            "rotulo": "Diária"
+          },
+          {
+            "valor": "no_vencimento",
+            "rotulo": "No vencimento"
+          }
+        ],
+        "minimo": null,
+        "maximo": null,
+        "tamanho_maximo": null
+      }
+    ]
+  },
+  {
+    "slug": "tesouro_direto",
+    "nome": "Tesouro Direto",
+    "descricao": "Títulos públicos do Tesouro Direto, avaliados pelo preço de resgate do dia.",
+    "modo": "cotas",
+    "moeda_padrao": "BRL",
+    "moedas_aceitas": ["BRL"],
+    "provider": "tesouro",
+    "tipos_transacao": ["compra", "provento", "venda"],
+    "aceita_taxas": false,
+    "campos": [
+      {
+        "nome": "titulo",
+        "rotulo": "Título",
+        "tipo": "escolha",
+        "obrigatorio": true,
+        "ajuda": null,
+        "opcoes": [
+          {
+            "valor": "selic",
+            "rotulo": "Tesouro Selic"
+          },
+          {
+            "valor": "prefixado",
+            "rotulo": "Tesouro Prefixado"
+          },
+          {
+            "valor": "prefixado_juros",
+            "rotulo": "Tesouro Prefixado com Juros Semestrais"
+          },
+          {
+            "valor": "ipca",
+            "rotulo": "Tesouro IPCA+"
+          },
+          {
+            "valor": "ipca_juros",
+            "rotulo": "Tesouro IPCA+ com Juros Semestrais"
+          },
+          {
+            "valor": "renda_mais",
+            "rotulo": "Tesouro Renda+"
+          },
+          {
+            "valor": "educa_mais",
+            "rotulo": "Tesouro Educa+"
+          }
+        ],
+        "minimo": null,
+        "maximo": null,
+        "tamanho_maximo": null
+      },
+      {
+        "nome": "vencimento",
+        "rotulo": "Vencimento",
+        "tipo": "data",
+        "obrigatorio": true,
+        "ajuda": "Data de vencimento do título (ex.: 2029-01-01).",
+        "opcoes": [],
+        "minimo": null,
+        "maximo": null,
+        "tamanho_maximo": null
+      }
+    ]
+  }
+]

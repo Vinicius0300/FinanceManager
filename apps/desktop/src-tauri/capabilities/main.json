@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "Permissões mínimas da janela principal. O front só usa invoke dos comandos do app (conexao_backend, reiniciar_backend), que não exigem permissões de core/plugins. Adicione permissões aqui apenas quando uma tela precisar (ex.: dialog:allow-open para restaurar backup).",
+  "description": "Permissões mínimas da janela principal. O front usa invoke dos comandos do app (conexao_backend, reiniciar_backend) e só os diálogos nativos de abrir e salvar arquivo (escolher o backup a restaurar e onde salvar a planilha do histórico). Quem lê e grava os arquivos é o backend; o front não tem acesso ao sistema de arquivos.",
   "windows": ["main"],
-  "permissions": []
+  "permissions": ["dialog:allow-open", "dialog:allow-save"]
 }

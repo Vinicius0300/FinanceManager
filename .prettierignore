@@ -9,3 +9,5 @@ docs/openapi.json
 package-lock.json
 .claude
 *.md
+# Prévias aprovadas pelo dono (material de referência, não é código do app)
+docs/referencias-visuais

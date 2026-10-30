@@ -386,6 +386,21 @@
         "title": "CaixaSaida",
         "type": "object"
       },
+      "CampoOrdem": {
+        "enum": [
+          "data",
+          "operacao",
+          "ativo",
+          "instituicao",
+          "quantidade",
+          "preco_unitario",
+          "taxas",
+          "valor_total",
+          "resultado"
+        ],
+        "title": "CampoOrdem",
+        "type": "string"
+      },
       "CampoTipo": {
         "additionalProperties": false,
         "properties": {
@@ -610,6 +625,14 @@
         "title": "DetalheErro",
         "type": "object"
       },
+      "Direcao": {
+        "enum": [
+          "asc",
+          "desc"
+        ],
+        "title": "Direcao",
+        "type": "string"
+      },
       "ErroApi": {
         "properties": {
           "codigo": {
@@ -811,6 +834,39 @@
         "title": "EvolucaoSaida",
         "type": "object"
       },
+      "ExportacaoEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "caminho": {
+            "title": "Caminho",
+            "type": "string"
+          }
+        },
+        "required": [
+          "caminho"
+        ],
+        "title": "ExportacaoEntrada",
+        "type": "object"
+      },
+      "ExportacaoSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "caminho": {
+            "title": "Caminho",
+            "type": "string"
+          },
+          "linhas": {
+            "title": "Linhas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "caminho",
+          "linhas"
+        ],
+        "title": "ExportacaoSaida",
+        "type": "object"
+      },
       "ExtratoSaida": {
         "properties": {
           "deslocamento": {
@@ -891,6 +947,58 @@
           "percentual"
         ],
         "title": "FatiaSaida",
+        "type": "object"
+      },
+      "GrupoAtivoSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "ativo_id": {
+            "title": "Ativo Id",
+            "type": "integer"
+          },
+          "instituicoes": {
+            "items": {
+              "$ref": "#/components/schemas/GrupoInstituicaoSaida"
+            },
+            "title": "Instituicoes",
+            "type": "array"
+          },
+          "situacao": {
+            "$ref": "#/components/schemas/SituacaoPosicao"
+          },
+          "totais": {
+            "$ref": "#/components/schemas/TotaisHistoricoSaida"
+          }
+        },
+        "required": [
+          "ativo_id",
+          "situacao",
+          "totais",
+          "instituicoes"
+        ],
+        "title": "GrupoAtivoSaida",
+        "type": "object"
+      },
+      "GrupoInstituicaoSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "instituicao_id": {
+            "title": "Instituicao Id",
+            "type": "integer"
+          },
+          "situacao": {
+            "$ref": "#/components/schemas/SituacaoPosicao"
+          },
+          "totais": {
+            "$ref": "#/components/schemas/TotaisHistoricoSaida"
+          }
+        },
+        "required": [
+          "instituicao_id",
+          "situacao",
+          "totais"
+        ],
+        "title": "GrupoInstituicaoSaida",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -1615,6 +1723,48 @@
         "title": "PontoEvolucao",
         "type": "object"
       },
+      "PontoMensalSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "compras": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Compras",
+            "type": "string"
+          },
+          "mes": {
+            "format": "date",
+            "title": "Mes",
+            "type": "string"
+          },
+          "proventos": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Proventos",
+            "type": "string"
+          },
+          "vendas": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Vendas",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mes",
+          "compras",
+          "vendas",
+          "proventos"
+        ],
+        "title": "PontoMensalSaida",
+        "type": "object"
+      },
       "PosicaoSaida": {
         "additionalProperties": false,
         "properties": {
@@ -2083,6 +2233,66 @@
         "title": "RestauracaoSaida",
         "type": "object"
       },
+      "ResumoHistoricoSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "fim": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fim"
+          },
+          "inicio": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inicio"
+          },
+          "por_ativo": {
+            "items": {
+              "$ref": "#/components/schemas/GrupoAtivoSaida"
+            },
+            "title": "Por Ativo",
+            "type": "array"
+          },
+          "serie": {
+            "items": {
+              "$ref": "#/components/schemas/PontoMensalSaida"
+            },
+            "title": "Serie",
+            "type": "array"
+          },
+          "totais": {
+            "$ref": "#/components/schemas/TotaisHistoricoSaida"
+          },
+          "total_sem_filtros": {
+            "title": "Total Sem Filtros",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "totais",
+          "total_sem_filtros",
+          "inicio",
+          "fim",
+          "serie",
+          "por_ativo"
+        ],
+        "title": "ResumoHistoricoSaida",
+        "type": "object"
+      },
       "ResumoInstituicao": {
         "additionalProperties": false,
         "properties": {
@@ -2290,6 +2500,14 @@
         ],
         "title": "ResumoSaida",
         "type": "object"
+      },
+      "SituacaoPosicao": {
+        "enum": [
+          "aberta",
+          "encerrada"
+        ],
+        "title": "SituacaoPosicao",
+        "type": "string"
       },
       "StatusAtivoSaida": {
         "additionalProperties": false,
@@ -2595,6 +2813,79 @@
         "title": "TipoTransacao",
         "type": "string"
       },
+      "TotaisHistoricoSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "impostos_retidos": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Impostos Retidos",
+            "type": "string"
+          },
+          "lucro_realizado": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Lucro Realizado",
+            "type": "string"
+          },
+          "operacoes": {
+            "title": "Operacoes",
+            "type": "integer"
+          },
+          "operacoes_com_taxas": {
+            "title": "Operacoes Com Taxas",
+            "type": "integer"
+          },
+          "proventos_liquidos": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Proventos Liquidos",
+            "type": "string"
+          },
+          "taxas": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Taxas",
+            "type": "string"
+          },
+          "total_comprado": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Total Comprado",
+            "type": "string"
+          },
+          "total_vendido": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Total Vendido",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operacoes",
+          "total_comprado",
+          "total_vendido",
+          "lucro_realizado",
+          "proventos_liquidos",
+          "impostos_retidos",
+          "taxas",
+          "operacoes_com_taxas"
+        ],
+        "title": "TotaisHistoricoSaida",
+        "type": "object"
+      },
       "TotalCategoriaSaida": {
         "additionalProperties": false,
         "properties": {
@@ -2813,6 +3104,14 @@
             "title": "Imposto Retido",
             "type": "string"
           },
+          "imposto_retido_brl": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Imposto Retido Brl",
+            "type": "string"
+          },
           "instituicao_id": {
             "title": "Instituicao Id",
             "type": "integer"
@@ -2869,6 +3168,39 @@
             ],
             "title": "Quantidade"
           },
+          "resultado": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultado"
+          },
+          "resultado_brl": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultado Brl"
+          },
+          "situacao": {
+            "$ref": "#/components/schemas/SituacaoPosicao"
+          },
           "subtipo_provento": {
             "anyOf": [
               {
@@ -2885,6 +3217,14 @@
             ],
             "pattern": "^-?\\d+(\\.\\d+)?$",
             "title": "Taxas",
+            "type": "string"
+          },
+          "taxas_brl": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Taxas Brl",
             "type": "string"
           },
           "tipo": {
@@ -2904,6 +3244,22 @@
               }
             ],
             "title": "Valor"
+          },
+          "valor_total": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Valor Total",
+            "type": "string"
+          },
+          "valor_total_brl": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Valor Total Brl",
+            "type": "string"
           }
         },
         "required": [
@@ -2922,7 +3278,14 @@
           "imposto_retido",
           "observacao",
           "criado_em",
-          "movimentos"
+          "movimentos",
+          "valor_total",
+          "valor_total_brl",
+          "taxas_brl",
+          "imposto_retido_brl",
+          "resultado",
+          "resultado_brl",
+          "situacao"
         ],
         "title": "TransacaoSaida",
         "type": "object"
@@ -7195,8 +7558,54 @@
     },
     "/api/transacoes": {
       "get": {
+        "description": "Ordenação por `ordem` (padrão: data) e `direcao` (padrão: desc); itens sem valor no campo ordenado vão para o fim. Cada item traz valor total, resultado (vendas/resgates) e situação do ativo.",
         "operationId": "listar_transacoes",
         "parameters": [
+          {
+            "in": "query",
+            "name": "ordem",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CampoOrdem",
+              "default": "data"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direcao",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Direcao",
+              "default": "desc"
+            }
+          },
+          {
+            "description": "Itens por página (máximo 500).",
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Itens por página (máximo 500).",
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Quantos itens pular (paginação).",
+            "in": "query",
+            "name": "deslocamento",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Quantos itens pular (paginação).",
+              "minimum": 0,
+              "title": "Deslocamento",
+              "type": "integer"
+            }
+          },
           {
             "in": "query",
             "name": "ativo_id",
@@ -7230,6 +7639,7 @@
             }
           },
           {
+            "description": "Uma operação (use `tipos` para várias).",
             "in": "query",
             "name": "tipo",
             "required": false,
@@ -7242,7 +7652,87 @@
                   "type": "null"
                 }
               ],
+              "description": "Uma operação (use `tipos` para várias).",
               "title": "Tipo"
+            }
+          },
+          {
+            "description": "Operações aceitas (repita o parâmetro). Vazio = todas.",
+            "in": "query",
+            "name": "tipos",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/TipoTransacao"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Operações aceitas (repita o parâmetro). Vazio = todas.",
+              "title": "Tipos"
+            }
+          },
+          {
+            "description": "Slug do tipo de ativo.",
+            "in": "query",
+            "name": "tipo_ativo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Slug do tipo de ativo.",
+              "title": "Tipo Ativo"
+            }
+          },
+          {
+            "description": "Moeda do ativo (BRL, USD).",
+            "in": "query",
+            "name": "moeda",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 3,
+                  "minLength": 3,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Moeda do ativo (BRL, USD).",
+              "title": "Moeda"
+            }
+          },
+          {
+            "description": "Parte do símbolo ou do nome do ativo.",
+            "in": "query",
+            "name": "busca",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 60,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Parte do símbolo ou do nome do ativo.",
+              "title": "Busca"
             }
           },
           {
@@ -7280,30 +7770,45 @@
             }
           },
           {
-            "description": "Itens por página (máximo 500).",
+            "description": "Com `instituicao_id`, situação da posição naquela instituição; sem ele, do ativo somando todas as instituições.",
             "in": "query",
-            "name": "limite",
+            "name": "situacao",
             "required": false,
             "schema": {
-              "default": 50,
-              "description": "Itens por página (máximo 500).",
-              "maximum": 500,
-              "minimum": 1,
-              "title": "Limite",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SituacaoPosicao"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Com `instituicao_id`, situação da posição naquela instituição; sem ele, do ativo somando todas as instituições.",
+              "title": "Situacao"
             }
           },
           {
-            "description": "Quantos itens pular (paginação).",
+            "description": "Só vendas/resgates com resultado negativo.",
             "in": "query",
-            "name": "deslocamento",
+            "name": "apenas_prejuizo",
             "required": false,
             "schema": {
-              "default": 0,
-              "description": "Quantos itens pular (paginação).",
-              "minimum": 0,
-              "title": "Deslocamento",
-              "type": "integer"
+              "default": false,
+              "description": "Só vendas/resgates com resultado negativo.",
+              "title": "Apenas Prejuizo",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Só operações com taxas ou imposto retido.",
+            "in": "query",
+            "name": "apenas_com_custos",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Só operações com taxas ou imposto retido.",
+              "title": "Apenas Com Custos",
+              "type": "boolean"
             }
           }
         ],
@@ -7332,11 +7837,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErroApi"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Dados inválidos ou regra de negócio violada."
           }
         },
         "security": [
@@ -7344,7 +7849,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Lista transações com filtros (mais recentes primeiro)",
+        "summary": "Lista transações com os filtros do histórico",
         "tags": [
           "transações"
         ]
@@ -7420,6 +7925,542 @@
           }
         ],
         "summary": "Registra uma transação",
+        "tags": [
+          "transações"
+        ]
+      }
+    },
+    "/api/transacoes/exportar": {
+      "post": {
+        "description": "Mesmos filtros e ordem da listagem (todas as páginas). `caminho` é o arquivo escolhido no diálogo de salvar (absoluto, .xlsx, pasta existente).",
+        "operationId": "exportar_transacoes",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ordem",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CampoOrdem",
+              "default": "data"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direcao",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Direcao",
+              "default": "desc"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ativo_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ativo Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "instituicao_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Instituicao Id"
+            }
+          },
+          {
+            "description": "Uma operação (use `tipos` para várias).",
+            "in": "query",
+            "name": "tipo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TipoTransacao"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Uma operação (use `tipos` para várias).",
+              "title": "Tipo"
+            }
+          },
+          {
+            "description": "Operações aceitas (repita o parâmetro). Vazio = todas.",
+            "in": "query",
+            "name": "tipos",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/TipoTransacao"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Operações aceitas (repita o parâmetro). Vazio = todas.",
+              "title": "Tipos"
+            }
+          },
+          {
+            "description": "Slug do tipo de ativo.",
+            "in": "query",
+            "name": "tipo_ativo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Slug do tipo de ativo.",
+              "title": "Tipo Ativo"
+            }
+          },
+          {
+            "description": "Moeda do ativo (BRL, USD).",
+            "in": "query",
+            "name": "moeda",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 3,
+                  "minLength": 3,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Moeda do ativo (BRL, USD).",
+              "title": "Moeda"
+            }
+          },
+          {
+            "description": "Parte do símbolo ou do nome do ativo.",
+            "in": "query",
+            "name": "busca",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 60,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Parte do símbolo ou do nome do ativo.",
+              "title": "Busca"
+            }
+          },
+          {
+            "in": "query",
+            "name": "inicio",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Inicio"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fim",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fim"
+            }
+          },
+          {
+            "description": "Com `instituicao_id`, situação da posição naquela instituição; sem ele, do ativo somando todas as instituições.",
+            "in": "query",
+            "name": "situacao",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SituacaoPosicao"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Com `instituicao_id`, situação da posição naquela instituição; sem ele, do ativo somando todas as instituições.",
+              "title": "Situacao"
+            }
+          },
+          {
+            "description": "Só vendas/resgates com resultado negativo.",
+            "in": "query",
+            "name": "apenas_prejuizo",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Só vendas/resgates com resultado negativo.",
+              "title": "Apenas Prejuizo",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Só operações com taxas ou imposto retido.",
+            "in": "query",
+            "name": "apenas_com_custos",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Só operações com taxas ou imposto retido.",
+              "title": "Apenas Com Custos",
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportacaoEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportacaoSaida"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Dados inválidos ou regra de negócio violada."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Grava o histórico filtrado numa planilha Excel (.xlsx)",
+        "tags": [
+          "transações"
+        ]
+      }
+    },
+    "/api/transacoes/resumo": {
+      "get": {
+        "description": "Valores em BRL (câmbio de cada operação), arredondados a centavos. A série vai do início do filtro (ou da operação mais antiga) até o fim do filtro (ou hoje), um ponto por mês, inclusive os meses sem operação.",
+        "operationId": "obter_resumo_historico",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ativo_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ativo Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "instituicao_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Instituicao Id"
+            }
+          },
+          {
+            "description": "Uma operação (use `tipos` para várias).",
+            "in": "query",
+            "name": "tipo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TipoTransacao"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Uma operação (use `tipos` para várias).",
+              "title": "Tipo"
+            }
+          },
+          {
+            "description": "Operações aceitas (repita o parâmetro). Vazio = todas.",
+            "in": "query",
+            "name": "tipos",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/TipoTransacao"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Operações aceitas (repita o parâmetro). Vazio = todas.",
+              "title": "Tipos"
+            }
+          },
+          {
+            "description": "Slug do tipo de ativo.",
+            "in": "query",
+            "name": "tipo_ativo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Slug do tipo de ativo.",
+              "title": "Tipo Ativo"
+            }
+          },
+          {
+            "description": "Moeda do ativo (BRL, USD).",
+            "in": "query",
+            "name": "moeda",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 3,
+                  "minLength": 3,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Moeda do ativo (BRL, USD).",
+              "title": "Moeda"
+            }
+          },
+          {
+            "description": "Parte do símbolo ou do nome do ativo.",
+            "in": "query",
+            "name": "busca",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 60,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Parte do símbolo ou do nome do ativo.",
+              "title": "Busca"
+            }
+          },
+          {
+            "in": "query",
+            "name": "inicio",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Inicio"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fim",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fim"
+            }
+          },
+          {
+            "description": "Com `instituicao_id`, situação da posição naquela instituição; sem ele, do ativo somando todas as instituições.",
+            "in": "query",
+            "name": "situacao",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SituacaoPosicao"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Com `instituicao_id`, situação da posição naquela instituição; sem ele, do ativo somando todas as instituições.",
+              "title": "Situacao"
+            }
+          },
+          {
+            "description": "Só vendas/resgates com resultado negativo.",
+            "in": "query",
+            "name": "apenas_prejuizo",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Só vendas/resgates com resultado negativo.",
+              "title": "Apenas Prejuizo",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Só operações com taxas ou imposto retido.",
+            "in": "query",
+            "name": "apenas_com_custos",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Só operações com taxas ou imposto retido.",
+              "title": "Apenas Com Custos",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumoHistoricoSaida"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Dados inválidos ou regra de negócio violada."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Totais, série mensal e visão por ativo do histórico filtrado",
         "tags": [
           "transações"
         ]

@@ -18,6 +18,8 @@ dependencies = [
     # Cliente HTTP dos providers de cotação (fork mantido do httpx; também usado pelo
     # TestClient do Starlette).
     "httpx2>=2.16,<3",
+    # Exportação do histórico para Excel (.xlsx); puro Python, sem dependências pesadas.
+    "openpyxl>=3.1,<4",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +28,7 @@ dev = [
     "ruff>=0.17,<0.18",
     "mypy>=2.4,<3",
     "pandas-stubs>=3.0,<4",
+    "types-openpyxl>=3.1,<4",
     "pytest-cov>=7.1,<8",
     # Apenas para o reload do uvicorn no desenvolvimento.
     "watchfiles>=1.0",

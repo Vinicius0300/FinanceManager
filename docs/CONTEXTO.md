@@ -11,15 +11,15 @@ App desktop instalável para Windows (ícone e janela próprios, sem navegador e
 Uso single-user. Dados 100% locais: sem login, nuvem ou sincronização.
 
 Telas previstas: Dashboard, Carteira, Movimentações, Receitas e Despesas, Configurações.
-O visual final segue imagens de referência que o dono enviará na Parte 5; até lá a paleta é provisória e neutra.
+A paleta de cores é definitiva desde a Parte 4 (seção 8.3); o restante do visual (layout fino, tipografia, ícones, animações) é ajustado na Parte 5 a partir de `docs/referencias-visuais/`.
 
 ## 2. Roadmap (5 partes, cada uma validada pelo dono antes da próxima)
 | Parte | Conteúdo | Situação |
 |---|---|---|
 | 1 | Fundação: monorepo, Tauri + React + sidecar FastAPI, `/health` e rota protegida, encerramento limpo, instância única, estado da janela, contrato OpenAPI → TS, docs | **Validada** |
 | 2 | Modelos e banco (SQLite + SQLAlchemy + Alembic com backup prévio), registry de tipos de ativo, services de cálculo com `Decimal` (posição, caixa por instituição, eventos, câmbio, renda fixa, poupança, alocação, série de patrimônio, resumo mensal), estrutura de `analytics/` e testes, com o code review aplicado | **Validada** |
-| 3 | Providers de cotação (Yahoo, CoinGecko, SGS, Tesouro Transparente, CVM) em registry; tipo Tesouro Direto; um preço por dia e histórico de 1 ano; atualização em segundo plano (asyncio) com estado por alvo; services de edição; API REST completa (OpenAPI) com 409 de saldo insuficiente; backup/restauração pela API; SSE; cliente TS e hook de exemplo | **Entregue (aguardando validação)** |
-| 4 | Frontend funcional com visual neutro: Dashboard, Carteira, Movimentações (com aba Caixa), Receitas e Despesas, Configurações (indicadores, backup); gráficos; consumo do SSE | A fazer |
+| 3 | Providers de cotação (Yahoo, CoinGecko, SGS, Tesouro Transparente, CVM) em registry; tipo Tesouro Direto; um preço por dia e histórico de 1 ano; atualização em segundo plano (asyncio) com estado por alvo; services de edição; API REST completa (OpenAPI) com 409 de saldo insuficiente; backup/restauração pela API; SSE; cliente TS e hook de exemplo | **Validada** |
+| 4 | Frontend funcional com a paleta definitiva: Dashboard, Carteira, Movimentações (Histórico com filtros, resumo e Excel; Eventos; Caixa), Receitas e Despesas, Configurações (indicadores, backup); gráficos; consumo do SSE; backend do histórico | **Entregue (aguardando validação)** |
 | 5 | Visual final a partir das imagens de referência; empacotamento do backend (PyInstaller) e instalador; script único de build | A fazer |
 
 ## 3. Decisões de arquitetura (definitivas)
@@ -45,7 +45,7 @@ O visual final segue imagens de referência que o dono enviará na Parte 5; até
 - API só em `127.0.0.1`; porta e token dinâmicos por sessão; comparação do token com `secrets.compare_digest`.
 - CORS: `http://tauri.localhost` (sempre) e `http://localhost:5173` / `http://127.0.0.1:5173` (só com `FINANCAS_DEV=1`).
 - CSP do Tauri: `connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:*` (o `devCsp` acrescenta o Vite).
-- Capabilities: `capabilities/main.json` sem permissões; o front só usa `invoke` de comandos do próprio app. Acrescente permissões somente quando uma tela precisar.
+- Capabilities: `capabilities/main.json` só com `dialog:allow-open` e `dialog:allow-save` (Parte 4: escolher o backup a restaurar e onde salvar a planilha). O front não lê nem grava arquivos: entrega o caminho e o backend faz o resto. Acrescente permissões somente quando uma tela precisar.
 - `/docs` (Swagger) só existe em modo dev.
 
 ## 5. Estrutura
@@ -53,13 +53,19 @@ O visual final segue imagens de referência que o dono enviará na Parte 5; até
 apps/desktop/                 package.json (CLI do Tauri), icone.svg (fonte dos ícones)
 apps/desktop/src-tauri/       Rust: lib.rs (plugins/comandos), backend.rs (sidecar), job.rs (Job Object)
 apps/web/src/
-  app/                        App, roteador, layout
-  features/status-backend/    portão de inicialização + tela de status (Parte 1)
-  components/ (ui/)           componentes compartilhados e shadcn/ui
+  app/                        App, rotas, layout (navegação lateral), navegação, erro global
+  features/                   uma pasta por tela: dashboard, carteira, movimentacoes
+                              (historico, eventos, caixa, transacao), receitas-despesas,
+                              configuracoes; status-backend (portão da Parte 1); tempo-real (SSE)
+  components/                 compartilhados: CartaoMetrica, TabelaDados, Campo, Estados,
+                              DialogoConfirmacao, IndicadorDefasado, SeletorAnalise,
+                              ValorFinanceiro, graficos/ (ECharts e Lightweight Charts); ui/ (shadcn)
   api/schema.ts               GERADO pelo openapi-typescript (não editar)
-  lib/                        cliente da API (openapi-fetch), formatação, utils,
-                              eventos.ts (stream SSE via fetch + hook de exemplo)
-  theme/                      tokens (index.css) e preferência de tema (Zustand)
+  lib/                        api (exigir/invalidar), decimal (BigInt), formatacao, datas,
+                              formularios (Zod pt-BR), fatias (cores por categoria),
+                              consultas-comuns, dialogos-nativos, eventos.ts (SSE)
+  theme/                      tokens (index.css), cores.ts (tokens para os gráficos), tema
+  test/                       API falsa para testes de tela e o schema real dos tipos de ativo
 backend/
   entrypoint.py               ponto de entrada do sidecar
   alembic.ini, migrations/    Alembic (env.py + versions/); rodam sozinhas na inicialização
@@ -69,14 +75,14 @@ backend/
                               backup, eventos (SSE); dependencias.py e schemas.py comuns
   app/core                    config, paths, logs, segurança, erros, watchdog,
                               banco (engine/pragmas/sessão), backup, migracoes, contrato
-  app/domain                  regras puras: numeros, calendario, posicao, montante,
+  app/domain                  regras puras: numeros, calendario, posicao, montante, historico,
                               renda_fixa, poupanca, conta_corrente, metricas, carteira,
                               serie_patrimonio, lancamentos, indicadores, precos, agenda, erros
   app/asset_types             base (contrato), registry, catalogo (registro único), 7 handlers
   app/repositories            modelos (SQLAlchemy), tipos (DecimalTexto, DataHoraUTC), repositórios
   app/services                cadastros, ativos, mercado, caixa, transacoes, posicoes, carteira,
                               patrimonio, portfolio, financeiro, configuracoes, coleta,
-                              status_cotacoes, backup
+                              status_cotacoes, backup, historico, exportacao (Excel)
   app/providers               base (contrato), http (retry/rate limit/cache), registry, catalogo,
                               yahoo, coingecko, sgs, tesouro, cvm
   app/jobs                    agendador (asyncio) e eventos (canal + gerador SSE)
@@ -92,7 +98,7 @@ scripts/                      contrato.py, 1_instalar_ferramentas.bat, 2_prepara
 - **operation_id** = nome da função da rota (nomes estáveis no cliente TS).
 - **Dados do usuário:** só via `app/core/paths.py` (`%APPDATA%\Financas\`, sobrescrevível por `FINANCAS_DATA_DIR` nos testes).
 - **Logs:** `%APPDATA%\Financas\logs\backend.log`, rotativo (1 MB × 5). No modo reload, o supervisor loga só no console.
-- **Front:** sem cores fixas em componentes (tokens em `theme/index.css`, incluindo `sucesso`, `aviso`, `perigo`); toda tela com carregando/vazio/erro; falhas viram texto via `mensagemDeErro`.
+- **Front:** sem cores fixas em componentes (tokens em `theme/index.css`, ver 8.3); toda tela com carregando/vazio/erro; falhas viram texto via `mensagemDeErro`. Respostas da API passam por `lib/api.exigir` (lança `FalhaApi` com os `detalhes` por campo, que `aplicarErrosDaApi` coloca nos campos do formulário). Depois de qualquer gravação, `invalidarDados` marca as consultas como desatualizadas (só as visíveis são refeitas).
 - **Tema:** **escuro por padrão**; só dois modos (escuro e claro), alternados por um switch no topo (`components/SeletorTema.tsx`, ligado = escuro). A escolha fica no `localStorage` da janela (`financas-tema`, Zustand persist). O `index.html` já nasce com `class="dark"` para não piscar claro na abertura. Não há modo "igual ao sistema" (decisão do dono, Parte 1).
 - **Cliente da API:** `openapi-fetch` tipado por `schema.ts`; obtido com `useClienteApi()` (só existe depois que o portão liberou a UI).
 - **Testes:** nenhum depende da internet nem do relógio real (datas injetadas); backend com `TestClient`, pasta de dados temporária e SQLite temporário (fixtures `engine`/`sessao`); dados sintéticos em `tests/fabricas.py`; front com Vitest + Testing Library e `fetch` falso.
@@ -171,12 +177,34 @@ Decisões técnicas desta parte:
 - **Contrato:** `tests/test_contrato.py` falha se `docs/openapi.json` diferir do gerado (`core/contrato.texto_openapi`, compartilhado com `scripts/contrato.py`); `npm run contrato:verificar` segue cobrindo o `schema.ts`.
 - **Tesouro Direto** como 7º tipo (`tesouro_direto`): cotado pelo PU de venda, BRL, sem taxas (`aceita_taxas = False`), provento só para títulos com juros semestrais, compra recusada a partir do vencimento. `renda_fixa` segue para CDB, LCI, LCA e afins.
 
+## 8.3 Decisões tomadas na Parte 4
+Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 4.md`):
+- **Paleta definitiva** (prévia `docs/referencias-visuais/previa-paleta.html`): violeta principal, azul-marinho nas superfícies escuras, cinzas arroxeados. Tokens do shadcn mais `lateral*`, `positivo`/`negativo`, `sucesso`/`perigo`/`aviso`/`aviso-texto`/`info` e `grafico-1..6`/`grafico-caixa`, em oklch nos dois temas e expostos ao Tailwind (`bg-lateral`, `text-positivo`...). `theme/tokens.test.ts` garante cada token em `:root` e `.dark`. Ganho/perda sempre com sinal e seta (`ValorFinanceiro`); zero em `--muted-foreground`.
+- **Situação do ativo nas duas visões:** com filtro de instituição, vale a situação da posição; sem filtro, a do ativo somando as instituições. A tabela do histórico tem a visão **Por ativo** (linha agregada que se abre por instituição).
+- **Taxas × imposto (opção A):** "Taxas pagas" só soma taxas; o IR retido dos proventos é `impostos_retidos` (cartão de proventos, coluna auxiliar Imposto e detalhe). Não há estimativa de IR sobre ganho de capital.
+- **Exportação em Excel (.xlsx)** pelo backend (`openpyxl`, nova dependência, puro Python), com todos os filtros e a ordem da tela; números como número e datas `AAAA-MM-DD`. O caminho vem do diálogo nativo de salvar (`POST /api/transacoes/exportar`); o arquivo é gravado num temporário e trocado (planilha aberta no Excel vira mensagem em pt-BR).
+- **Lightweight Charts** no detalhe do ativo da Carteira (preço de 1 ano, área com degradê do `--grafico-1`).
+
+Decisões técnicas desta parte:
+- **Backend do histórico:** `GET /api/transacoes` ganhou `tipos` (lista), `tipo_ativo`, `moeda`, `busca` (símbolo/nome, com `casefold`), `situacao`, `apenas_prejuizo`, `apenas_com_custos`, `ordem` e `direcao` (ordenação na API, coerente com a paginação; vazios no fim). Cada transação traz `valor_total(_brl)`, `taxas_brl`, `imposto_retido_brl`, `resultado(_brl)` e `situacao`, também nas respostas de cadastro e edição. `GET /api/transacoes/resumo` devolve os totais, `total_sem_filtros` (o "M" de "N de M"), a série mensal e `por_ativo`. Os ativos do filtro são reprocessados com **todas** as transações; posição que não fecha mais vai para o log e fica sem resultado (não derruba a consulta). Regras em `docs/CALCULOS.md` §12.
+- **Bibliotecas:** TanStack Table **v8** (a v9, recém-lançada, mudou a API), React Hook Form + Zod 4 (`@hookform/resolvers`), ECharts 6 (import modular: pizza, barras e linha), Lightweight Charts 5, date-fns 4, `@tauri-apps/plugin-dialog`, Radix Dialog/AlertDialog/Tabs. Os seletores são `<select>` nativos estilizados (acessíveis e simples de testar), não o Select do Radix.
+- **Componentes de formulário com `forwardRef`:** o React 18 não passa `ref` como prop e, sem isso, o React Hook Form não preenche os valores iniciais. Formulários com listas vindas da API só aparecem depois que as listas carregam (senão o `<select>` perde o valor inicial).
+- **Dinheiro no front:** o texto decimal vai direto ao `Intl.NumberFormat` (sem `number`). `lib/decimal.ts` faz sinal, comparação, soma exata (`BigInt`, usada só no "Outros" dos gráficos e no bruto do provento) e normaliza o que o usuário digita ("1.234,56" → "1234.56"). Casas a mais são recusadas, não arredondadas (dinheiro 2, quantidade e preço 8, câmbio 6). Razões da API (rentabilidade, participação, variação) viram percentual movendo a vírgula. `paraGrafico` converte para `number` só para desenhar.
+- **Cores dos gráficos:** lidas das variáveis CSS e convertidas para `rgb()` pelo próprio navegador (1 pixel de canvas), porque ECharts e Lightweight Charts não entendem `oklch`; guardadas por tema. A classe `dark` muda junto com o estado do tema (store), antes de o React redesenhar, para os gráficos lerem o tema novo. Ordem fixa por categoria (`lib/fatias.ts`): tipos de ativo em `ORDEM_TIPOS_ATIVO` (ação BR, renda fixa, fundo, ação US, Tesouro, cripto, poupança); instituições e categorias pela ordem de criação. Categoria sem posição fixa usa a primeira cor livre; acima de 6, "Outros" com a cor de caixa.
+- **Estado de UI:** filtros, ordem, página e visão do histórico ficam na URL (`?tipo_ativo=…&ops=venda,resgate&periodo=ano…`, sem os valores padrão); a aba de Movimentações em `?aba=`; o seletor Análise Geral/por Instituição é compartilhado entre Dashboard e Carteira (Zustand, só na sessão). Busca com espera de 300 ms. Períodos em meses de calendário ("últimos 12 meses" = dia 1º de 11 meses atrás até hoje).
+- **Tempo real:** o layout assina o SSE; `preco_atualizado`, `indicador_atualizado`, `erro_provider` e `fim_ciclo` invalidam as consultas de cotação, agrupadas numa janela de 800 ms; o topo mostra a hora do último ciclo e as falhas.
+- **Indicadores na tela:** último valor de cada série nos últimos 120 dias; lançamento manual (IPCA no dia 1º) e edição do último valor (que passa a ser manual).
+- **Testes do front:** `src/test/api-falsa.tsx` (rotas falsas que conferem o token e registram as chamadas) com o schema real dos 7 tipos de ativo (`src/test/dados/tipos-ativo.json`, exportado do registry). Os gráficos viram marcadores no `setup.tsx` e os invólucros têm testes próprios.
+- `.prettierignore` ignora `docs/referencias-visuais` (prévias do dono, não são código do app).
+
 ## 9. Pendências conhecidas
 - Build de release ainda não inclui o backend empacotado (Parte 5): `tauri build` gera o app, mas ele mostrará "Executável do serviço interno não encontrado".
 - Atualização por cima, assinatura de código e SmartScreen: Parte 5.
 - Empacotamento (Parte 5): incluir a pasta `backend/migrations` e os dados do `tzdata` no executável do PyInstaller (`core/migracoes.PASTA_MIGRACOES` aponta para ela).
-- Telas (Parte 4): diálogo do 409 de saldo insuficiente, restauração com confirmação e diálogo nativo do Tauri (a API já existe), consumo do SSE para atualizar preços sem recarregar.
-- Fundos com subclasses (Resolução CVM 175) precisam do `ID_SUBCLASSE` em `simbolo_externo`; a tela de cadastro deve explicar isso.
+- Fundos com subclasses (Resolução CVM 175) precisam do `ID_SUBCLASSE` em `simbolo_externo` (a tela de cadastro explica isso).
+- Parte 5: polimento visual (layout fino, tipografia, ícones, animações) sobre a paleta já definida.
+- Com os 7 tipos de ativo na carteira ao mesmo tempo, o 7º na ordem fixa (poupança) entra em "Outros" na pizza de alocação (regra das 6 cores).
+- A lista de lançamentos mostra até 500 por mês (máximo da API por página).
 - Feriados da bolsa americana não são considerados na agenda (só geram coletas extras sem efeito).
 - O ciclo de coleta roda numa thread: no encerramento ele para entre alvos, mas um download em andamento (ex.: ZIP da CVM) pode segurar o processo até o timeout; o Tauri força o fim após 3 s (Job Object).
 - Bloco 2 do code review da Parte 2 (limpeza) continua pendente (ver 8.1).

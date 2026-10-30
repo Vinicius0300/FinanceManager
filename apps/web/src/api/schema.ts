@@ -712,7 +712,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lista transações com filtros (mais recentes primeiro) */
+        /**
+         * Lista transações com os filtros do histórico
+         * @description Ordenação por `ordem` (padrão: data) e `direcao` (padrão: desc); itens sem valor no campo ordenado vão para o fim. Cada item traz valor total, resultado (vendas/resgates) e situação do ativo.
+         */
         get: operations["listar_transacoes"];
         put?: never;
         /**
@@ -720,6 +723,46 @@ export interface paths {
          * @description Se o caixa da instituição ficaria negativo, responde 409 `saldo_insuficiente` sem gravar. Reenvie com `aceitar_ajuste=true` para gravar com um ajuste de saldo.
          */
         post: operations["criar_transacao"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transacoes/exportar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grava o histórico filtrado numa planilha Excel (.xlsx)
+         * @description Mesmos filtros e ordem da listagem (todas as páginas). `caminho` é o arquivo escolhido no diálogo de salvar (absoluto, .xlsx, pasta existente).
+         */
+        post: operations["exportar_transacoes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transacoes/resumo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Totais, série mensal e visão por ativo do histórico filtrado
+         * @description Valores em BRL (câmbio de cada operação), arredondados a centavos. A série vai do início do filtro (ou da operação mais antiga) até o fim do filtro (ou hoje), um ponto por mês, inclusive os meses sem operação.
+         */
+        get: operations["obter_resumo_historico"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -884,6 +927,11 @@ export interface components {
             /** Saldo Brl */
             saldo_brl: string | null;
         };
+        /**
+         * CampoOrdem
+         * @enum {string}
+         */
+        CampoOrdem: "data" | "operacao" | "ativo" | "instituicao" | "quantidade" | "preco_unitario" | "taxas" | "valor_total" | "resultado";
         /** CampoTipo */
         CampoTipo: {
             /** Ajuda */
@@ -957,6 +1005,11 @@ export interface components {
             /** Mensagem */
             mensagem: string;
         };
+        /**
+         * Direcao
+         * @enum {string}
+         */
+        Direcao: "asc" | "desc";
         /** ErroApi */
         ErroApi: {
             /** Codigo */
@@ -1032,6 +1085,18 @@ export interface components {
             /** Pontos */
             pontos: components["schemas"]["PontoEvolucao"][];
         };
+        /** ExportacaoEntrada */
+        ExportacaoEntrada: {
+            /** Caminho */
+            caminho: string;
+        };
+        /** ExportacaoSaida */
+        ExportacaoSaida: {
+            /** Caminho */
+            caminho: string;
+            /** Linhas */
+            linhas: number;
+        };
         /** ExtratoSaida */
         ExtratoSaida: {
             /** Deslocamento */
@@ -1066,6 +1131,22 @@ export interface components {
              * @example 10.50
              */
             valor: string;
+        };
+        /** GrupoAtivoSaida */
+        GrupoAtivoSaida: {
+            /** Ativo Id */
+            ativo_id: number;
+            /** Instituicoes */
+            instituicoes: components["schemas"]["GrupoInstituicaoSaida"][];
+            situacao: components["schemas"]["SituacaoPosicao"];
+            totais: components["schemas"]["TotaisHistoricoSaida"];
+        };
+        /** GrupoInstituicaoSaida */
+        GrupoInstituicaoSaida: {
+            /** Instituicao Id */
+            instituicao_id: number;
+            situacao: components["schemas"]["SituacaoPosicao"];
+            totais: components["schemas"]["TotaisHistoricoSaida"];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1368,6 +1449,29 @@ export interface components {
              */
             patrimonio: string;
         };
+        /** PontoMensalSaida */
+        PontoMensalSaida: {
+            /**
+             * Compras
+             * @example 10.50
+             */
+            compras: string;
+            /**
+             * Mes
+             * Format: date
+             */
+            mes: string;
+            /**
+             * Proventos
+             * @example 10.50
+             */
+            proventos: string;
+            /**
+             * Vendas
+             * @example 10.50
+             */
+            vendas: string;
+        };
         /** PosicaoSaida */
         PosicaoSaida: {
             /** Ativo Id */
@@ -1496,6 +1600,20 @@ export interface components {
             /** Restaurado */
             restaurado: string;
         };
+        /** ResumoHistoricoSaida */
+        ResumoHistoricoSaida: {
+            /** Fim */
+            fim: string | null;
+            /** Inicio */
+            inicio: string | null;
+            /** Por Ativo */
+            por_ativo: components["schemas"]["GrupoAtivoSaida"][];
+            /** Serie */
+            serie: components["schemas"]["PontoMensalSaida"][];
+            totais: components["schemas"]["TotaisHistoricoSaida"];
+            /** Total Sem Filtros */
+            total_sem_filtros: number;
+        };
         /** ResumoInstituicao */
         ResumoInstituicao: {
             /**
@@ -1581,6 +1699,11 @@ export interface components {
              */
             variacao_dia_brl: string;
         };
+        /**
+         * SituacaoPosicao
+         * @enum {string}
+         */
+        SituacaoPosicao: "aberta" | "encerrada";
         /** StatusAtivoSaida */
         StatusAtivoSaida: {
             /** Ativo Id */
@@ -1680,6 +1803,43 @@ export interface components {
          * @enum {string}
          */
         TipoTransacao: "compra" | "venda" | "aporte" | "resgate" | "provento";
+        /** TotaisHistoricoSaida */
+        TotaisHistoricoSaida: {
+            /**
+             * Impostos Retidos
+             * @example 10.50
+             */
+            impostos_retidos: string;
+            /**
+             * Lucro Realizado
+             * @example 10.50
+             */
+            lucro_realizado: string;
+            /** Operacoes */
+            operacoes: number;
+            /** Operacoes Com Taxas */
+            operacoes_com_taxas: number;
+            /**
+             * Proventos Liquidos
+             * @example 10.50
+             */
+            proventos_liquidos: string;
+            /**
+             * Taxas
+             * @example 10.50
+             */
+            taxas: string;
+            /**
+             * Total Comprado
+             * @example 10.50
+             */
+            total_comprado: string;
+            /**
+             * Total Vendido
+             * @example 10.50
+             */
+            total_vendido: string;
+        };
         /** TotalCategoriaSaida */
         TotalCategoriaSaida: {
             /** Categoria Id */
@@ -1765,6 +1925,11 @@ export interface components {
              * @example 10.50
              */
             imposto_retido: string;
+            /**
+             * Imposto Retido Brl
+             * @example 10.50
+             */
+            imposto_retido_brl: string;
             /** Instituicao Id */
             instituicao_id: number;
             /** Moeda */
@@ -1777,15 +1942,35 @@ export interface components {
             preco_unitario: string | null;
             /** Quantidade */
             quantidade: string | null;
+            /** Resultado */
+            resultado: string | null;
+            /** Resultado Brl */
+            resultado_brl: string | null;
+            situacao: components["schemas"]["SituacaoPosicao"];
             subtipo_provento: components["schemas"]["SubtipoProvento"] | null;
             /**
              * Taxas
              * @example 10.50
              */
             taxas: string;
+            /**
+             * Taxas Brl
+             * @example 10.50
+             */
+            taxas_brl: string;
             tipo: components["schemas"]["TipoTransacao"];
             /** Valor */
             valor: string | null;
+            /**
+             * Valor Total
+             * @example 10.50
+             */
+            valor_total: string;
+            /**
+             * Valor Total Brl
+             * @example 10.50
+             */
+            valor_total_brl: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -4500,15 +4685,32 @@ export interface operations {
     listar_transacoes: {
         parameters: {
             query?: {
-                ativo_id?: number | null;
-                instituicao_id?: number | null;
-                tipo?: components["schemas"]["TipoTransacao"] | null;
-                inicio?: string | null;
-                fim?: string | null;
+                ordem?: components["schemas"]["CampoOrdem"];
+                direcao?: components["schemas"]["Direcao"];
                 /** @description Itens por página (máximo 500). */
                 limite?: number;
                 /** @description Quantos itens pular (paginação). */
                 deslocamento?: number;
+                ativo_id?: number | null;
+                instituicao_id?: number | null;
+                /** @description Uma operação (use `tipos` para várias). */
+                tipo?: components["schemas"]["TipoTransacao"] | null;
+                /** @description Operações aceitas (repita o parâmetro). Vazio = todas. */
+                tipos?: components["schemas"]["TipoTransacao"][] | null;
+                /** @description Slug do tipo de ativo. */
+                tipo_ativo?: string | null;
+                /** @description Moeda do ativo (BRL, USD). */
+                moeda?: string | null;
+                /** @description Parte do símbolo ou do nome do ativo. */
+                busca?: string | null;
+                inicio?: string | null;
+                fim?: string | null;
+                /** @description Com `instituicao_id`, situação da posição naquela instituição; sem ele, do ativo somando todas as instituições. */
+                situacao?: components["schemas"]["SituacaoPosicao"] | null;
+                /** @description Só vendas/resgates com resultado negativo. */
+                apenas_prejuizo?: boolean;
+                /** @description Só operações com taxas ou imposto retido. */
+                apenas_com_custos?: boolean;
             };
             header?: never;
             path?: never;
@@ -4534,13 +4736,13 @@ export interface operations {
                     "application/json": components["schemas"]["ErroApi"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Dados inválidos ou regra de negócio violada. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErroApi"];
                 };
             };
         };
@@ -4587,6 +4789,130 @@ export interface operations {
             };
             /** @description Conflito com os dados atuais. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    exportar_transacoes: {
+        parameters: {
+            query?: {
+                ordem?: components["schemas"]["CampoOrdem"];
+                direcao?: components["schemas"]["Direcao"];
+                ativo_id?: number | null;
+                instituicao_id?: number | null;
+                /** @description Uma operação (use `tipos` para várias). */
+                tipo?: components["schemas"]["TipoTransacao"] | null;
+                /** @description Operações aceitas (repita o parâmetro). Vazio = todas. */
+                tipos?: components["schemas"]["TipoTransacao"][] | null;
+                /** @description Slug do tipo de ativo. */
+                tipo_ativo?: string | null;
+                /** @description Moeda do ativo (BRL, USD). */
+                moeda?: string | null;
+                /** @description Parte do símbolo ou do nome do ativo. */
+                busca?: string | null;
+                inicio?: string | null;
+                fim?: string | null;
+                /** @description Com `instituicao_id`, situação da posição naquela instituição; sem ele, do ativo somando todas as instituições. */
+                situacao?: components["schemas"]["SituacaoPosicao"] | null;
+                /** @description Só vendas/resgates com resultado negativo. */
+                apenas_prejuizo?: boolean;
+                /** @description Só operações com taxas ou imposto retido. */
+                apenas_com_custos?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportacaoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportacaoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_resumo_historico: {
+        parameters: {
+            query?: {
+                ativo_id?: number | null;
+                instituicao_id?: number | null;
+                /** @description Uma operação (use `tipos` para várias). */
+                tipo?: components["schemas"]["TipoTransacao"] | null;
+                /** @description Operações aceitas (repita o parâmetro). Vazio = todas. */
+                tipos?: components["schemas"]["TipoTransacao"][] | null;
+                /** @description Slug do tipo de ativo. */
+                tipo_ativo?: string | null;
+                /** @description Moeda do ativo (BRL, USD). */
+                moeda?: string | null;
+                /** @description Parte do símbolo ou do nome do ativo. */
+                busca?: string | null;
+                inicio?: string | null;
+                fim?: string | null;
+                /** @description Com `instituicao_id`, situação da posição naquela instituição; sem ele, do ativo somando todas as instituições. */
+                situacao?: components["schemas"]["SituacaoPosicao"] | null;
+                /** @description Só vendas/resgates com resultado negativo. */
+                apenas_prejuizo?: boolean;
+                /** @description Só operações com taxas ou imposto retido. */
+                apenas_com_custos?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumoHistoricoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

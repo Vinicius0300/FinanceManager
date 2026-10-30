@@ -9,6 +9,7 @@ export interface ConexaoBackend {
 }
 
 export type ErroApi = components["schemas"]["ErroApi"];
+export type DetalheErro = components["schemas"]["DetalheErro"];
 
 export const MENSAGEM_FORA_DO_APP =
   "Esta tela precisa ser aberta pelo app Finanças (npm run dev). " +
@@ -45,14 +46,23 @@ export function criarClienteApi(conexao: ConexaoBackend, fetchFn?: typeof fetch)
 
 export type ClienteApi = ReturnType<typeof criarClienteApi>;
 
-/** Erro padronizado devolvido pela API ({codigo, mensagem}), como exceção. */
+/** Erro padronizado devolvido pela API ({codigo, mensagem, detalhes}), como exceção. */
 export class FalhaApi extends Error {
   readonly codigo: string;
+  readonly detalhes: DetalheErro[];
+  readonly status: number | undefined;
 
-  constructor(erro: ErroApi) {
+  constructor(erro: ErroApi, status?: number) {
     super(erro.mensagem);
     this.name = "FalhaApi";
     this.codigo = erro.codigo;
+    this.detalhes = erro.detalhes ?? [];
+    this.status = status;
+  }
+
+  /** Mensagem de um campo específico (`detalhes` da API), se houver. */
+  detalhe(campo: string): string | undefined {
+    return this.detalhes.find((d) => d.campo === campo)?.mensagem;
   }
 }
 

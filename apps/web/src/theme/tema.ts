@@ -37,11 +37,22 @@ export const useTemaStore = create<EstadoTema>()(
   ),
 );
 
-/** Aplica a classe `dark` no <html> conforme o tema escolhido. */
+/** Coloca (ou tira) a classe `dark` do <html>. */
+export function aplicarClasseTema(tema: Tema): void {
+  document.documentElement.classList.toggle("dark", tema === "escuro");
+}
+
+// A classe muda junto com o estado (antes de o React redesenhar): quem lê as variáveis CSS
+// durante a renderização (cores dos gráficos) já enxerga o tema novo.
+useTemaStore.subscribe((estado) => {
+  aplicarClasseTema(estado.tema);
+});
+
+/** Garante a classe `dark` do tema salvo ao abrir o app (o store já a mantém depois). */
 export function useAplicarTema(): void {
   const tema = useTemaStore((s) => s.tema);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", tema === "escuro");
+    aplicarClasseTema(tema);
   }, [tema]);
 }

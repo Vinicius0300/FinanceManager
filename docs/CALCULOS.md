@@ -133,3 +133,15 @@ A posição é calculada por **(ativo, instituição)** (`domain/posicao.py`).
 - Resumo mensal: total recebido, total gasto e saldo (receitas − despesas).
 - Totais por categoria, com percentual sobre o total do tipo no mês. Lançamentos sem categoria aparecem como "Sem categoria".
 - Proventos **não** entram aqui (ficam na conta corrente da instituição).
+
+## 12. Histórico de operações (Parte 4)
+Funções puras em `backend/app/domain/historico.py`; consulta em `services/historico.py`.
+
+- **Resultado da operação** (`resultado` na moeda do ativo e `resultado_brl`): lucro ou prejuízo realizado **daquela** venda/resgate, calculado pela mesma regra do preço médio (seção 2) ou do resgate proporcional (seção 6). É a diferença do lucro realizado acumulado da posição antes e depois da operação, por isso a soma dos resultados de um ativo é exatamente o `lucro_realizado` dele (há teste conferindo).
+  - Ex.: 100 a R$ 10 + 100 a R$ 12 (PM 11); venda de 50 a R$ 15 com R$ 5 de taxa → 750 − 5 − 550 = **+R$ 195**; venda dos 150 restantes a R$ 9 → 1.350 − 1.650 = **−R$ 300**; soma −105 = lucro realizado da posição.
+  - Moeda estrangeira: AAPL 10 a US$ 100 + US$ 1 (câmbio 5,00 → custo R$ 5.005); venda a US$ 110 − US$ 1 (câmbio 5,50 → R$ 6.044,50). Resultado **+US$ 98** e **+R$ 1.039,50** (o BRL inclui a alta do dólar).
+- **Valor total** = movimento de caixa da operação: compra = qtd × preço + taxas e venda = qtd × preço − taxas (a centavos), aporte/resgate = valor, provento = líquido. Em BRL × câmbio da operação.
+- **Taxas e imposto** em BRL × câmbio da operação. O cartão "Taxas pagas" soma só taxas e conta as operações com taxa; o IR retido dos proventos é um total à parte (`impostos_retidos`). Estimativa de IR sobre ganho de capital **não** existe no app.
+- **Situação do ativo**: posição (ativo + instituição) aberta enquanto tem quantidade/lotes. Com filtro de instituição, vale a posição daquela instituição; sem ele, o ativo está aberto se qualquer instituição ainda tiver posição. Ex.: PETR4 com 100 na XP e zerada na RICO → "ainda na carteira" sem filtro; "encerrada" filtrando RICO.
+- **Resumo do filtro**: totais em BRL somados sem arredondar e arredondados a centavos na saída; série mensal do início do filtro (ou da operação mais antiga) até o fim (ou hoje), com os meses sem operação zerados; visão por ativo com os mesmos totais por instituição.
+- **Exportação Excel**: números gravados como número (arredondados como na tela) e datas como data `AAAA-MM-DD`; o Excel mostra o separador decimal do Windows.
