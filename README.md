@@ -61,7 +61,7 @@ A atualização automática de cotações começa ao abrir; para depurar sem ace
 ### Atualização de cotações
 - Ações e cripto: a cada 1 a 15 min (padrão 5; `PUT /api/configuracoes`). Fora do pregão, ações só até pegar o fechamento.
 - Selic, CDI, IPCA, PTAX, Tesouro Direto e fundos: uma vez por dia.
-- Forçar agora: `POST /api/cotacoes/atualizar`. Status por ativo: `GET /api/cotacoes/status`. Eventos em tempo real: `GET /api/eventos` (SSE).
+- Forçar agora: botão **Atualizar cotações** no topo do app (em qualquer tela) ou `POST /api/cotacoes/atualizar`. Status por ativo: `GET /api/cotacoes/status` (resumido no chip "N em dia · N defasadas · N com erro" do topo). Eventos em tempo real: `GET /api/eventos` (SSE).
 - Na primeira vez são baixados os fechamentos de até 1 ano (fundos: até 12 arquivos de ~12 MB da CVM, processados e descartados).
 
 ## Onde ficam os dados

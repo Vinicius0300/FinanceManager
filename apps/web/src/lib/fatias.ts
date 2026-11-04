@@ -1,16 +1,20 @@
 import { CATEGORIA_OUTROS, type CoresTema } from "@/theme/cores";
-import { somar } from "./decimal";
+import { comparar, somar } from "./decimal";
 
 /**
  * Fatias de gráficos por categoria (tipo de ativo, instituição, categoria de despesa).
  *
- * Regras da paleta (Parte 4):
- * - **Ordem fixa:** a posição da categoria em `ordem` (lista estável) define a cor, então a
- *   mesma categoria tem a mesma cor em todos os gráficos.
- * - **Até 6 categorias** por gráfico ganham cor; acima disso, o resto vira **"Outros"**
- *   com a cor de caixa (somado em decimal exato, sem `number`).
- * - Categoria sem posição fixa (fora da ordem ou além da 6ª) usa a primeira cor livre.
+ * Regra das 6 cores por presença (Parte 5A):
+ * - **As 6 maiores fatias presentes** ganham cor (comparação decimal exata; empate pela
+ *   ordem fixa e depois pela ordem de chegada). As demais somam em **"Outros"**, com a cor
+ *   de caixa (soma em decimal exato, sem `number`).
+ * - **Cor fixa por categoria:** a posição em `ordem` (lista estável) define a cor das 6
+ *   primeiras categorias da lista; elas mantêm essa cor sempre que estiverem entre as 6,
+ *   mesmo que o ranking mude.
+ * - Categoria sem cor própria (7ª em diante na ordem, ou fora dela) que entre no top 6 usa a
+ *   **primeira cor livre**: a de uma categoria ausente ou que caiu em "Outros".
  * - A fatia `caixa` (saldo em conta) sempre usa a cor de caixa e fica por último.
+ * - As fatias saem da maior para a menor.
  */
 export interface FatiaEntrada {
   categoria: string;
@@ -38,24 +42,28 @@ export function prepararFatias(
   const demais = fatias
     .filter((f) => f.categoria !== "caixa")
     .map((f, i) => ({ fatia: f, i }))
-    .sort((a, b) => posicao(a.fatia.categoria) - posicao(b.fatia.categoria) || a.i - b.i)
+    .sort(
+      (a, b) =>
+        comparar(b.fatia.valor, a.fatia.valor) ||
+        posicao(a.fatia.categoria) - posicao(b.fatia.categoria) ||
+        a.i - b.i,
+    )
     .map(({ fatia }) => fatia);
 
   const visiveis = demais.slice(0, MAXIMO_CATEGORIAS);
   const agrupadas = demais.slice(MAXIMO_CATEGORIAS);
 
+  // Primeiro as cores fixas de quem está no top 6; depois as livres para os demais.
   const usadas = new Set<number>();
-  const comCor: (FatiaEntrada & { cor?: string })[] = visiveis.map((f) => {
+  for (const f of visiveis) {
     const indice = posicao(f.categoria);
-    if (indice < cores.series.length) {
-      usadas.add(indice);
-      return { ...f, cor: cores.series[indice] };
-    }
-    return { ...f };
-  });
+    if (indice < cores.series.length) usadas.add(indice);
+  }
   const livres = cores.series.map((_, i) => i).filter((i) => !usadas.has(i));
-  const prontas: FatiaPronta[] = comCor.map((f) => {
-    if (f.cor) return f as FatiaPronta;
+  const prontas: FatiaPronta[] = visiveis.map((f) => {
+    const indice = posicao(f.categoria);
+    const fixa = indice < cores.series.length ? cores.series[indice] : undefined;
+    if (fixa) return { ...f, cor: fixa };
     const livre = livres.shift();
     return { ...f, cor: (livre === undefined ? undefined : cores.series[livre]) ?? cores.caixa };
   });
@@ -75,8 +83,8 @@ export function prepararFatias(
 
 /**
  * Ordem fixa das categorias de tipo de ativo (os 6 primeiros têm cor própria). Os tipos da
- * Parte 4.1 entram no fim para não mudar a cor dos existentes; presentes no gráfico, usam a
- * primeira cor livre (ou "Outros" acima de 6 categorias). Rever na Parte 5.
+ * Parte 4.1 entram no fim para não mudar a cor dos existentes; quando estão entre as 6
+ * maiores fatias, usam a primeira cor livre.
  */
 export const ORDEM_TIPOS_ATIVO = [
   "acao_br",

@@ -3,14 +3,14 @@ import { cn } from "@/lib/utils";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <div className="relative w-full overflow-x-auto">
-      <table className={cn("w-full caption-bottom text-sm", className)} {...props} />
+    <div className="relative w-full overflow-x-auto rounded-lg">
+      <table className={cn("w-full caption-bottom text-[0.8125rem]", className)} {...props} />
     </div>
   );
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
-  return <thead className={cn("bg-muted [&_tr]:border-b", className)} {...props} />;
+  return <thead className={cn("bg-muted [&_tr]:border-b-0", className)} {...props} />;
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
@@ -21,7 +21,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   return (
     <tr
       className={cn(
-        "border-b transition-colors data-[clicavel=true]:cursor-pointer data-[clicavel=true]:hover:bg-muted/60",
+        "border-b transition-colors data-[clicavel=true]:cursor-pointer data-[clicavel=true]:hover:bg-muted/60 data-[subtotal=true]:bg-subtotal data-[subtotal=true]:font-semibold",
         className,
       )}
       {...props}
@@ -33,7 +33,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       className={cn(
-        "h-9 px-3 text-left align-middle text-xs font-semibold whitespace-nowrap text-muted-foreground",
+        "h-8 px-3 text-left align-middle text-xs font-semibold whitespace-nowrap text-muted-foreground first:rounded-l-lg last:rounded-r-lg",
         className,
       )}
       {...props}
@@ -42,7 +42,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
 }
 
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {
-  return <td className={cn("px-3 py-2 align-middle", className)} {...props} />;
+  return <td className={cn("px-3 py-1.5 align-middle", className)} {...props} />;
 }
 
 function TableCaption({ className, ...props }: React.ComponentProps<"caption">) {

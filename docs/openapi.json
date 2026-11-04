@@ -3925,6 +3925,93 @@
         ],
         "title": "VariacaoDiaSaida",
         "type": "object"
+      },
+      "VencimentoSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "ativo_id": {
+            "title": "Ativo Id",
+            "type": "integer"
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "defasado": {
+            "title": "Defasado",
+            "type": "boolean"
+          },
+          "instituicao_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instituicao Id"
+          },
+          "nome": {
+            "title": "Nome",
+            "type": "string"
+          },
+          "simbolo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Simbolo"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          },
+          "valor_brl": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Brl"
+          },
+          "vencimento": {
+            "format": "date",
+            "title": "Vencimento",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ativo_id",
+          "nome",
+          "simbolo",
+          "tipo",
+          "instituicao_id",
+          "vencimento",
+          "valor_brl",
+          "defasado",
+          "aviso"
+        ],
+        "title": "VencimentoSaida",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -7860,6 +7947,118 @@
           }
         ],
         "summary": "Variação do dia (preço atual sobre o fechamento anterior)",
+        "tags": [
+          "portfólio"
+        ]
+      }
+    },
+    "/api/portfolio/vencimentos": {
+      "get": {
+        "description": "Posições abertas com vencimento a partir da data de referência (inclusive), da mais próxima para a mais distante.",
+        "operationId": "listar_proximos_vencimentos",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Análise por Instituição (omita para a Análise Geral).",
+            "in": "query",
+            "name": "instituicao_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Análise por Instituição (omita para a Análise Geral).",
+              "title": "Instituicao Id"
+            }
+          },
+          {
+            "description": "Data de referência (padrão: hoje).",
+            "in": "query",
+            "name": "data",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Data de referência (padrão: hoje).",
+              "title": "Data"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VencimentoSaida"
+                  },
+                  "title": "Response Listar Proximos Vencimentos",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Registro não encontrado."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Próximos vencimentos (renda fixa e Tesouro Direto)",
         "tags": [
           "portfólio"
         ]

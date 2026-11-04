@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LayoutApp } from "@/app/LayoutApp";
@@ -13,7 +13,10 @@ import { CONEXAO, renderizar } from "@/test/api-falsa";
 import { CartaoMetrica } from "./CartaoMetrica";
 import { DialogoConfirmacao } from "./DialogoConfirmacao";
 import { EstadoErro, EstadoVazio } from "./Estados";
+import { Sparkline } from "./graficos/Sparkline";
 import { IndicadorDefasado } from "./IndicadorDefasado";
+import { Segmentos } from "./Segmentos";
+import { TabelaDados } from "./TabelaDados";
 import { ValorFinanceiro } from "./ValorFinanceiro";
 
 const limpo = (t: string | null) => (t ?? "").replace(/\u00a0/g, " ");
@@ -50,9 +53,80 @@ describe("ValorFinanceiro: ganho/perda nunca só pela cor", () => {
 });
 
 describe("componentes compartilhados", () => {
-  it("cartão de métrica com carregando acessível", () => {
-    render(<CartaoMetrica titulo="Total" valor="R$ 1,00" apoio="apoio" carregando />);
-    expect(screen.getByRole("region", { name: "Total" })).toHaveTextContent("…");
+  it("cartão de métrica com carregando acessível (esqueleto, sem apoio nem gráfico)", () => {
+    render(
+      <CartaoMetrica
+        titulo="Total"
+        valor="R$ 1,00"
+        apoio="apoio"
+        grafico={<span>linha</span>}
+        carregando
+      />,
+    );
+    const cartao = screen.getByRole("region", { name: "Total" });
+    expect(within(cartao).getByLabelText("Carregando")).toBeInTheDocument();
+    expect(cartao.querySelector("[aria-busy='true']")).not.toBeNull();
+    expect(cartao).not.toHaveTextContent("R$ 1,00");
+    expect(cartao).not.toHaveTextContent("apoio");
+    expect(within(cartao).queryByTestId("sparkline")).not.toBeInTheDocument();
+  });
+
+  it("cartão de métrica com e sem sparkline", () => {
+    const { rerender } = render(
+      <CartaoMetrica titulo="Total" valor="R$ 1,00" grafico={<span>linha</span>} />,
+    );
+    expect(screen.getByTestId("sparkline")).toHaveTextContent("linha");
+    rerender(<CartaoMetrica titulo="Total" valor="R$ 1,00" />);
+    // Sem série não sobra espaço reservado.
+    expect(screen.queryByTestId("sparkline")).not.toBeInTheDocument();
+  });
+
+  it("sparkline: rótulo acessível e nada com menos de 2 pontos", () => {
+    const { rerender } = render(
+      <Sparkline
+        pontos={[
+          { data: "2026-10-28", valor: "10" },
+          { data: "2026-10-29", valor: "12.5" },
+        ]}
+        rotulo="Patrimônio de 10 a 12,50"
+      />,
+    );
+    const grafico = screen.getByRole("img", { name: "Patrimônio de 10 a 12,50" });
+    const opcoes = JSON.parse(grafico.getAttribute("data-opcoes") ?? "{}") as {
+      series: { data: number[] }[];
+    };
+    expect(opcoes.series[0]?.data).toEqual([10, 12.5]);
+    rerender(<Sparkline pontos={[{ data: "2026-10-29", valor: "12" }]} rotulo="x" />);
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  it("segmentos: clique, aria-pressed e setas do teclado (com volta ao início)", async () => {
+    const usuario = userEvent.setup();
+    const aoMudar = vi.fn();
+    render(
+      <Segmentos
+        rotulo="Período"
+        opcoes={[
+          { valor: "a", rotulo: "6M" },
+          { valor: "b", rotulo: "1A" },
+          { valor: "c", rotulo: "Máx" },
+        ]}
+        valor="c"
+        aoMudar={aoMudar}
+      />,
+    );
+    expect(screen.getByRole("group", { name: "Período" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Máx" })).toHaveAttribute("aria-pressed", "true");
+    // Só o ativo entra na ordem do Tab (as setas movem entre as opções).
+    expect(screen.getByRole("button", { name: "6M" })).toHaveAttribute("tabindex", "-1");
+    await usuario.click(screen.getByRole("button", { name: "1A" }));
+    expect(aoMudar).toHaveBeenLastCalledWith("b");
+    screen.getByRole("button", { name: "Máx" }).focus();
+    await usuario.keyboard("{ArrowRight}");
+    expect(aoMudar).toHaveBeenLastCalledWith("a");
+    expect(screen.getByRole("button", { name: "6M" })).toHaveFocus();
+    await usuario.keyboard("{End}");
+    expect(aoMudar).toHaveBeenLastCalledWith("c");
   });
 
   it("indicador de defasado e de erro com o motivo", () => {
@@ -172,6 +246,12 @@ describe("tempo real (SSE)", () => {
       expect(screen.getByRole("link", { name: rotulo })).toBeInTheDocument();
     }
     expect(screen.getByRole("link", { name: "Dashboard" })).toHaveClass("bg-lateral-ativo");
+    // Responsividade: abaixo de 1024 px a lateral mostra só o ícone; o nome continua para
+    // leitores de tela (sr-only) e na dica (title).
+    const link = screen.getByRole("link", { name: "Carteira" });
+    expect(link).toHaveAttribute("title", "Carteira");
+    expect(within(link).getByText("Carteira")).toHaveClass("sr-only", "lg:not-sr-only");
+    expect(screen.getByRole("button", { name: "Atualizar cotações" })).toBeInTheDocument();
 
     const invalidar = vi.spyOn(queryClient, "invalidateQueries");
     await waitFor(() => {
@@ -207,5 +287,73 @@ describe("tempo real (SSE)", () => {
       expect(invalidar).toHaveBeenCalledWith({ queryKey: ["simbolos"] });
     });
     expect(invalidar).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("responsividade básica", () => {
+  it("tabelas largas rolam dentro do próprio contêiner, não a página", () => {
+    render(
+      <TabelaDados
+        rotulo="Larga"
+        dados={[{ id: 1, valor: "10" }]}
+        colunas={[
+          { accessorKey: "id", header: "Id" },
+          { accessorKey: "valor", header: "Valor", meta: { numerica: true } },
+        ]}
+      />,
+    );
+    const tabela = screen.getByRole("table", { name: "Larga" });
+    expect(tabela.parentElement).toHaveClass("overflow-x-auto");
+    // Números não quebram linha (a tabela rola em vez de espremer os valores).
+    expect(within(tabela).getByText("10").closest("td")).toHaveClass("whitespace-nowrap");
+  });
+
+  it("agrupamento com subtotal antes e caixa depois de cada grupo", () => {
+    render(
+      <TabelaDados
+        rotulo="Agrupada"
+        dados={[
+          { grupo: "b", nome: "B1", valor: "1" },
+          { grupo: "a", nome: "A1", valor: "5" },
+          { grupo: "a", nome: "A2", valor: "9" },
+        ]}
+        colunas={[
+          { accessorKey: "nome", header: "Nome" },
+          { accessorKey: "valor", header: "Valor", meta: { numerica: true } },
+        ]}
+        ordenacaoInicial={[{ id: "nome", desc: true }]}
+        agrupamento={{
+          chave: (i) => i.grupo,
+          ordem: ["a", "b", "c"],
+          cabecalho: (chave, itens) => (
+            <tr data-subtotal="true">
+              <td>{`Total ${chave} (${itens.length})`}</td>
+            </tr>
+          ),
+          rodape: (chave) => (
+            <tr>
+              <td>{`Caixa ${chave}`}</td>
+            </tr>
+          ),
+        }}
+      />,
+    );
+    const linhas = within(screen.getByRole("table", { name: "Agrupada" }))
+      .getAllByRole("row")
+      .slice(1)
+      .map((l) => l.textContent);
+    // Ordem dos grupos pedida; ordenação (nome decrescente) dentro de cada grupo; grupo sem
+    // itens ("c") ainda mostra subtotal e rodapé.
+    expect(linhas).toEqual([
+      "Total a (2)",
+      "A29",
+      "A15",
+      "Caixa a",
+      "Total b (1)",
+      "B11",
+      "Caixa b",
+      "Total c (0)",
+      "Caixa c",
+    ]);
   });
 });

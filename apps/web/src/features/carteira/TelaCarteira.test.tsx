@@ -166,34 +166,6 @@ describe("Carteira", () => {
     expect(within(tabela).getAllByRole("row")[1]).toHaveTextContent("CDB Banco X");
   });
 
-  it("atualização forçada não trava e mostra o 409 de ciclo em andamento", async () => {
-    let tentativas = 0;
-    const { usuario, chamadas } = renderizar(<TelaCarteira />, {
-      rotas: {
-        ...ROTAS,
-        "POST /api/cotacoes/atualizar": () => {
-          tentativas += 1;
-          return tentativas === 1
-            ? { mensagem: "Atualização iniciada." }
-            : {
-                status: 409,
-                corpo: {
-                  codigo: "atualizacao_em_andamento",
-                  mensagem: "Já existe uma atualização em andamento.",
-                },
-              };
-        },
-      },
-    });
-    const botao = await screen.findByRole("button", { name: "Atualizar cotações" });
-    await usuario.click(botao);
-    await waitFor(() => {
-      expect(chamadas.filter((c) => c.metodo === "POST")).toHaveLength(1);
-    });
-    await usuario.click(screen.getByRole("button", { name: "Atualizar cotações" }));
-    expect(await screen.findByText("Já existe uma atualização em andamento.")).toBeInTheDocument();
-  });
-
   it("detalhe do ativo cotado: gráfico de preço e valor manual; renda fixa sem valor manual", async () => {
     const { usuario, chamadas } = renderizar(<TelaCarteira />, {
       rotas: {
@@ -256,5 +228,101 @@ describe("Carteira", () => {
   it("estado vazio", async () => {
     renderizar(<TelaCarteira />, { rotas: { ...ROTAS, "GET /api/portfolio/posicoes": [] } });
     expect(await screen.findByText("Nenhuma posição aberta")).toBeInTheDocument();
+  });
+
+  it("por instituição: subtotal da API, resultado somado exato, caixa e posição sem resultado", async () => {
+    const metricas = (resultado: string, rentabilidade: string) => ({
+      resultado_total: resultado,
+      rentabilidade_total: rentabilidade,
+    });
+    const porInstituicao: Record<string, unknown[]> = {
+      "2": [
+        posicao({
+          ativo_id: 10,
+          nome: "Petrobras PN",
+          simbolo: "PETR4",
+          tipo: "acao_br",
+          instituicao_id: 2,
+          valor_brl: "30496.00",
+          metricas_brl: metricas("4210.40", "0.16"),
+        }),
+        posicao({
+          ativo_id: 13,
+          nome: "Vale ON",
+          simbolo: "VALE3",
+          tipo: "acao_br",
+          instituicao_id: 2,
+          valor_brl: "27170.00",
+          metricas_brl: metricas("3012.50", "0.125"),
+        }),
+      ],
+      "3": [
+        posicao({
+          ativo_id: 11,
+          nome: "Apple",
+          simbolo: "AAPL",
+          tipo: "acao_us",
+          moeda: "USD",
+          instituicao_id: 3,
+          valor_brl: "31120.55",
+          metricas_brl: metricas("-1083.20", "-0.034"),
+        }),
+      ],
+      "4": [
+        posicao({
+          ativo_id: 12,
+          nome: "CDB Banco X",
+          simbolo: null,
+          tipo: "renda_fixa",
+          instituicao_id: 4,
+          valor_brl: null,
+          erro: "Não há CDI registrado.",
+        }),
+      ],
+    };
+    const resumo = (id: number, nome: string, patrimonio: string, caixa: string) => ({
+      instituicao_id: id,
+      nome,
+      investimentos_brl: patrimonio,
+      caixa_brl: caixa,
+      patrimonio_brl: patrimonio,
+      completo: id !== 4,
+    });
+    const { usuario } = renderizar(<TelaCarteira />, {
+      rotas: {
+        ...ROTAS,
+        "GET /api/portfolio/posicoes": (c: Chamada) =>
+          porInstituicao[c.query.get("instituicao_id") ?? ""] ?? [],
+        "GET /api/portfolio/instituicoes": [
+          resumo(2, "RICO", "60880.20", "3214.20"),
+          resumo(3, "Avenue", "31120.55", "0.00"),
+          resumo(4, "Banco X", "1000.00", "0.00"),
+          resumo(5, "Nubank", "500.00", "500.00"),
+        ],
+      },
+    });
+    await usuario.click(await screen.findByRole("button", { name: "Por instituição" }));
+    expect(screen.queryByRole("searchbox", { name: "Buscar ativo" })).not.toBeInTheDocument();
+    const tabela = await screen.findByRole("table", { name: "Carteira por instituição" });
+    const linhas = within(tabela)
+      .getAllByRole("row")
+      .slice(1)
+      .map((l) => limpo(l.textContent));
+    expect(linhas).toEqual([
+      // RICO: valor da API (com o caixa); resultado 4.210,40 + 3.012,50 = 7.222,90.
+      "RICO2 posiçõesR$ 60.880,20ganho: +R$ 7.222,90",
+      "PETR4Ação (Brasil)R$ 30.496,00ganho: +R$ 4.210,40ganho: +16,00%",
+      "VALE3Ação (Brasil)R$ 27.170,00ganho: +R$ 3.012,50ganho: +12,50%",
+      "CaixaSaldo em contaR$ 3.214,20——",
+      // Posição em USD entra pelo valor e resultado em BRL.
+      "Avenue1 posiçãoR$ 31.120,55perda: −R$ 1.083,20",
+      "AAPLAção (EUA)R$ 31.120,55perda: −R$ 1.083,20perda: −3,40%",
+      // Posição sem resultado: subtotal indisponível, nunca um total parcial.
+      "Banco X1 posiçãototal incompletoR$ 1.000,00—",
+      "CDB Banco XErro: Não há CDI registrado.Renda fixa———",
+      // Instituição só com caixa continua aparecendo.
+      "Nubanksó caixaR$ 500,00R$ 0,00",
+      "CaixaSaldo em contaR$ 500,00——",
+    ]);
   });
 });

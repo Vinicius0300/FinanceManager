@@ -292,6 +292,11 @@ class HandlerTipoAtivo(ABC):
         """Indicadores que o cálculo do valor usa (para a atualização da Parte 3)."""
         return frozenset()
 
+    def vencimento(self, metadados: Metadados) -> date | None:
+        """Data de vencimento do ativo (``None``: o tipo não vence). Usada em "Próximos
+        vencimentos"; sobrescreva nos tipos com prazo (renda fixa, Tesouro Direto)."""
+        return None
+
     def schema(self) -> dict[str, Any]:
         return {
             "slug": self.slug,

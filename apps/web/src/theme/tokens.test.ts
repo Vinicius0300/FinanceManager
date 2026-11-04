@@ -58,6 +58,7 @@ const TOKENS_NOVOS = [
   "--aviso-foreground",
   "--aviso-texto",
   "--info",
+  "--subtotal",
   ...TOKENS_GRAFICO,
 ];
 const TODOS = [...TOKENS_BASE, ...TOKENS_NOVOS];
@@ -90,6 +91,26 @@ describe("paleta definitiva (Parte 4)", () => {
       const croma = Number(/oklch\([\d.]+ ([\d.]+)/.exec(claro.get(token) ?? "")?.[1]);
       expect(croma, token).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("tokens de superfície (Parte 5A)", () => {
+  const claro = tokensDe(":root");
+  const escuro = tokensDe(".dark");
+
+  it.each(["--sombra-cartao", "--sombra-elevada"])("%s existe nos dois temas", (token) => {
+    expect(claro.get(token), `claro ${token}`).toBeTruthy();
+    expect(escuro.get(token), `escuro ${token}`).toBeTruthy();
+  });
+
+  it("sombras expostas ao Tailwind (shadow-cartao, shadow-elevada)", () => {
+    expect(bloco("@theme inline")).toContain("--shadow-cartao: var(--sombra-cartao);");
+    expect(bloco("@theme inline")).toContain("--shadow-elevada: var(--sombra-elevada);");
+  });
+
+  it("raio maior e fonte Segoe UI do sistema", () => {
+    expect(claro.get("--radius")).toBe("0.75rem");
+    expect(claro.get("--fonte-sans")).toBe('"Segoe UI", system-ui, sans-serif');
   });
 });
 

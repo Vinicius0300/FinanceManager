@@ -26,9 +26,9 @@ import { SecaoListasTickers } from "./ListasTickers";
  */
 export function TelaConfiguracoes({ agora = new Date() }: { agora?: Date }) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3.5">
       <CabecalhoPagina titulo="Configurações" />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3.5 lg:grid-cols-2">
         <Secao titulo="Atualização automática">
           <FormularioIntervalo />
         </Secao>
@@ -47,8 +47,11 @@ export function TelaConfiguracoes({ agora = new Date() }: { agora?: Date }) {
         </Secao>
       </div>
       <SecaoIndicadores agora={agora} />
-      <SecaoListasTickers />
-      <SecaoBackups />
+      {/* A partir de ~1280 px, listas e backup lado a lado (Parte 5A). */}
+      <div className="grid items-start gap-3.5 xl:grid-cols-2">
+        <SecaoListasTickers />
+        <SecaoBackups />
+      </div>
       <Secao titulo="Serviço interno">
         <TelaStatusBackend />
       </Secao>
@@ -94,7 +97,7 @@ function FormularioIntervalo() {
   return (
     <form
       noValidate
-      className="flex flex-wrap items-end gap-3"
+      className="flex flex-wrap items-start gap-3"
       onSubmit={(e) => {
         void enviar(e);
       }}
@@ -113,7 +116,7 @@ function FormularioIntervalo() {
           {...form.register("intervalo_atualizacao_min")}
         />
       </Campo>
-      <Button type="submit" disabled={salvar.isPending}>
+      <Button type="submit" className="mt-6" disabled={salvar.isPending}>
         {salvar.isPending && <Loader2 aria-hidden className="animate-spin" />}
         Salvar
       </Button>

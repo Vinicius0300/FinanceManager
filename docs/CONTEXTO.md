@@ -11,17 +11,19 @@ App desktop instalável para Windows (ícone e janela próprios, sem navegador e
 Uso single-user. Dados 100% locais: sem login, nuvem ou sincronização.
 
 Telas previstas: Dashboard, Carteira, Movimentações, Receitas e Despesas, Configurações.
-A paleta de cores é definitiva desde a Parte 4 (seção 8.3); o restante do visual (layout fino, tipografia, ícones, animações) é ajustado na Parte 5 a partir de `docs/referencias-visuais/`.
+A paleta de cores é definitiva desde a Parte 4 (seção 8.3); o visual final (layout fino, tipografia, ícones, animações) foi feito na Parte 5A a partir de `docs/referencias-visuais/` (seção 8.5).
 
-## 2. Roadmap (5 partes, cada uma validada pelo dono antes da próxima)
+## 2. Roadmap (cada parte validada pelo dono antes da próxima)
 | Parte | Conteúdo | Situação |
 |---|---|---|
 | 1 | Fundação: monorepo, Tauri + React + sidecar FastAPI, `/health` e rota protegida, encerramento limpo, instância única, estado da janela, contrato OpenAPI → TS, docs | **Validada** |
 | 2 | Modelos e banco (SQLite + SQLAlchemy + Alembic com backup prévio), registry de tipos de ativo, services de cálculo com `Decimal` (posição, caixa por instituição, eventos, câmbio, renda fixa, poupança, alocação, série de patrimônio, resumo mensal), estrutura de `analytics/` e testes, com o code review aplicado | **Validada** |
 | 3 | Providers de cotação (Yahoo, CoinGecko, SGS, Tesouro Transparente, CVM) em registry; tipo Tesouro Direto; um preço por dia e histórico de 1 ano; atualização em segundo plano (asyncio) com estado por alvo; services de edição; API REST completa (OpenAPI) com 409 de saldo insuficiente; backup/restauração pela API; SSE; cliente TS e hook de exemplo | **Validada** |
-| 4 | Frontend funcional com a paleta definitiva: Dashboard, Carteira, Movimentações (Histórico com filtros, resumo e Excel; Eventos; Caixa), Receitas e Despesas, Configurações (indicadores, backup); gráficos; consumo do SSE; backend do histórico | **Entregue (aguardando validação)** |
-| 4.1 | Ajuste de fluxo da Parte 4: formulário único de movimentação (o ativo é cadastrado junto com a compra/aporte), deduplicação por tipo, listas oficiais de tickers (B3 e NASDAQ) para busca e identificação do tipo, tipos `fundo_listado`, `etf_br` e `etf_us` | **Entregue (aguardando validação)** |
-| 5 | Visual final a partir das imagens de referência; empacotamento do backend (PyInstaller) e instalador; script único de build | A fazer |
+| 4 | Frontend funcional com a paleta definitiva: Dashboard, Carteira, Movimentações (Histórico com filtros, resumo e Excel; Eventos; Caixa), Receitas e Despesas, Configurações (indicadores, backup); gráficos; consumo do SSE; backend do histórico | **Validada** |
+| 4.1 | Ajuste de fluxo da Parte 4: formulário único de movimentação (o ativo é cadastrado junto com a compra/aporte), deduplicação por tipo, listas oficiais de tickers (B3 e NASDAQ) para busca e identificação do tipo, tipos `fundo_listado`, `etf_br` e `etf_us` | **Validada** |
+| 5A | Visual final a partir das referências (tokens de superfície, componentes, gráficos, layout responsivo, ícone do app) e blocos que só usam dados existentes: altas e baixas do dia, próximos vencimentos (rota de leitura nova), chip de status das cotações, sparkline do patrimônio, carteira por instituição com subtotais; regra das 6 cores por presença | **Entregue (aguardando validação)** |
+| 5B | Empacotamento do backend (PyInstaller), instalador, script único de build, portabilidade, versão 1.0.0 e bloco 2 do code review | A fazer |
+| 6 | Análises e Proventos: tela Proventos (por mês, yield on cost, últimos recebidos), cartão "Proventos 12 meses", evolução empilhada por tipo/instituição e modo "%", "Rentabilidade 12 meses vs. CDI", "Últimos 12 meses" e "Categorias vs. média de 3 meses" em Receitas e Despesas, "Taxa de poupança", mapa da carteira (treemap) | A fazer |
 
 ## 3. Decisões de arquitetura (definitivas)
 - **Desktop:** Tauri 2 (WebView2). Rust mínimo: inicialização, ciclo de vida do backend, plugins (dialog, single-instance, window-state) e configuração.
@@ -54,13 +56,15 @@ A paleta de cores é definitiva desde a Parte 4 (seção 8.3); o restante do vis
 apps/desktop/                 package.json (CLI do Tauri), icone.svg (fonte dos ícones)
 apps/desktop/src-tauri/       Rust: lib.rs (plugins/comandos), backend.rs (sidecar), job.rs (Job Object)
 apps/web/src/
-  app/                        App, rotas, layout (navegação lateral), navegação, erro global
+  app/                        App, rotas, layout (navegação lateral), barra superior (chip de
+                              status das cotações, Atualizar cotações, tema), navegação, erro global
   features/                   uma pasta por tela: dashboard, carteira, movimentacoes
                               (historico, eventos, caixa, transacao), receitas-despesas,
                               configuracoes; status-backend (portão da Parte 1); tempo-real (SSE)
-  components/                 compartilhados: CartaoMetrica, TabelaDados, Campo, Estados,
-                              DialogoConfirmacao, IndicadorDefasado, SeletorAnalise,
-                              ValorFinanceiro, graficos/ (ECharts e Lightweight Charts); ui/ (shadcn)
+  components/                 compartilhados: CartaoMetrica, TabelaDados (agrupamento com
+                              subtotais), Campo, Estados, DialogoConfirmacao, IndicadorDefasado,
+                              SeletorAnalise, Segmentos, Marca, ValorFinanceiro, graficos/
+                              (ECharts, Lightweight Charts, Sparkline, estiloGrafico); ui/ (shadcn)
   api/schema.ts               GERADO pelo openapi-typescript (não editar)
   lib/                        api (exigir/invalidar), decimal (BigInt), formatacao, datas,
                               formularios (Zod pt-BR), fatias (cores por categoria),
@@ -227,13 +231,32 @@ Decisões técnicas desta parte:
 - **Front:** `DialogoTransacao` virou o formulário único (tipo → operação → data/instituição → ativo → dados). Compra/aporte: combobox `BuscaAtivo` nos tipos com ticker (↑/↓/Enter/Esc; carteira, lista e pesquisa; cadastro manual só depois que a busca respondeu) ou lista do tipo + "Novo" (fundo, renda fixa, Tesouro, poupança). Venda/resgate: posições de `/api/portfolio/posicoes` na instituição e na data. A data de aplicação de um título novo é a data da operação (campo escondido). Diálogos de confirmação para saldo insuficiente e título semelhante. `DialogoAtivo` ficou só de edição. Configurações ganhou "Lista de tickers". O evento `lista_atualizada` invalida as consultas `["simbolos", ...]`.
 - Os 3 tipos novos entram no **fim** de `ORDEM_TIPOS_ATIVO` (as cores dos existentes não mudam).
 
+## 8.5 Decisões tomadas na Parte 5A (visual final)
+Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 5.md`). A Parte 5 foi dividida em **5A** (visual) e **5B** (empacotamento); os blocos das sugestões que exigem cálculo novo ficaram para a **Parte 6**.
+- **Paleta mantida** (8.3). Só tipografia, espaçamentos, raios, sombras, ícones, densidade e estilo dos gráficos mudaram.
+- **Fonte Segoe UI do sistema** (`"Segoe UI", system-ui, sans-serif`), sem fonte externa (a CSP só permite `font-src 'self' data:`); valores com algarismos tabulares.
+- **Tokens novos** (em `:root` e `.dark`, cobertos por `theme/tokens.test.ts`): `--sombra-cartao` e `--sombra-elevada` (quase nulas no escuro, onde a borda separa as superfícies; expostas como `shadow-cartao`/`shadow-elevada`) e `--subtotal` (fundo da linha de subtotal, `bg-subtotal`). `--radius` foi de 0,625 rem para 0,75 rem.
+- **Regra das 6 cores por presença** (`lib/fatias.ts`): as 6 maiores fatias presentes ganham cor (comparação decimal; empate pela ordem fixa e depois pela chegada) e as demais somam em "Outros"; cada uma das 6 primeiras categorias da ordem fixa mantém a sua cor sempre que aparece; categoria sem cor própria no top 6 usa a primeira cor livre (de um tipo ausente ou que caiu em "Outros"); caixa continua com `--grafico-caixa`; fatias da maior para a menor. Na ordem fixa a 6ª cor é a de **cripto** (poupança é a 7ª e não tem cor própria); o exemplo do prompt citava a poupança como 6ª cor, e os testes seguem a ordem real.
+- **Ícone do app** (proposta própria aceita): quadrado violeta (#5B3DF5) com três barras brancas crescentes e linha de tendência (`apps/desktop/icone.svg`, ícones regenerados com `npx tauri icon`). A mesma marca aparece na navegação (`components/Marca.tsx`, cores por token). Os ícones de Android/iOS gerados pelo comando são apagados (não versionados).
+- **Sparkline** só no cartão Patrimônio total, com os pontos de `/portfolio/evolucao` da mesma janela do gráfico (consulta compartilhada). `CartaoMetrica` ganhou `grafico` opcional e não reserva espaço sem série.
+- **Carteira por instituição com subtotais (opção A):** segmento "Lista | Por instituição" em Posições. Subtotal de Valor = `patrimonio_brl` de `/portfolio/instituicoes` (já com o caixa, mostrado numa linha "Caixa" do grupo); subtotal de Resultado = soma exata no front (`lib/decimal.somar`, BigInt) do `metricas_brl.resultado_total` das posições do grupo; posição sem resultado deixa o subtotal "—". Busca e filtro de tipo só na Lista (filtrar quebraria o significado do subtotal). Sem mudança na API; uma consulta de posições por instituição.
+- **Chip de status das cotações** no topo global: ativos com posição aberta (Análise Geral), cada um numa só categoria, prioridade erro > defasado > em dia; categorias zeradas omitidas (tudo zero: "0 em dia").
+- **Próximos vencimentos:** rota de leitura `GET /api/portfolio/vencimentos` (`limite` padrão 5, `instituicao_id`, `data`). O handler informa a data em `vencimento(metadados)` (padrão `None`; renda fixa e Tesouro Direto sobrescrevem; um tipo novo com prazo só sobrescreve o método). Seleção e ordem no service (`services/portfolio.listar_vencimentos`): posições abertas com vencimento a partir da data de referência (inclusive), por data e depois pelo nome.
+- **Altas e baixas do dia:** a partir de `/portfolio/variacao-dia` (respeita o seletor); até 3 de cada lado pela razão decimal (`features/dashboard/variacoes.ts`); variação zero fica de fora; o símbolo vem do cadastro de ativos.
+- **Receitas e Despesas:** só o visual novo; "Taxa de poupança" e as comparações com meses anteriores ficaram para a Parte 6.
+- **Atualizar cotações** saiu do cabeçalho da Carteira para o topo global (`app/BarraSuperior.tsx`), com o mesmo comportamento.
+- **Seletor de análise em segmentos** ("Análise Geral | Por Instituição"); em "Por Instituição" aparece a lista e a primeira instituição já vem escolhida. O componente `Segmentos` (botões com `aria-pressed`; setas, Home e End movem e escolhem) também é usado nos períodos da evolução e na visão da Carteira.
+- **Gráficos:** estilo comum em `components/graficos/estiloGrafico.ts` (tooltip em cartão, eixos sem marcações, grade só horizontal tracejada, legenda com marcadores redondos, degradê do token, opções equivalentes no Lightweight Charts). Roscas (alocação e categorias) com tamanho fixo à esquerda e legenda "nome / valor (percentual)" à direita, que serve de resumo textual.
+- **Layout e responsividade:** lateral de 13 rem a partir de 1024 px e só ícones abaixo disso (nome em `title` e `sr-only`); grades que empilham; tabelas rolam dentro do próprio contêiner e números não quebram linha. Conferido de 960×600 a 1440×900 sem rolagem horizontal da página.
+- **Animações** sutis (abrir diálogo, trocar aba, hover), desligadas por `prefers-reduced-motion` (regra global em `theme/index.css`).
+- **Contraste** dos pares novos (WCAG): texto no subtotal 15,8:1 (claro) e 14,2:1 (escuro); texto suave no subtotal 5,7:1 e 6,7:1; segmento ativo 8,4:1 e 9,9:1; inativo 5,7:1 e 6,3:1; barras brancas da marca sobre o violeta 6,1:1 (o contorno violeta da marca sobre a lateral azul-marinho do tema claro fica em 2,8:1, mas o desenho é reconhecido pelas barras brancas e é decorativo).
+
 ## 9. Pendências conhecidas
-- Build de release ainda não inclui o backend empacotado (Parte 5): `tauri build` gera o app, mas ele mostrará "Executável do serviço interno não encontrado".
-- Atualização por cima, assinatura de código e SmartScreen: Parte 5.
-- Empacotamento (Parte 5): incluir a pasta `backend/migrations` e os dados do `tzdata` no executável do PyInstaller (`core/migracoes.PASTA_MIGRACOES` aponta para ela).
+- Build de release ainda não inclui o backend empacotado (Parte 5B): `tauri build` gera o app, mas ele mostrará "Executável do serviço interno não encontrado".
+- Atualização por cima, assinatura de código e SmartScreen: Parte 5B.
+- Empacotamento (Parte 5B): incluir a pasta `backend/migrations` e os dados do `tzdata` no executável do PyInstaller (`core/migracoes.PASTA_MIGRACOES` aponta para ela).
 - Fundos com subclasses (Resolução CVM 175) precisam do `ID_SUBCLASSE` em `simbolo_externo` (a tela de cadastro explica isso).
-- Parte 5: polimento visual (layout fino, tipografia, ícones, animações) sobre a paleta já definida.
-- Com 10 tipos de ativo, tudo além da 6ª categoria presente entra em "Outros" na pizza de alocação (regra das 6 cores); os tipos da Parte 4.1 estão no fim da ordem fixa. Rever na Parte 5.
+- Parte 6 (Análises e Proventos): blocos das sugestões do dono que exigem cálculo ou agregação nova (ver roadmap), deixados fora da 5A de propósito; entre eles as sparklines de Variação do dia, Rentabilidade e Saldo do mês (não há série).
 - Cabeçalho real do `nasdaqlisted.txt` não conferido (o parser exige a coluna `ETF`; sem ela, a lista dos EUA falha com mensagem e a da B3 segue).
 - Papéis da B3 com especificação `CPA`/`TPR` ficam fora da lista (não mapeados); só entram por cadastro manual.
 - A lista de lançamentos mostra até 500 por mês (máximo da API por página).

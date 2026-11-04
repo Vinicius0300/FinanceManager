@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { useAnaliseStore } from "@/lib/consultas-comuns";
-import { renderizar, type Chamada } from "@/test/api-falsa";
+import { ativo, renderizar, type Chamada } from "@/test/api-falsa";
 import { TelaDashboard } from "./TelaDashboard";
 
 const AGORA = new Date(2026, 9, 29, 12);
@@ -82,6 +82,68 @@ const ROTAS = {
   ],
 };
 
+function variacaoAtivo(ativo_id: number, nome: string, variacao: string, brl: string) {
+  return {
+    ativo_id,
+    nome,
+    variacao: {
+      preco_atual: "10",
+      data_atual: "2026-10-29",
+      preco_anterior: "10",
+      data_anterior: "2026-10-28",
+      variacao,
+      variacao_brl: brl,
+    },
+  };
+}
+
+const ATIVOS = [
+  { id: 10, tipo: "acao_br", simbolo: "PETR4", nome: "Petrobras PN" },
+  { id: 11, tipo: "acao_us", simbolo: "AAPL", nome: "Apple" },
+  { id: 13, tipo: "acao_br", simbolo: "VALE3", nome: "Vale ON" },
+  { id: 14, tipo: "cripto", simbolo: "BTC", nome: "Bitcoin" },
+  { id: 15, tipo: "acao_br", simbolo: "ITSA4", nome: "Itaúsa PN" },
+].map((a) => ativo(a));
+
+Object.assign(ROTAS, {
+  "GET /api/ativos": ATIVOS,
+  "GET /api/portfolio/variacao-dia": {
+    variacao_dia_brl: "-120.30",
+    variacao_dia: "-0.0071",
+    ativos: [
+      variacaoAtivo(13, "Vale ON", "0.0148", "402.10"),
+      variacaoAtivo(10, "Petrobras PN", "0.0312", "921.60"),
+      variacaoAtivo(11, "Apple", "-0.0205", "-638.20"),
+      variacaoAtivo(14, "Bitcoin", "-0.011", "-214.95"),
+      variacaoAtivo(15, "Itaúsa PN", "0", "0"), // sem variação: fica de fora
+    ],
+  },
+  "GET /api/portfolio/vencimentos": [
+    {
+      ativo_id: 20,
+      nome: "CDB Banco X 110% CDI",
+      simbolo: null,
+      tipo: "renda_fixa",
+      instituicao_id: null,
+      vencimento: "2026-12-15",
+      valor_brl: "25871.09",
+      defasado: false,
+      aviso: null,
+    },
+    {
+      ativo_id: 21,
+      nome: "Tesouro IPCA+ 2029",
+      simbolo: null,
+      tipo: "tesouro_direto",
+      instituicao_id: null,
+      vencimento: "2029-05-15",
+      valor_brl: "18204.77",
+      defasado: true,
+      aviso: "Cotação de 5 dias atrás.",
+    },
+  ],
+});
+
 describe("Dashboard", () => {
   it("métricas: patrimônio com caixa, variação do dia, rentabilidade e saldo do mês", async () => {
     renderizar(<TelaDashboard agora={AGORA} />, { rotas: ROTAS });
@@ -116,7 +178,7 @@ describe("Dashboard", () => {
     ]);
     expect(await screen.findByRole("img", { name: "Evolução do patrimônio" })).toBeInTheDocument();
     expect(screen.getByText("AAPL sem câmbio em 01/10/2026.")).toBeInTheDocument();
-    const maiores = await screen.findByRole("table");
+    const maiores = await screen.findByRole("table", { name: "Maiores ativos" });
     expect(within(maiores).getByText("PETR4")).toBeInTheDocument();
     expect(within(maiores).getByText("Defasado")).toHaveAttribute(
       "title",
@@ -125,24 +187,129 @@ describe("Dashboard", () => {
     expect(within(maiores).getByText("58,82%")).toBeInTheDocument();
   });
 
-  it("seletor de análise por instituição refaz as consultas com instituicao_id", async () => {
+  it("seletor em segmentos: Por Instituição escolhe a primeira e refaz as consultas", async () => {
     useAnaliseStore.setState({ instituicaoId: null });
     const { usuario, chamadas } = renderizar(<TelaDashboard agora={AGORA} />, { rotas: ROTAS });
-    await screen.findByRole("option", { name: "XP" });
-    await usuario.selectOptions(screen.getByRole("combobox", { name: /Análise/ }), "1");
+    expect(screen.getByRole("button", { name: "Análise Geral" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // Espera a lista de instituições para o segmento ter o que escolher.
+    await waitFor(() => {
+      expect(chamadas.some((c) => c.caminho === "/api/instituicoes")).toBe(true);
+    });
+    await usuario.click(screen.getByRole("button", { name: "Por Instituição" }));
+    const combo = await screen.findByRole("combobox", { name: "Instituição" });
+    expect(combo).toHaveValue("1");
+    for (const caminho of [
+      "/api/portfolio/alocacao",
+      "/api/portfolio/evolucao",
+      "/api/portfolio/variacao-dia",
+      "/api/portfolio/vencimentos",
+    ]) {
+      await waitFor(() => {
+        expect(
+          chamadas.some((c) => c.caminho === caminho && c.query.get("instituicao_id") === "1"),
+        ).toBe(true);
+      });
+    }
+    await usuario.selectOptions(combo, "2");
     await waitFor(() => {
       expect(
         chamadas.some(
-          (c) => c.caminho === "/api/portfolio/alocacao" && c.query.get("instituicao_id") === "1",
+          (c) => c.caminho === "/api/portfolio/resumo" && c.query.get("instituicao_id") === "2",
         ),
       ).toBe(true);
     });
-    expect(
-      chamadas.some(
-        (c) => c.caminho === "/api/portfolio/evolucao" && c.query.get("instituicao_id") === "1",
-      ),
-    ).toBe(true);
+    // Teclado: seta para a esquerda volta para a Análise Geral.
+    screen.getByRole("button", { name: "Por Instituição" }).focus();
+    await usuario.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("button", { name: "Análise Geral" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.queryByRole("combobox", { name: "Instituição" })).not.toBeInTheDocument();
     useAnaliseStore.setState({ instituicaoId: null });
+  });
+
+  it("sparkline do patrimônio com resumo textual; sem série, sem sparkline", async () => {
+    renderizar(<TelaDashboard agora={AGORA} />, { rotas: ROTAS });
+    const patrimonio = await screen.findByRole("region", { name: "Patrimônio total" });
+    const sparkline = await within(patrimonio).findByRole("img");
+    expect(limpo(sparkline.getAttribute("aria-label"))).toBe(
+      "Evolução do patrimônio de 28/10/2026 (R$ 16.898,50) a 29/10/2026 (R$ 17.000,00)",
+    );
+    // Variação do dia não tem série: nenhum gráfico no cartão.
+    expect(
+      within(screen.getByRole("region", { name: "Variação do dia" })).queryByRole("img"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("altas e baixas do dia: maiores variações dos dois lados, em ordem", async () => {
+    renderizar(<TelaDashboard agora={AGORA} />, { rotas: ROTAS });
+    const altas = await screen.findByRole("region", { name: "Maiores altas" });
+    const textos = (regiao: HTMLElement) =>
+      within(regiao)
+        .getAllByRole("listitem")
+        .map((i) => limpo(i.textContent));
+    await waitFor(() => {
+      expect(textos(altas)[0]).toMatch(/^PETR4/);
+    });
+    expect(textos(altas)).toEqual([
+      "PETR4ganho: +3,12%ganho: +R$ 921,60",
+      "VALE3ganho: +1,48%ganho: +R$ 402,10",
+    ]);
+    const baixas = screen.getByRole("region", { name: "Maiores baixas" });
+    expect(textos(baixas)).toEqual([
+      "AAPLperda: −2,05%perda: −R$ 638,20",
+      "BTCperda: −1,10%perda: −R$ 214,95",
+    ]);
+    expect(screen.queryByText("ITSA4")).not.toBeInTheDocument();
+  });
+
+  it("próximos vencimentos na ordem do backend, com valor e selo defasado", async () => {
+    renderizar(<TelaDashboard agora={AGORA} />, { rotas: ROTAS });
+    const tabela = await screen.findByRole("table", { name: "Próximos vencimentos" });
+    const linhas = within(tabela).getAllByRole("row").slice(1);
+    expect(limpo(linhas[0]?.textContent ?? "")).toBe("CDB Banco X 110% CDI 15/12/2026R$ 25.871,09");
+    expect(linhas[1]).toHaveTextContent("Tesouro IPCA+ 2029");
+    expect(within(linhas[1] as HTMLElement).getByText("Defasado")).toBeInTheDocument();
+  });
+
+  it("blocos novos vazios e com erro", async () => {
+    const { usuario, chamadas } = renderizar(<TelaDashboard agora={AGORA} />, {
+      rotas: {
+        ...ROTAS,
+        "GET /api/portfolio/vencimentos": [],
+        "GET /api/portfolio/variacao-dia": {
+          status: 500,
+          corpo: { codigo: "erro_interno", mensagem: "Falha ao calcular a variação." },
+        },
+      },
+    });
+    expect(await screen.findByText("Nenhum título a vencer")).toBeInTheDocument();
+    expect(await screen.findByText("Falha ao calcular a variação.")).toBeInTheDocument();
+    const antes = chamadas.filter((c) => c.caminho === "/api/portfolio/variacao-dia").length;
+    await usuario.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    await waitFor(() => {
+      expect(chamadas.filter((c) => c.caminho === "/api/portfolio/variacao-dia").length).toBe(
+        antes + 1,
+      );
+    });
+  });
+
+  it("altas e baixas sem variação mostra o estado vazio", async () => {
+    renderizar(<TelaDashboard agora={AGORA} />, {
+      rotas: {
+        ...ROTAS,
+        "GET /api/portfolio/variacao-dia": {
+          variacao_dia_brl: "0",
+          variacao_dia: null,
+          ativos: [],
+        },
+      },
+    });
+    expect(await screen.findByText("Sem variação para mostrar")).toBeInTheDocument();
   });
 
   it("estados vazio e erro (com Tentar novamente)", async () => {

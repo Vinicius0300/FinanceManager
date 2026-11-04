@@ -8,6 +8,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { paraGrafico } from "@/lib/decimal";
 import { comAlfa, useCoresTema } from "@/theme/cores";
+import { opcoesLightweight } from "./estiloGrafico";
 
 export interface PontoPreco {
   data: string; // "2026-10-29"
@@ -38,17 +39,15 @@ export function GraficoPreco({
     const alvo = elemento.current;
     if (!alvo) return;
     try {
+      const estilo = opcoesLightweight(cores);
       const novo = createChart(alvo, {
+        ...estilo,
         height: altura,
         autoSize: true,
         layout: {
+          ...estilo.layout,
           background: { type: ColorType.Solid, color: "transparent" },
-          textColor: cores.textoSuave,
-          attributionLogo: false,
         },
-        grid: { vertLines: { color: cores.borda }, horzLines: { color: cores.borda } },
-        rightPriceScale: { borderColor: cores.borda },
-        timeScale: { borderColor: cores.borda },
         localization: { locale: "pt-BR" },
       });
       grafico.current = novo;

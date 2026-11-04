@@ -20,6 +20,7 @@ Cada handler declara:
 - `validar_transacao(...)`: regras extras por transação (ex.: aporte depois do vencimento);
 - `indicadores_necessarios(metadados)`: o que a atualização automática precisa buscar (montante);
 - `referencia_indicadores(metadados, data)` (montante): até que data o cálculo usa indicadores (a renda fixa para no vencimento), base do aviso de defasagem;
+- `vencimento(metadados)`: data de vencimento do ativo (padrão `None`, não vence). Renda fixa e Tesouro Direto devolvem o campo `vencimento`; o bloco "Próximos vencimentos" (`GET /api/portfolio/vencimentos`) usa só este método, então um tipo novo com prazo só precisa sobrescrevê-lo;
 - `tolerancia_defasagem` (cotados): idade máxima do preço antes de marcá-lo como defasado;
 - `agenda`: quando a coleta automática busca a cotação. Padrão `AGENDA_DIARIA`; ações usam `AGENDA_B3`/`AGENDA_EUA` (intervalo configurável, só até o fechamento fora do pregão) e cripto `AGENDA_CONTINUA` (24 h). Ver `domain/agenda.py`;
 - `aceita_taxas`: `False` recusa taxas em compra/venda (Tesouro Direto);

@@ -1,9 +1,10 @@
 import { createColumnHelper } from "@tanstack/react-table";
-import { Loader2, Plus, RefreshCw } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CabecalhoPagina, Secao } from "@/components/CabecalhoPagina";
 import { Carregando, EstadoErro, EstadoVazio, MensagemErro } from "@/components/Estados";
 import { IndicadorDefasado } from "@/components/IndicadorDefasado";
+import { Segmentos } from "@/components/Segmentos";
 import { SeletorAnalise } from "@/components/SeletorAnalise";
 import { useInstituicaoAnalise } from "@/lib/consultas-comuns";
 import { TabelaDados } from "@/components/TabelaDados";
@@ -21,13 +22,9 @@ import {
   formatarNumero,
   formatarPreco,
 } from "@/lib/formatacao";
-import {
-  useAtualizacao,
-  useForcarAtualizacao,
-  useStatusCotacoes,
-  type StatusAtivo,
-} from "./consultas";
+import { useStatusCotacoes, type StatusAtivo } from "./consultas";
 import { DetalheAtivo } from "./DetalheAtivo";
+import { CarteiraPorInstituicao } from "./PorInstituicao";
 import { NOMES_ORIGEM } from "./rotulos";
 import { DialogoTransacao } from "@/features/movimentacoes/transacao/DialogoTransacao";
 
@@ -48,13 +45,12 @@ export function TelaCarteira() {
   const ativoDetalhe = ativos.data?.find((a) => a.id === detalhe);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3.5">
       <CabecalhoPagina
         titulo="Carteira"
         acoes={
           <>
             <SeletorAnalise />
-            <BotaoAtualizar />
             <Button
               onClick={() => {
                 setNovo(true);
@@ -71,12 +67,14 @@ export function TelaCarteira() {
         statusPorAtivo={statusPorAtivo}
         aoAbrir={setDetalhe}
       />
-      <Secao titulo="Alocação">
-        <AlocacaoCarteira instituicaoId={instituicaoId} />
-      </Secao>
-      <Secao titulo="Ativos cadastrados">
-        <AtivosCadastrados statusPorAtivo={statusPorAtivo} aoAbrir={setDetalhe} />
-      </Secao>
+      <div className="grid gap-3.5 xl:grid-cols-5">
+        <Secao titulo="Alocação" className="xl:col-span-2">
+          <AlocacaoCarteira instituicaoId={instituicaoId} />
+        </Secao>
+        <Secao titulo="Ativos cadastrados" className="xl:col-span-3">
+          <AtivosCadastrados statusPorAtivo={statusPorAtivo} aoAbrir={setDetalhe} />
+        </Secao>
+      </div>
       {novo && <DialogoTransacao aberto={novo} aoMudar={setNovo} />}
       {ativoDetalhe && (
         <DetalheAtivo
@@ -86,36 +84,6 @@ export function TelaCarteira() {
             setDetalhe(null);
           }}
         />
-      )}
-    </div>
-  );
-}
-
-/** Atualização forçada: dispara e libera a tela; o progresso vem pelo SSE. */
-function BotaoAtualizar() {
-  const atualizacao = useAtualizacao();
-  const forcar = useForcarAtualizacao();
-  const emAndamento = atualizacao.data?.em_andamento ?? false;
-  return (
-    <div className="flex flex-col items-end">
-      <Button
-        variant="outline"
-        disabled={forcar.isPending || emAndamento}
-        onClick={() => {
-          forcar.mutate();
-        }}
-      >
-        {emAndamento || forcar.isPending ? (
-          <Loader2 aria-hidden className="animate-spin" />
-        ) : (
-          <RefreshCw aria-hidden />
-        )}
-        {emAndamento ? "Atualizando…" : "Atualizar cotações"}
-      </Button>
-      {forcar.isError && (
-        <span role="alert" className="mt-1 max-w-xs text-right text-xs text-negativo">
-          {forcar.error.message}
-        </span>
       )}
     </div>
   );
@@ -143,6 +111,12 @@ function Atualizacao({ status }: { status: StatusAtivo | undefined }) {
 
 const coluna = createColumnHelper<Posicao>();
 
+type VisaoPosicoes = "lista" | "instituicao";
+const VISOES = [
+  { valor: "lista", rotulo: "Lista" },
+  { valor: "instituicao", rotulo: "Por instituição" },
+] as const;
+
 function Posicoes({
   instituicaoId,
   statusPorAtivo,
@@ -154,6 +128,7 @@ function Posicoes({
 }) {
   const posicoes = usePosicoes(instituicaoId);
   const tipos = useTiposAtivo();
+  const [visao, setVisao] = useState<VisaoPosicoes>("lista");
   const [busca, setBusca] = useState("");
   const [tipo, setTipo] = useState("");
 
@@ -244,36 +219,43 @@ function Posicoes({
     <Secao
       titulo="Posições"
       acoes={
-        <div className="flex flex-wrap gap-2">
-          <Input
-            type="search"
-            aria-label="Buscar ativo"
-            placeholder="Ticker ou nome…"
-            className="w-48"
-            value={busca}
-            onChange={(e) => {
-              setBusca(e.target.value);
-            }}
-          />
-          <Select
-            aria-label="Filtrar por tipo"
-            className="w-48"
-            value={tipo}
-            onChange={(e) => {
-              setTipo(e.target.value);
-            }}
-          >
-            <option value="">Todos os tipos</option>
-            {tipos.data?.map((t) => (
-              <option key={t.slug} value={t.slug}>
-                {t.nome}
-              </option>
-            ))}
-          </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmentos rotulo="Visão das posições" opcoes={VISOES} valor={visao} aoMudar={setVisao} />
+          {visao === "lista" && (
+            <>
+              <Input
+                type="search"
+                aria-label="Buscar ativo"
+                placeholder="Ticker ou nome…"
+                className="w-48"
+                value={busca}
+                onChange={(e) => {
+                  setBusca(e.target.value);
+                }}
+              />
+              <Select
+                aria-label="Filtrar por tipo"
+                className="w-48"
+                value={tipo}
+                onChange={(e) => {
+                  setTipo(e.target.value);
+                }}
+              >
+                <option value="">Todos os tipos</option>
+                {tipos.data?.map((t) => (
+                  <option key={t.slug} value={t.slug}>
+                    {t.nome}
+                  </option>
+                ))}
+              </Select>
+            </>
+          )}
         </div>
       }
     >
-      {posicoes.isPending ? (
+      {visao === "instituicao" ? (
+        <CarteiraPorInstituicao instituicaoId={instituicaoId} aoAbrir={aoAbrir} />
+      ) : posicoes.isPending ? (
         <Carregando />
       ) : posicoes.isError ? (
         <EstadoErro

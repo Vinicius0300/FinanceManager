@@ -98,3 +98,37 @@ export function useResumoMensal(ano: number, mes: number) {
     placeholderData: keepPreviousData,
   });
 }
+
+export type VariacaoCarteira = components["schemas"]["VariacaoCarteiraSaida"];
+export type Vencimento = components["schemas"]["VencimentoSaida"];
+
+export function useVariacaoDia(instituicaoId: number | null) {
+  const { cliente } = useClienteApi();
+  return useQuery({
+    queryKey: ["portfolio", "variacao-dia", instituicaoId],
+    queryFn: async ({ signal }) =>
+      exigir(
+        await cliente.GET("/api/portfolio/variacao-dia", {
+          params: { query: filtroInstituicao(instituicaoId) },
+          signal,
+        }),
+      ),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Próximos vencimentos: seleção e ordem vêm prontas do backend. */
+export function useVencimentos(instituicaoId: number | null, limite = 5) {
+  const { cliente } = useClienteApi();
+  return useQuery({
+    queryKey: ["portfolio", "vencimentos", instituicaoId, limite],
+    queryFn: async ({ signal }) =>
+      exigir(
+        await cliente.GET("/api/portfolio/vencimentos", {
+          params: { query: { ...filtroInstituicao(instituicaoId), limite } },
+          signal,
+        }),
+      ),
+    placeholderData: keepPreviousData,
+  });
+}

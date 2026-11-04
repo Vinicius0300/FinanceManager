@@ -1,5 +1,11 @@
 import { useMemo } from "react";
 import { CartaoMetrica } from "@/components/CartaoMetrica";
+import {
+  eixoCategorias,
+  eixoValores,
+  legendaInferior,
+  tooltipCartao,
+} from "@/components/graficos/estiloGrafico";
 import { GraficoECharts } from "@/components/graficos/GraficoECharts";
 import { ValorFinanceiro } from "@/components/ValorFinanceiro";
 import { ehZero, paraGrafico } from "@/lib/decimal";
@@ -73,12 +79,10 @@ export function GraficoMensal({ resumo }: { resumo: ResumoHistorico }) {
     const meses = resumo.serie;
     return {
       grid: { left: 8, right: 8, top: 36, bottom: 8, containLabel: true },
-      legend: { top: 0, right: 0, textStyle: { color: cores.texto } },
+      legend: { ...legendaInferior(cores), top: 0, bottom: undefined, left: undefined, right: 0 },
       tooltip: {
+        ...tooltipCartao(cores),
         trigger: "axis",
-        backgroundColor: cores.cartao,
-        borderColor: cores.borda,
-        textStyle: { color: cores.texto },
         formatter: (itens: { dataIndex: number }[]) => {
           const ponto = meses[itens[0]?.dataIndex ?? 0];
           if (!ponto) return "";
@@ -88,21 +92,13 @@ export function GraficoMensal({ resumo }: { resumo: ResumoHistorico }) {
           ].join("<br/>");
         },
       },
-      xAxis: {
-        type: "category",
-        data: meses.map((p) => formatarMesCurto(p.mes)),
-        axisLabel: { color: cores.textoSuave },
-        axisLine: { lineStyle: { color: cores.borda } },
-      },
-      yAxis: {
-        type: "value",
-        axisLabel: { show: false },
-        splitLine: { lineStyle: { color: cores.borda, type: "dashed" } },
-      },
+      xAxis: { ...eixoCategorias(cores), data: meses.map((p) => formatarMesCurto(p.mes)) },
+      yAxis: { ...eixoValores(cores), axisLabel: { show: false } },
       series: series.map((s) => ({
         type: "bar",
         name: s.nome,
-        itemStyle: { color: s.cor, borderRadius: [3, 3, 0, 0] },
+        barMaxWidth: 18,
+        itemStyle: { color: s.cor, borderRadius: [4, 4, 0, 0] },
         data: meses.map((p) => paraGrafico(p[s.campo])),
       })),
     };

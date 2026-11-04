@@ -51,6 +51,9 @@ class TesouroDireto(HandlerCotado):
         ),
     )
 
+    def vencimento(self, metadados: Metadados) -> date | None:
+        return ler_data(metadados, "vencimento")
+
     def validar_transacao(self, metadados: Metadados, tipo: TipoTransacao, data: date) -> None:
         super().validar_transacao(metadados, tipo, data)
         vencimento = ler_data(metadados, "vencimento")

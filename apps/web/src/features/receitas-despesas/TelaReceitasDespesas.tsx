@@ -4,6 +4,7 @@ import { CabecalhoPagina, Secao } from "@/components/CabecalhoPagina";
 import { CartaoMetrica } from "@/components/CartaoMetrica";
 import { DialogoConfirmacao } from "@/components/DialogoConfirmacao";
 import { Carregando, EstadoErro, EstadoVazio } from "@/components/Estados";
+import { opcoesRosca } from "@/components/graficos/estiloGrafico";
 import { GraficoECharts } from "@/components/graficos/GraficoECharts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,7 @@ export function TelaReceitasDespesas({ agora = new Date() }: { agora?: Date }) {
   const dataPadrao = iso === hoje ? `${iso}-${String(agora.getDate()).padStart(2, "0")}` : inicio;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3.5">
       <CabecalhoPagina
         titulo="Receitas e Despesas"
         acoes={
@@ -66,7 +67,7 @@ export function TelaReceitasDespesas({ agora = new Date() }: { agora?: Date }) {
               <Input
                 type="month"
                 aria-label="Mês exibido"
-                className="w-40"
+                className="w-44"
                 value={iso}
                 onChange={(e) => {
                   const [a, m] = e.target.value.split("-").map(Number);
@@ -112,7 +113,7 @@ export function TelaReceitasDespesas({ agora = new Date() }: { agora?: Date }) {
           }}
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3.5 sm:grid-cols-3">
           <CartaoMetrica
             titulo="Recebido"
             carregando={resumo.isPending}
@@ -131,7 +132,7 @@ export function TelaReceitasDespesas({ agora = new Date() }: { agora?: Date }) {
           />
         </div>
       )}
-      <div className="grid gap-4 xl:grid-cols-5">
+      <div className="grid gap-3.5 xl:grid-cols-5">
         <Secao titulo="Despesas por categoria" className="xl:col-span-2">
           {resumo.isPending ? (
             <Carregando />
@@ -166,7 +167,7 @@ export function TelaReceitasDespesas({ agora = new Date() }: { agora?: Date }) {
   );
 }
 
-/** Pizza das despesas do mês; cores fixas pela ordem de criação das categorias. */
+/** Rosca das despesas do mês; cores pela regra das 6 cores (ordem de criação das categorias). */
 function GraficoCategorias({ resumo }: { resumo: ResumoMensal }) {
   const cores = useCoresTema();
   const categorias = useCategorias();
@@ -186,39 +187,15 @@ function GraficoCategorias({ resumo }: { resumo: ResumoMensal }) {
       ordem,
       cores,
     );
-    const textos = new Map(
-      prontas.map((f) => [f.rotulo, `${formatarMoeda(f.valor)} (${formatarRazao(f.percentual)})`]),
+    return opcoesRosca(
+      prontas.map((f) => ({
+        rotulo: f.rotulo,
+        valor: paraGrafico(f.valor),
+        cor: f.cor,
+        texto: `${formatarMoeda(f.valor)} (${formatarRazao(f.percentual ?? null)})`,
+      })),
+      cores,
     );
-    return {
-      tooltip: {
-        trigger: "item",
-        backgroundColor: cores.cartao,
-        borderColor: cores.borda,
-        textStyle: { color: cores.texto },
-        formatter: (p: { name: string }) => `${p.name}: ${textos.get(p.name) ?? ""}`,
-      },
-      legend: {
-        orient: "vertical",
-        right: 0,
-        top: "middle",
-        textStyle: { color: cores.texto },
-        formatter: (nome: string) => `${nome}  ${textos.get(nome) ?? ""}`,
-      },
-      series: [
-        {
-          type: "pie",
-          radius: ["45%", "72%"],
-          center: ["28%", "50%"],
-          label: { show: false },
-          itemStyle: { borderColor: cores.fundo, borderWidth: 2 },
-          data: prontas.map((f) => ({
-            name: f.rotulo,
-            value: paraGrafico(f.valor),
-            itemStyle: { color: f.cor },
-          })),
-        },
-      ],
-    };
   }, [resumo, categorias.data, cores]);
   if (!resumo.por_categoria.some((c) => c.tipo === "despesa")) {
     return <EstadoVazio titulo="Nenhuma despesa neste mês" />;

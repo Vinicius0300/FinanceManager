@@ -100,7 +100,7 @@ export function AbaCaixa({ agora }: { agora: Date }) {
     selecionada ?? (instituicoes.data?.[0] ? { id: instituicoes.data[0].id, moeda: "BRL" } : null);
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    <div className="grid gap-3.5 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <Secao
         titulo="Instituições"
         acoes={

@@ -1,5 +1,6 @@
-"""Portfólio: resumo, posições, alocação, evolução, maiores ativos, variação do dia e
-rentabilidade, na **Análise Geral** (sem ``instituicao_id``) ou **por Instituição**.
+"""Portfólio: resumo, posições, alocação, evolução, maiores ativos, variação do dia,
+rentabilidade e próximos vencimentos, na **Análise Geral** (sem ``instituicao_id``) ou
+**por Instituição**.
 
 Arredondamento na saída (apresentação; os cálculos internos não arredondam):
 dinheiro com 2 casas, preço/quantidade com 8, razões (percentuais como 0,1234) com 8.
@@ -20,7 +21,13 @@ from app.domain.numeros import arredondar, arredondar_moeda
 from app.services.cadastros import listar_instituicoes, obter_instituicao
 from app.services.carteira import avaliar_carteira
 from app.services.patrimonio import serie_patrimonio
-from app.services.portfolio import Portfolio, PosicaoPortfolio, VariacaoDia, montar_portfolio
+from app.services.portfolio import (
+    Portfolio,
+    PosicaoPortfolio,
+    VariacaoDia,
+    listar_vencimentos,
+    montar_portfolio,
+)
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfólio"], dependencies=PROTEGIDO)
 
@@ -145,6 +152,18 @@ class VariacaoCarteiraSaida(Modelo):
     variacao_dia_brl: Numero
     variacao_dia: Numero | None
     ativos: list[VariacaoAtivoSaida]
+
+
+class VencimentoSaida(Modelo):
+    ativo_id: int
+    nome: str
+    simbolo: str | None
+    tipo: str
+    instituicao_id: int | None
+    vencimento: date
+    valor_brl: Numero | None
+    defasado: bool
+    aviso: str | None
 
 
 class RentabilidadeAtivo(Modelo):
@@ -441,3 +460,37 @@ def obter_evolucao(
         ],
         avisos=list(serie.avisos),
     )
+
+
+@router.get(
+    "/vencimentos",
+    response_model=list[VencimentoSaida],
+    summary="Próximos vencimentos (renda fixa e Tesouro Direto)",
+    description=(
+        "Posições abertas com vencimento a partir da data de referência (inclusive), "
+        "da mais próxima para a mais distante."
+    ),
+    responses=respostas(404),
+)
+def listar_proximos_vencimentos(
+    sessao: SessaoDep,
+    hoje: HojeDep,
+    limite: int = Query(5, ge=1, le=50),
+    instituicao_id: int | None = Instituicao,
+    data: date | None = Data,
+) -> list[VencimentoSaida]:
+    vencimentos = listar_vencimentos(sessao, data or hoje, instituicao_id, limite)
+    return [
+        VencimentoSaida(
+            ativo_id=v.item.ativo.id,
+            nome=v.item.ativo.nome,
+            simbolo=v.item.ativo.simbolo,
+            tipo=v.item.ativo.tipo,
+            instituicao_id=v.item.posicao.instituicao_id,
+            vencimento=v.vencimento,
+            valor_brl=_moeda_opcional(v.item.posicao.avaliacao.valor_brl),
+            defasado=v.item.posicao.avaliacao.defasado,
+            aviso=v.item.posicao.avaliacao.aviso,
+        )
+        for v in vencimentos
+    ]

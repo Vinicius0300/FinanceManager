@@ -1,7 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Ícone provisório (o visual final vem na Parte 5). -->
-  <rect width="512" height="512" rx="112" fill="#1f2937"/>
-  <rect x="104" y="296" width="72" height="112" rx="14" fill="#34d399"/>
-  <rect x="220" y="216" width="72" height="192" rx="14" fill="#34d399"/>
-  <rect x="336" y="120" width="72" height="288" rx="14" fill="#34d399"/>
+  <!-- Ícone do app (Parte 5A): violeta da paleta (primary do tema claro, #5B3DF5),
+       três barras crescentes e a linha de tendência. Mesmo desenho da marca na
+       navegação lateral (apps/web/src/components/Marca.tsx). -->
+  <rect width="512" height="512" rx="128" fill="#5B3DF5"/>
+  <g fill="#FFFFFF">
+    <rect x="112" y="288" width="72" height="112" rx="19"/>
+    <rect x="220" y="224" width="72" height="176" rx="19"/>
+    <rect x="328" y="160" width="72" height="240" rx="19"/>
+  </g>
+  <path d="M112 216 216 152l64 40L400 104" fill="none" stroke="#FFFFFF" stroke-width="32"
+        stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

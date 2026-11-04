@@ -654,6 +654,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/portfolio/vencimentos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Próximos vencimentos (renda fixa e Tesouro Direto)
+         * @description Posições abertas com vencimento a partir da data de referência (inclusive), da mais próxima para a mais distante.
+         */
+        get: operations["listar_proximos_vencimentos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/precos/{preco_id}": {
         parameters: {
             query?: never;
@@ -2231,6 +2251,30 @@ export interface components {
             variacao: string | null;
             /** Variacao Brl */
             variacao_brl: string | null;
+        };
+        /** VencimentoSaida */
+        VencimentoSaida: {
+            /** Ativo Id */
+            ativo_id: number;
+            /** Aviso */
+            aviso: string | null;
+            /** Defasado */
+            defasado: boolean;
+            /** Instituicao Id */
+            instituicao_id: number | null;
+            /** Nome */
+            nome: string;
+            /** Simbolo */
+            simbolo: string | null;
+            /** Tipo */
+            tipo: string;
+            /** Valor Brl */
+            valor_brl: string | null;
+            /**
+             * Vencimento
+             * Format: date
+             */
+            vencimento: string;
         };
     };
     responses: never;
@@ -4754,6 +4798,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VariacaoCarteiraSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listar_proximos_vencimentos: {
+        parameters: {
+            query?: {
+                limite?: number;
+                /** @description Análise por Instituição (omita para a Análise Geral). */
+                instituicao_id?: number | null;
+                /** @description Data de referência (padrão: hoje). */
+                data?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VencimentoSaida"][];
                 };
             };
             /** @description Token de sessão ausente ou inválido. */

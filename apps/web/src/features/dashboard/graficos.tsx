@@ -1,22 +1,24 @@
 import { useMemo } from "react";
+import {
+  areaDegrade,
+  eixoCategorias,
+  eixoValores,
+  opcoesRosca,
+  tooltipCartao,
+} from "@/components/graficos/estiloGrafico";
 import { GraficoECharts } from "@/components/graficos/GraficoECharts";
 import { nomeDoTipo, useTiposAtivo } from "@/lib/consultas-comuns";
 import { paraGrafico } from "@/lib/decimal";
 import { ORDEM_TIPOS_ATIVO, prepararFatias, type FatiaEntrada } from "@/lib/fatias";
 import { formatarData, formatarMesCurto, formatarMoeda, formatarRazao } from "@/lib/formatacao";
-import { comAlfa, useCoresTema, type CoresTema } from "@/theme/cores";
+import { useCoresTema } from "@/theme/cores";
 import type { Evolucao, Fatia } from "./consultas";
 
-/** Legenda e tooltip sempre com nome e valor (âmbar e turquesa têm pouco contraste no claro). */
-function tooltipBase(cores: CoresTema) {
-  return {
-    backgroundColor: cores.cartao,
-    borderColor: cores.borda,
-    textStyle: { color: cores.texto },
-  };
-}
-
-/** Pizza de alocação por tipo de ativo, com a fatia caixa (cores fixas por tipo). */
+/**
+ * Rosca de alocação por tipo de ativo, com a fatia caixa (regra das 6 cores em
+ * `lib/fatias`). Legenda e tooltip sempre com nome e valor (âmbar e turquesa têm pouco
+ * contraste no claro), o que também serve de resumo textual do gráfico.
+ */
 export function GraficoAlocacao({ fatias }: { fatias: readonly Fatia[] }) {
   const cores = useCoresTema();
   const tipos = useTiposAtivo();
@@ -28,40 +30,15 @@ export function GraficoAlocacao({ fatias }: { fatias: readonly Fatia[] }) {
       percentual: f.percentual,
     }));
     const prontas = prepararFatias(entrada, ORDEM_TIPOS_ATIVO, cores);
-    const textos = new Map(
-      prontas.map((f) => [
-        f.rotulo,
-        `${formatarMoeda(f.valor)} (${formatarRazao(f.percentual ?? null)})`,
-      ]),
+    return opcoesRosca(
+      prontas.map((f) => ({
+        rotulo: f.rotulo,
+        valor: paraGrafico(f.valor),
+        cor: f.cor,
+        texto: `${formatarMoeda(f.valor)} (${formatarRazao(f.percentual ?? null)})`,
+      })),
+      cores,
     );
-    return {
-      tooltip: {
-        ...tooltipBase(cores),
-        trigger: "item",
-        formatter: (p: { name: string }) => `${p.name}: ${textos.get(p.name) ?? ""}`,
-      },
-      legend: {
-        orient: "vertical",
-        right: 0,
-        top: "middle",
-        textStyle: { color: cores.texto },
-        formatter: (nome: string) => `${nome}  ${textos.get(nome) ?? ""}`,
-      },
-      series: [
-        {
-          type: "pie",
-          radius: ["45%", "72%"],
-          center: ["30%", "50%"],
-          label: { show: false },
-          itemStyle: { borderColor: cores.fundo, borderWidth: 2 },
-          data: prontas.map((f) => ({
-            name: f.rotulo,
-            value: paraGrafico(f.valor),
-            itemStyle: { color: f.cor },
-          })),
-        },
-      ],
-    };
   }, [fatias, tipos.data, cores]);
   return <GraficoECharts opcoes={opcoes} rotulo="Alocação da carteira por tipo de ativo" />;
 }
@@ -80,25 +57,26 @@ export function GraficoEvolucao({ evolucao }: { evolucao: Evolucao }) {
     return {
       grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
       tooltip: {
-        ...tooltipBase(cores),
+        ...tooltipCartao(cores),
         trigger: "axis",
         formatter: (itens: { dataIndex: number }[]) => textos[itens[0]?.dataIndex ?? 0] ?? "",
       },
       xAxis: {
-        type: "category",
+        ...eixoCategorias(cores),
         boundaryGap: false,
         data: pontos.map((p) => p.data),
-        axisLabel: { color: cores.textoSuave, formatter: (d: string) => formatarMesCurto(d) },
-        axisLine: { lineStyle: { color: cores.borda } },
+        axisLabel: {
+          ...eixoCategorias(cores).axisLabel,
+          formatter: (d: string) => formatarMesCurto(d),
+        },
       },
       yAxis: {
-        type: "value",
+        ...eixoValores(cores),
         scale: true,
         axisLabel: {
-          color: cores.textoSuave,
+          ...eixoValores(cores).axisLabel,
           formatter: (v: number) => formatarMoeda(String(Math.round(v)), "BRL", { casas: 0 }),
         },
-        splitLine: { lineStyle: { color: cores.borda } },
       },
       series: [
         {
@@ -108,22 +86,10 @@ export function GraficoEvolucao({ evolucao }: { evolucao: Evolucao }) {
           data: pontos.map((p) => paraGrafico(p.patrimonio)),
           lineStyle: { color: linha, width: 2 },
           itemStyle: { color: linha },
-          areaStyle: {
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: comAlfa(linha, 0.35) },
-                { offset: 1, color: comAlfa(linha, 0) },
-              ],
-            },
-          },
+          areaStyle: areaDegrade(linha),
         },
       ],
     };
   }, [evolucao, cores]);
-  return <GraficoECharts opcoes={opcoes} rotulo="Evolução do patrimônio" />;
+  return <GraficoECharts opcoes={opcoes} rotulo="Evolução do patrimônio" altura={300} />;
 }

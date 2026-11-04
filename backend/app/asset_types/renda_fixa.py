@@ -137,6 +137,9 @@ class RendaFixa(HandlerMontante):
     def indicadores_necessarios(self, metadados: Metadados) -> frozenset[TipoIndicador]:
         return _INDICADOR_DO_INDEXADOR[Indexador(str(metadados["indexador"]))]
 
+    def vencimento(self, metadados: Metadados) -> date | None:
+        return ler_data(metadados, "vencimento")
+
     def referencia_indicadores(self, metadados: Metadados, data_ref: date) -> date:
         # Depois do vencimento o valor fica congelado: indicadores novos não importam.
         return min(data_ref, ler_data(metadados, "vencimento"))

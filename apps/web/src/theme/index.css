@@ -14,15 +14,17 @@
  *
  * Gráficos (ECharts e Lightweight Charts) leem estas variáveis em tempo de execução
  * (theme/cores.ts) e se redesenham ao trocar o tema.
+ *
+ * Parte 5A (visual final): fonte Segoe UI do sistema (a CSP não permite fontes externas),
+ * raio maior nos cartões, sombras por token (quase nulas no escuro, onde a borda separa as
+ * superfícies) e o fundo da linha de subtotal das tabelas.
  */
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.625rem;
-  --fonte-sans:
-    "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial,
-    sans-serif;
+  --radius: 0.75rem;
+  --fonte-sans: "Segoe UI", system-ui, sans-serif;
 
   --background: oklch(0.973 0.008 293.9); /* #F6F5FB */
   --foreground: oklch(0.207 0.045 285.7); /* #16142B */
@@ -42,6 +44,13 @@
   --border: oklch(0.915 0.015 294.5); /* #E3E1EC */
   --input: oklch(0.853 0.024 294); /* #CFCCDD */
   --ring: oklch(0.522 0.255 280.3); /* #5B3DF5 */
+
+  /* Superfícies (Parte 5A): sombra suave dos cartões, sombra de diálogos/popovers e o
+     fundo da linha de subtotal das tabelas. */
+  --sombra-cartao:
+    0 1px 2px oklch(0.207 0.045 285.7 / 0.06), 0 4px 14px oklch(0.207 0.045 285.7 / 0.06);
+  --sombra-elevada: 0 16px 40px oklch(0.207 0.045 285.7 / 0.18);
+  --subtotal: oklch(0.962 0.018 294.4); /* #F1EFFB */
 
   /* Navegação lateral: azul-marinho nos dois temas; item ativo em "pílula". */
   --lateral: oklch(0.227 0.078 280.4); /* #17153F */
@@ -92,6 +101,10 @@
   --border: oklch(0.298 0.054 285.7); /* #2B2947 */
   --input: oklch(0.399 0.07 287.1); /* #45416B */
   --ring: oklch(0.661 0.189 285.5); /* #8B7BFF */
+
+  --sombra-cartao: 0 1px 0 oklch(0 0 0 / 0.18);
+  --sombra-elevada: 0 16px 40px oklch(0 0 0 / 0.5);
+  --subtotal: oklch(0.234 0.048 284.5); /* #1C1A36 */
 
   --lateral: oklch(0.151 0.032 285); /* #0A0918 */
   --lateral-foreground: oklch(0.788 0.041 290.2); /* #B9B6D3 */
@@ -144,6 +157,9 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-subtotal: var(--subtotal);
+  --shadow-cartao: var(--sombra-cartao);
+  --shadow-elevada: var(--sombra-elevada);
 
   --color-lateral: var(--lateral);
   --color-lateral-foreground: var(--lateral-foreground);
@@ -188,5 +204,16 @@
   }
   .tabular {
     font-variant-numeric: tabular-nums;
+  }
+  /* Animações sutis (diálogos, abas, hover) somem para quem pede menos movimento. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

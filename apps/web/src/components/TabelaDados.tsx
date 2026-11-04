@@ -9,7 +9,7 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import {
   Table,
   TableBody,
@@ -28,9 +28,23 @@ declare module "@tanstack/react-table" {
   }
 }
 
+/** Agrupamento opcional: linhas de subtotal antes/depois das linhas de cada grupo. */
+export interface AgrupamentoTabela<T> {
+  /** Chave do grupo de cada item (ex.: id da instituição). */
+  chave: (item: T) => string;
+  /** Ordem dos grupos; grupos fora da lista vêm depois, na ordem em que aparecem. */
+  ordem?: readonly string[];
+  /** Linhas antes do grupo (ex.: subtotal da instituição). Recebe os itens já ordenados. */
+  cabecalho?: (chave: string, itens: T[]) => ReactNode;
+  /** Linhas depois do grupo (ex.: caixa da instituição). */
+  rodape?: (chave: string, itens: T[]) => ReactNode;
+}
+
 /**
  * Tabela com ordenação por coluna (clique no cabeçalho; `aria-sort` para leitores de
- * tela) usando TanStack Table. Linhas clicáveis abrem o detalhe (mouse ou Enter).
+ * tela) usando TanStack Table. Linhas clicáveis abrem o detalhe (mouse ou Enter). Com
+ * `agrupamento`, a ordenação vale dentro de cada grupo e cada grupo ganha as linhas de
+ * subtotal que a tela desenhar. Tabelas largas rolam dentro do próprio contêiner.
  */
 export function TabelaDados<T>({
   dados,
@@ -39,6 +53,7 @@ export function TabelaDados<T>({
   ordenacaoInicial = [],
   aoClicarLinha,
   idDaLinha,
+  agrupamento,
 }: {
   dados: T[];
   // O tipo do valor varia por coluna (padrão do TanStack Table com createColumnHelper).
@@ -48,6 +63,7 @@ export function TabelaDados<T>({
   ordenacaoInicial?: SortingState;
   aoClicarLinha?: (item: T) => void;
   idDaLinha?: (item: T) => string;
+  agrupamento?: AgrupamentoTabela<T>;
 }) {
   const [ordenacao, setOrdenacao] = useState<SortingState>(ordenacaoInicial);
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table v8 é o padrão do projeto
@@ -65,6 +81,40 @@ export function TabelaDados<T>({
   const abrir = (linha: Row<T>) => {
     aoClicarLinha?.(linha.original);
   };
+
+  const desenharLinha = (linha: Row<T>) => (
+    <TableRow
+      key={linha.id}
+      data-clicavel={aoClicarLinha ? true : undefined}
+      tabIndex={aoClicarLinha ? 0 : undefined}
+      onClick={
+        aoClicarLinha
+          ? () => {
+              abrir(linha);
+            }
+          : undefined
+      }
+      onKeyDown={
+        aoClicarLinha
+          ? (e) => {
+              if (e.key === "Enter") abrir(linha);
+            }
+          : undefined
+      }
+    >
+      {linha.getVisibleCells().map((celula) => {
+        const meta = celula.column.columnDef.meta;
+        return (
+          <TableCell
+            key={celula.id}
+            className={cn(meta?.numerica && "tabular text-right whitespace-nowrap")}
+          >
+            {flexRender(celula.column.columnDef.cell, celula.getContext())}
+          </TableCell>
+        );
+      })}
+    </TableRow>
+  );
 
   return (
     <Table aria-label={rotulo}>
@@ -115,37 +165,36 @@ export function TabelaDados<T>({
         ))}
       </TableHeader>
       <TableBody>
-        {tabela.getRowModel().rows.map((linha) => (
-          <TableRow
-            key={linha.id}
-            data-clicavel={aoClicarLinha ? true : undefined}
-            tabIndex={aoClicarLinha ? 0 : undefined}
-            onClick={
-              aoClicarLinha
-                ? () => {
-                    abrir(linha);
-                  }
-                : undefined
-            }
-            onKeyDown={
-              aoClicarLinha
-                ? (e) => {
-                    if (e.key === "Enter") abrir(linha);
-                  }
-                : undefined
-            }
-          >
-            {linha.getVisibleCells().map((celula) => {
-              const meta = celula.column.columnDef.meta;
+        {agrupamento
+          ? agruparLinhas(tabela.getRowModel().rows, agrupamento).map(([chave, linhas]) => {
+              const itens = linhas.map((l) => l.original);
               return (
-                <TableCell key={celula.id} className={cn(meta?.numerica && "tabular text-right")}>
-                  {flexRender(celula.column.columnDef.cell, celula.getContext())}
-                </TableCell>
+                <Fragment key={chave}>
+                  {agrupamento.cabecalho?.(chave, itens)}
+                  {linhas.map(desenharLinha)}
+                  {agrupamento.rodape?.(chave, itens)}
+                </Fragment>
               );
-            })}
-          </TableRow>
-        ))}
+            })
+          : tabela.getRowModel().rows.map(desenharLinha)}
       </TableBody>
     </Table>
   );
+}
+
+/** Separa as linhas (já ordenadas) por grupo, na ordem pedida (grupos de `ordem` sem
+ * linhas continuam, para a tela mostrar o subtotal de quem só tem caixa). */
+function agruparLinhas<T>(
+  linhas: readonly Row<T>[],
+  agrupamento: Pick<AgrupamentoTabela<T>, "chave" | "ordem">,
+): [string, Row<T>[]][] {
+  const grupos = new Map<string, Row<T>[]>();
+  for (const chave of agrupamento.ordem ?? []) grupos.set(chave, []);
+  for (const linha of linhas) {
+    const chave = agrupamento.chave(linha.original);
+    const lista = grupos.get(chave);
+    if (lista) lista.push(linha);
+    else grupos.set(chave, [linha]);
+  }
+  return [...grupos];
 }

@@ -39,7 +39,7 @@ export function AbaHistorico({ agora }: { agora: Date }) {
   const vazio = semOperacoes || (lista.data?.total === 0 && !lista.isFetching);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3.5">
       <PainelFiltros
         filtros={estado.filtros}
         aoMudar={mudarFiltros}

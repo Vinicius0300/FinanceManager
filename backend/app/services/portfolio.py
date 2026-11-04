@@ -10,6 +10,9 @@ Instituição** (só as posições e o caixa daquela instituição).
 - **Rentabilidade da carteira**: as métricas da posição (``domain/metricas``) somando, em
   BRL, os valores de todas as posições avaliadas (inclusive as zeradas, que guardam lucro
   realizado e proventos).
+- **Próximos vencimentos**: posições abertas de tipos com prazo (o handler informa a data
+  em ``vencimento``), com vencimento a partir da data de referência (inclusive), da mais
+  próxima para a mais distante (empate pelo nome).
 """
 
 from dataclasses import dataclass
@@ -146,3 +149,28 @@ def montar_portfolio(
         variacao_dia=dividir(variacao_total, base_variacao) if base_variacao > ZERO else None,
         rentabilidade=_rentabilidade(resumo.posicoes),
     )
+
+
+@dataclass(frozen=True)
+class Vencimento:
+    item: PosicaoPortfolio
+    vencimento: date
+
+
+def listar_vencimentos(
+    sessao: Session,
+    data_ref: date,
+    instituicao_id: int | None = None,
+    limite: int | None = None,
+    *,
+    registro: RegistroTiposAtivo = REGISTRO_PADRAO,
+) -> list[Vencimento]:
+    """Posições abertas que vencem a partir de ``data_ref``, ordenadas pela data."""
+    portfolio = montar_portfolio(sessao, data_ref, instituicao_id, registro=registro)
+    vencimentos = []
+    for item in portfolio.posicoes:
+        vence = registro.obter(item.ativo.tipo).vencimento(item.ativo.metadados)
+        if vence is not None and vence >= data_ref:
+            vencimentos.append(Vencimento(item, vence))
+    vencimentos.sort(key=lambda v: (v.vencimento, v.item.ativo.nome))
+    return vencimentos if limite is None else vencimentos[:limite]
