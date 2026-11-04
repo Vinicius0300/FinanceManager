@@ -54,9 +54,13 @@ class Fundo(HandlerCotado):
         ),
     )
 
+    def normalizar_metadados(self, metadados: Metadados) -> Metadados:
+        """Grava o CNPJ só com dígitos ("11.222.333/0001-81" → "11222333000181")."""
+        if "cnpj" not in metadados:
+            return metadados
+        return {**metadados, "cnpj": _SO_DIGITOS.sub("", str(metadados["cnpj"]))}
+
     def regras_adicionais(self, metadados: Metadados) -> list[DetalheCampo]:
-        cnpj = str(metadados["cnpj"])
-        if not cnpj_valido(cnpj):
+        if not cnpj_valido(str(metadados["cnpj"])):
             return [DetalheCampo("cnpj", "CNPJ inválido.")]
-        metadados["cnpj"] = _SO_DIGITOS.sub("", cnpj)
         return []

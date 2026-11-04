@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as backend from "@/lib/backend";
-import { ContextoClienteApi } from "@/lib/cliente-api";
+import { ContextoClienteApi, useClienteApi } from "@/lib/cliente-api";
 import { formatarDataHora } from "@/lib/formatacao";
 import { PortaoBackend } from "./PortaoBackend";
 import { TelaStatusBackend } from "./TelaStatusBackend";
@@ -90,6 +90,42 @@ describe("PortaoBackend", () => {
     await userEvent.click(screen.getByRole("button", { name: /tentar novamente/i }));
     expect(backend.reiniciarBackend).toHaveBeenCalledOnce();
     expect(await screen.findByText("conteúdo liberado")).toBeInTheDocument();
+  });
+});
+
+describe("useReiniciarBackend", () => {
+  beforeEach(() => {
+    vi.mocked(backend.obterConexaoBackend).mockReset();
+    vi.mocked(backend.reiniciarBackend).mockReset();
+  });
+
+  it("limpa todas as consultas (porta e token mudam) e usa a conexão nova", async () => {
+    const NOVA = { urlBase: "http://127.0.0.1:50001", token: "n".repeat(64) };
+    vi.mocked(backend.obterConexaoBackend)
+      .mockRejectedValueOnce(new Error("O serviço interno parou."))
+      .mockResolvedValueOnce(NOVA);
+    vi.mocked(backend.reiniciarBackend).mockResolvedValue(undefined);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // Dados de consultas feitas com o backend anterior.
+    client.setQueryData(["portfolio", "posicoes"], [{ ativo_id: 1 }]);
+    client.setQueryData(["health"], { status: "ok", versao: "0.1.0" });
+
+    function MostraConexao() {
+      return <p>{useClienteApi().conexao.urlBase}</p>;
+    }
+    render(
+      <QueryClientProvider client={client}>
+        <PortaoBackend>
+          <MostraConexao />
+        </PortaoBackend>
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("alert");
+    await userEvent.click(screen.getByRole("button", { name: /tentar novamente/i }));
+
+    expect(await screen.findByText(NOVA.urlBase)).toBeInTheDocument();
+    expect(client.getQueryData(["portfolio", "posicoes"])).toBeUndefined();
+    expect(client.getQueryData(["health"])).toBeUndefined();
   });
 });
 

@@ -50,6 +50,7 @@ from app.domain.numeros import (
 )
 from app.domain.posicao import validar_proporcao_evento
 from app.domain.tempo import formatar_data
+from app.domain.textos import texto_opcional
 from app.repositories import modelos as m
 from app.repositories.contas import RepositorioMovimentos
 from app.repositories.transacoes import RepositorioEventos, RepositorioTransacoes
@@ -144,12 +145,6 @@ def _validar_campos(dados: NovaTransacao) -> None:
         exigir(dados.taxas == ZERO, "taxas", "Aporte e resgate não aceitam taxas.")
     if dados.tipo is TipoTransacao.PROVENTO:
         exigir(dados.taxas == ZERO, "taxas", "Proventos não aceitam taxas.")
-    observacao = dados.observacao
-    exigir(
-        observacao is None or len(observacao.strip()) <= TAMANHO_OBSERVACAO,
-        "observacao",
-        f"Use no máximo {TAMANHO_OBSERVACAO} caracteres.",
-    )
     exigir_casas(dados.quantidade, CASAS_QUANTIDADE, "quantidade")
     exigir_casas(dados.preco_unitario, CASAS_PRECO, "preco_unitario")
     exigir_casas(dados.valor, CASAS_MOEDA, "valor")
@@ -188,7 +183,7 @@ def _simular(
         handler.aceita_taxas or dados.taxas == ZERO, "taxas", f"{handler.nome} não aceita taxas."
     )
     indicadores = carregar_indicadores(sessao)
-    observacao = dados.observacao.strip() if dados.observacao and dados.observacao.strip() else None
+    observacao = texto_opcional(dados.observacao, "observacao", TAMANHO_OBSERVACAO)
     ignorar = substituida.id if substituida is not None else None
 
     nova = m.Transacao(
@@ -437,11 +432,7 @@ def _preparar_evento(
         indicadores,
         buscar=dados.custo_unitario > ZERO,
     )
-    exigir(
-        dados.observacao is None or len(dados.observacao.strip()) <= TAMANHO_OBSERVACAO,
-        "observacao",
-        f"Use no máximo {TAMANHO_OBSERVACAO} caracteres.",
-    )
+    observacao = texto_opcional(dados.observacao, "observacao", TAMANHO_OBSERVACAO)
     ignorar = substituido.id if substituido is not None else None
     outros = [
         e
@@ -461,7 +452,7 @@ def _preparar_evento(
         proporcao_para=dados.proporcao_para,
         custo_unitario=dados.custo_unitario,
         cambio=cambio,
-        observacao=dados.observacao.strip() if dados.observacao else None,
+        observacao=observacao,
     )
     transacoes = list(RepositorioTransacoes(sessao).do_ativo(ativo.id))
     reprocessar_ativo(ativo, handler, transacoes, [*outros, novo], indicadores)

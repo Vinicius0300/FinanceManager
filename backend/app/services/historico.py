@@ -43,6 +43,7 @@ from app.domain.historico import (
     valor_total,
 )
 from app.domain.indicadores import Indicadores
+from app.domain.montante import FatorAcumulado
 from app.repositories import modelos as m
 from app.repositories.ativos import RepositorioAtivos
 from app.repositories.instituicoes import RepositorioInstituicoes
@@ -151,6 +152,7 @@ def _analisar(
     indicadores: Indicadores | None = None
     resultados: dict[int, ResultadoOperacao] = {}
     posicoes: dict[ChavePosicao, SituacaoPosicao] = {}
+    fatores: dict[int, FatorAcumulado] = {}  # um fator por ativo, reaproveitado entre instituições
     for chave, grupo in agrupar_por_posicao(transacoes).items():
         ativo = ativos[chave.ativo_id]
         handler = handler_do_ativo(ativo, registro)
@@ -159,8 +161,11 @@ def _analisar(
             if isinstance(handler, HandlerMontante):
                 if indicadores is None:
                     indicadores = carregar_indicadores(sessao)
-                fator = handler.criar_fator(ativo.metadados, indicadores)
-                analise = analisar_montante([operacao_montante(t) for t in grupo], fator)
+                if ativo.id not in fatores:
+                    fatores[ativo.id] = handler.criar_fator(ativo.metadados, indicadores)
+                analise = analisar_montante(
+                    [operacao_montante(t) for t in grupo], fatores[ativo.id]
+                )
             else:
                 do_ativo = [e for e in eventos if e.ativo_id == ativo.id]
                 analise = analisar_cotas(operacoes_cotas(grupo, do_ativo))

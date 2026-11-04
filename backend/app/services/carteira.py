@@ -140,8 +140,8 @@ def _avaliar_posicao(
 
     try:
         if isinstance(handler, HandlerMontante):
-            montante = estado_montante(transacoes, handler, ativo.metadados, indicadores)
             fator = handler.criar_fator(ativo.metadados, indicadores)
+            montante = estado_montante(transacoes, fator)
             valoracao = _marcar_indicadores_defasados(
                 handler.avaliar(montante, fator, data_ref), handler, ativo, indicadores, data_ref
             )

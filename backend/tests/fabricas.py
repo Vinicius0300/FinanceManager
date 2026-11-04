@@ -93,6 +93,7 @@ def compra(
     taxas: str = "0",
     cambio: str | None = None,
     aceitar_ajuste: bool = True,
+    observacao: str | None = None,
 ) -> ResultadoTransacao:
     return registrar_transacao(
         sessao,
@@ -105,6 +106,7 @@ def compra(
             preco_unitario=D(preco),
             taxas=D(taxas),
             cambio=D(cambio) if cambio else None,
+            observacao=observacao,
         ),
         aceitar_ajuste=aceitar_ajuste,
     )

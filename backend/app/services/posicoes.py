@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from app.asset_types.base import HandlerMontante, HandlerTipoAtivo, Metadados
+from app.asset_types.base import HandlerMontante, HandlerTipoAtivo
 from app.domain.enums import TipoTransacao
 from app.domain.erros import exigir
 from app.domain.indicadores import Indicadores
@@ -20,6 +20,7 @@ from app.domain.moedas import MOEDA_BASE
 from app.domain.montante import (
     Aporte,
     EstadoMontante,
+    FatorAcumulado,
     OperacaoMontante,
     Resgate,
     aplicar_operacoes_montante,
@@ -136,13 +137,9 @@ def estado_cotas(
     return aplicar_operacoes(operacoes_cotas(transacoes, eventos))
 
 
-def estado_montante(
-    transacoes: Iterable[m.Transacao],
-    handler: HandlerMontante,
-    metadados: Metadados,
-    indicadores: Indicadores,
-) -> EstadoMontante:
-    fator = handler.criar_fator(metadados, indicadores)
+def estado_montante(transacoes: Iterable[m.Transacao], fator: FatorAcumulado) -> EstadoMontante:
+    """Estado da posição em montante com o ``fator`` já criado (``handler.criar_fator``): quem
+    chama cria o fator uma vez por ativo e o reaproveita na avaliação."""
     return aplicar_operacoes_montante([operacao_montante(t) for t in transacoes], fator)
 
 
@@ -169,11 +166,15 @@ def reprocessar_ativo(
     indicadores: Indicadores,
 ) -> None:
     """Recalcula todas as posições do ativo; levanta ``DominioError`` se alguma ficar inválida."""
-    for grupo in agrupar_por_posicao(transacoes).values():
-        if isinstance(handler, HandlerMontante):
-            estado_montante(grupo, handler, ativo.metadados, indicadores)
-        else:
-            estado_cotas(grupo, eventos)
+    grupos = list(agrupar_por_posicao(transacoes).values())
+    if isinstance(handler, HandlerMontante):
+        if grupos:
+            fator = handler.criar_fator(ativo.metadados, indicadores)  # um por ativo
+            for grupo in grupos:
+                estado_montante(grupo, fator)
+        return
+    for grupo in grupos:
+        estado_cotas(grupo, eventos)
 
 
 def houve_compra_ate(transacoes: Iterable[m.Transacao], dia: date) -> bool:

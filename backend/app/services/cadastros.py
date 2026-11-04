@@ -15,11 +15,10 @@ from app.asset_types.registry import RegistroTiposAtivo
 from app.domain.enums import TipoInstituicao
 from app.domain.erros import (
     ConflitoError,
-    DetalheCampo,
     NaoEncontradoError,
     OperacaoNaoPermitidaError,
-    ValidacaoError,
 )
+from app.domain.textos import texto_obrigatorio, texto_opcional
 from app.repositories.ativos import RepositorioAtivos
 from app.repositories.contas import RepositorioContas, RepositorioMovimentos
 from app.repositories.instituicoes import RepositorioInstituicoes
@@ -32,27 +31,9 @@ TAMANHO_SIMBOLO = 30
 TAMANHO_SIMBOLO_EXTERNO = 60
 
 
-def _texto_obrigatorio(valor: str, campo: str, rotulo: str, tamanho: int) -> str:
-    texto = valor.strip()
-    if not texto:
-        raise ValidacaoError(
-            f"{rotulo} é obrigatório.", [DetalheCampo(campo, "Campo obrigatório.")]
-        )
-    if len(texto) > tamanho:
-        mensagem = f"Use no máximo {tamanho} caracteres."
-        raise ValidacaoError(f"{rotulo}: {mensagem}", [DetalheCampo(campo, mensagem)])
-    return texto
-
-
-def _texto_opcional(valor: str | None, campo: str, rotulo: str, tamanho: int) -> str | None:
-    if valor is None or not valor.strip():
-        return None
-    return _texto_obrigatorio(valor, campo, rotulo, tamanho)
-
-
 def criar_instituicao(sessao: Session, nome: str, tipo: TipoInstituicao) -> Instituicao:
     repositorio = RepositorioInstituicoes(sessao)
-    nome_limpo = _texto_obrigatorio(nome, "nome", "O nome da instituição", TAMANHO_NOME_INSTITUICAO)
+    nome_limpo = texto_obrigatorio(nome, "nome", TAMANHO_NOME_INSTITUICAO, "O nome da instituição")
     if repositorio.por_nome(nome_limpo) is not None:
         raise ConflitoError(f"Já existe uma instituição chamada {nome_limpo!r}.")
     return repositorio.adicionar(Instituicao(nome=nome_limpo, tipo=tipo))
@@ -73,7 +54,7 @@ def editar_instituicao(
     sessao: Session, instituicao_id: int, nome: str, tipo: TipoInstituicao
 ) -> Instituicao:
     instituicao = obter_instituicao(sessao, instituicao_id)
-    nome_limpo = _texto_obrigatorio(nome, "nome", "O nome da instituição", TAMANHO_NOME_INSTITUICAO)
+    nome_limpo = texto_obrigatorio(nome, "nome", TAMANHO_NOME_INSTITUICAO, "O nome da instituição")
     outra = RepositorioInstituicoes(sessao).por_nome(nome_limpo)
     if outra is not None and outra.id != instituicao.id:
         raise ConflitoError(f"Já existe uma instituição chamada {nome_limpo!r}.")
@@ -127,15 +108,15 @@ def preparar_ativo(
 ) -> tuple[Ativo, HandlerTipoAtivo]:
     """Valida e normaliza um ativo novo **sem gravar** (ticker, moeda, campos do tipo)."""
     handler = registro.obter(dados.tipo)
-    simbolo = _texto_opcional(dados.simbolo, "simbolo", "O símbolo", TAMANHO_SIMBOLO)
+    simbolo = texto_opcional(dados.simbolo, "simbolo", TAMANHO_SIMBOLO, "O símbolo")
     simbolo = handler.normalizar_simbolo(simbolo) if simbolo else None
-    externo = _texto_opcional(
-        dados.simbolo_externo, "simbolo_externo", "O símbolo externo", TAMANHO_SIMBOLO_EXTERNO
+    externo = texto_opcional(
+        dados.simbolo_externo, "simbolo_externo", TAMANHO_SIMBOLO_EXTERNO, "O símbolo externo"
     )
     ativo = Ativo(
         tipo=handler.slug,
         simbolo=simbolo,
-        nome=_texto_obrigatorio(dados.nome, "nome", "O nome do ativo", TAMANHO_NOME_ATIVO),
+        nome=texto_obrigatorio(dados.nome, "nome", TAMANHO_NOME_ATIVO, "O nome do ativo"),
         moeda=handler.validar_moeda(dados.moeda),
         provider=handler.provider,
         simbolo_externo=simbolo_externo_efetivo(handler, externo, simbolo),

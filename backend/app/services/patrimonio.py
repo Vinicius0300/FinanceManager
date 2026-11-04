@@ -19,6 +19,7 @@ from app.domain.enums import TipoIndicador, TipoTransacao
 from app.domain.erros import DominioError
 from app.domain.indicadores import Indicadores
 from app.domain.moedas import MOEDA_BASE
+from app.domain.montante import FatorAcumulado
 from app.domain.numeros import ZERO
 from app.domain.posicao import historico_posicao
 from app.domain.serie_patrimonio import (
@@ -100,6 +101,7 @@ def serie_patrimonio(
     eventos_repo = RepositorioEventos(sessao)
     investimentos: list[SerieDecimal] = []
     avisos: list[str] = []
+    fatores: dict[int, FatorAcumulado] = {}  # um fator por ativo, reaproveitado entre instituições
 
     grupos = agrupar_por_posicao(RepositorioTransacoes(sessao).listar_ate(fim))
     for chave in sorted(grupos, key=lambda c: (c.ativo_id, c.instituicao_id)):
@@ -109,9 +111,12 @@ def serie_patrimonio(
         handler = registro.obter(ativo.tipo)
         try:
             if isinstance(handler, HandlerMontante):
-                fator = handler.criar_fator(ativo.metadados, indicadores)
+                if ativo.id not in fatores:
+                    fatores[ativo.id] = handler.criar_fator(ativo.metadados, indicadores)
                 operacoes = [operacao_montante(t) for t in transacoes]
-                investimentos.append(serie_valor_montante(operacoes, fator, inicio, fim))
+                investimentos.append(
+                    serie_valor_montante(operacoes, fatores[ativo.id], inicio, fim)
+                )
             else:
                 operacoes_ativo = operacoes_cotas(transacoes, eventos_repo.do_ativo(ativo.id, fim))
                 precos = carregar_precos(sessao, ativo.id).ultimo_por_dia()

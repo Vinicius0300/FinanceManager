@@ -139,4 +139,51 @@ describe("useEventosTempoReal", () => {
     });
     unmount();
   });
+
+  it("reconecta com a conexão nova quando o backend reinicia (porta e token novos)", async () => {
+    const NOVA: ConexaoBackend = { urlBase: "http://127.0.0.1:5001", token: "n".repeat(64) };
+    const chamadas: { url: string; token: string | null }[] = [];
+    const fetchFalso = vi.fn((recurso: RequestInfo | URL, init?: RequestInit) => {
+      const url =
+        recurso instanceof Request ? recurso.url : recurso instanceof URL ? recurso.href : recurso;
+      chamadas.push({
+        url,
+        token: new Headers(init?.headers).get("Authorization"),
+      });
+      // Stream que fica aberto até a conexão ser abortada.
+      return new Promise<Response>((_, rejeitar) => {
+        init?.signal?.addEventListener("abort", () => {
+          rejeitar(new DOMException("abortado", "AbortError"));
+        });
+      });
+    });
+
+    function Exemplo() {
+      useEventosTempoReal(() => undefined, { fetchFn: fetchFalso });
+      return null;
+    }
+    const comConexao = (conexao: ConexaoBackend) => (
+      <ContextoClienteApi.Provider value={{ cliente: criarClienteApi(conexao), conexao }}>
+        <Exemplo />
+      </ContextoClienteApi.Provider>
+    );
+
+    const { rerender, unmount } = render(comConexao(CONEXAO));
+    await waitFor(() => {
+      expect(chamadas).toHaveLength(1);
+    });
+    rerender(comConexao(NOVA));
+    await waitFor(() => {
+      expect(chamadas).toHaveLength(2);
+    });
+    expect(chamadas[0]).toEqual({
+      url: `${CONEXAO.urlBase}/api/eventos`,
+      token: `Bearer ${CONEXAO.token}`,
+    });
+    expect(chamadas[1]).toEqual({
+      url: `${NOVA.urlBase}/api/eventos`,
+      token: `Bearer ${NOVA.token}`,
+    });
+    unmount();
+  });
 });

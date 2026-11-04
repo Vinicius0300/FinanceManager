@@ -75,12 +75,42 @@ function ehErroApi(valor: unknown): valor is ErroApi {
   );
 }
 
-/** Converte qualquer falha (rede, erro da API, exceção) em texto compreensível. */
+export const MENSAGEM_SEM_CONEXAO =
+  "Não foi possível conectar ao serviço interno. Ele pode ter sido encerrado.";
+export const MENSAGEM_INESPERADA = "Ocorreu um erro inesperado.";
+
+/**
+ * Textos do `TypeError` que o `fetch` (e a leitura do corpo) lançam quando a conexão falha:
+ * WebView2/Chromium ("Failed to fetch", "network error"), Firefox ("NetworkError when
+ * attempting to fetch resource.") e WebKit ("Load failed").
+ */
+const FALHA_DE_REDE = /failed to fetch|networkerror|network error|load failed/i;
+
+/** `true` só para a falha de rede do `fetch`, não para qualquer `TypeError`. */
+export function ehFalhaDeRede(erro: unknown): erro is TypeError {
+  return erro instanceof TypeError && FALHA_DE_REDE.test(erro.message);
+}
+
+/** Erros inesperados já enviados ao console (a mensagem é pedida a cada renderização). */
+const registrados = new WeakSet();
+
+function registrarNoConsole(erro: Error): void {
+  if (registrados.has(erro)) return;
+  registrados.add(erro);
+  console.error("Erro inesperado no app:", erro);
+}
+
+/**
+ * Converte qualquer falha (rede, erro da API, exceção) em texto compreensível. Um `TypeError`
+ * que não é falha de rede é bug de código: mostra a mensagem genérica e vai para o console.
+ */
 export function mensagemDeErro(erro: unknown): string {
   if (ehErroApi(erro)) return erro.mensagem;
+  if (ehFalhaDeRede(erro)) return MENSAGEM_SEM_CONEXAO;
   if (erro instanceof TypeError) {
-    return "Não foi possível conectar ao serviço interno. Ele pode ter sido encerrado.";
+    registrarNoConsole(erro);
+    return MENSAGEM_INESPERADA;
   }
   if (erro instanceof Error && erro.message) return erro.message;
-  return "Ocorreu um erro inesperado.";
+  return MENSAGEM_INESPERADA;
 }

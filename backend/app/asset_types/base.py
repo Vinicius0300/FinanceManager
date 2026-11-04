@@ -272,13 +272,22 @@ class HandlerTipoAtivo(ABC):
             except ValueError as erro:
                 erros.append(DetalheCampo(campo.nome, str(erro)))
         if not erros:
+            normalizados = self.normalizar_metadados(normalizados)
             erros.extend(self.regras_adicionais(normalizados))
         if erros:
             raise ValidacaoError(f"Dados inválidos para {self.nome}.", erros)
         return normalizados
 
+    def normalizar_metadados(self, metadados: Metadados) -> Metadados:
+        """Forma canônica dos campos do tipo (ex.: CNPJ só com dígitos), aplicada depois da
+        normalização de cada campo e **antes** de ``regras_adicionais``. Devolve um dicionário
+        novo, sem validar nem alterar o recebido. Padrão: identidade (sobrescreva quando
+        precisar)."""
+        return metadados
+
     def regras_adicionais(self, metadados: Metadados) -> list[DetalheCampo]:
-        """Regras que envolvem mais de um campo (sobrescreva quando precisar)."""
+        """Regras que envolvem mais de um campo, só de validação: recebem os metadados já
+        normalizados (``normalizar_metadados``) e não os alteram (sobrescreva quando precisar)."""
         return []
 
     def validar_transacao(self, metadados: Metadados, tipo: TipoTransacao, data: date) -> None:

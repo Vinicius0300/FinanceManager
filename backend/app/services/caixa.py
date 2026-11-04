@@ -22,6 +22,7 @@ from app.domain.erros import (
 from app.domain.moedas import validar_moeda
 from app.domain.numeros import CASAS_MOEDA, ZERO, arredondar_moeda, exigir_casas, formatar_numero
 from app.domain.tempo import formatar_data
+from app.domain.textos import texto_opcional
 from app.repositories import modelos as m
 from app.repositories.contas import RepositorioContas, RepositorioMovimentos
 from app.services.cadastros import obter_instituicao
@@ -80,18 +81,6 @@ def _exigir_sem_deficit(
         )
 
 
-def _descricao(descricao: str | None) -> str | None:
-    if descricao is None or not descricao.strip():
-        return None
-    texto = descricao.strip()
-    exigir(
-        len(texto) <= TAMANHO_DESCRICAO,
-        "descricao",
-        f"Use no máximo {TAMANHO_DESCRICAO} caracteres.",
-    )
-    return texto
-
-
 @dataclass(frozen=True)
 class NovoMovimentoManual:
     instituicao_id: int
@@ -108,7 +97,7 @@ def registrar_movimento_manual(sessao: Session, dados: NovoMovimentoManual) -> m
         raise OperacaoNaoPermitidaError("Só depósitos e saques podem ser lançados manualmente.")
     exigir(dados.valor > ZERO, "valor", "O valor deve ser maior que zero.")
     exigir_casas(dados.valor, CASAS_MOEDA, "valor")
-    descricao = _descricao(dados.descricao)
+    descricao = texto_opcional(dados.descricao, "descricao", TAMANHO_DESCRICAO)
     conta = obter_ou_criar_conta(sessao, dados.instituicao_id, dados.moeda)
     if dados.tipo is TipoMovimento.SAQUE:
         existentes = lancamentos(movimentos_da_conta(sessao, conta.id))

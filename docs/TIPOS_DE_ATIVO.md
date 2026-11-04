@@ -16,7 +16,8 @@ Cada handler declara:
 - `provider`: o **nome** da fonte de cotação, igual ao `nome` de um provider registrado em `providers/catalogo.py` (ver seção Providers);
 - `campos`: tupla de `CampoEspecifico` (texto, decimal, inteiro, data ou escolha), com rótulo, ajuda, obrigatoriedade, opções e limites. `schema()` devolve tudo em JSON para gerar o formulário no front;
 - `tipos_transacao`: as transações aceitas;
-- `regras_adicionais(metadados)`: validações que envolvem mais de um campo, com mensagens em pt-BR;
+- `normalizar_metadados(metadados)`: forma canônica dos campos (padrão: identidade). Roda depois da normalização de cada campo e **antes** de `regras_adicionais`, e devolve um dicionário novo (ex.: o fundo grava o CNPJ só com dígitos);
+- `regras_adicionais(metadados)`: só validação (não altera os metadados) de regras que envolvem mais de um campo ou um formato especial (ex.: dígitos do CNPJ), com mensagens em pt-BR;
 - `validar_transacao(...)`: regras extras por transação (ex.: aporte depois do vencimento);
 - `indicadores_necessarios(metadados)`: o que a atualização automática precisa buscar (montante);
 - `referencia_indicadores(metadados, data)` (montante): até que data o cálculo usa indicadores (a renda fixa para no vencimento), base do aviso de defasagem;

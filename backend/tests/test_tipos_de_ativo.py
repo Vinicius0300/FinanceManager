@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.asset_types.base import (
     CampoEspecifico,
     HandlerCotado,
+    HandlerTipoAtivo,
     Metadados,
     Opcao,
     TipoCampo,
@@ -186,6 +187,37 @@ def test_fundo_valida_cnpj() -> None:
     assert erros_de(erro) == {"cnpj": "CNPJ inválido."}
     assert not cnpj_valido("11111111111111")
     assert not cnpj_valido("123")
+
+
+def test_fundo_normaliza_cnpj_separado_da_validacao() -> None:
+    # Normalizar não valida nem altera o dicionário recebido; validar não altera os metadados.
+    handler = REGISTRO_PADRAO.obter("fundo")
+    entrada: Metadados = {"cnpj": "11.222.333/0001-81", "classe": "acoes"}
+    normalizado = handler.normalizar_metadados(entrada)
+    assert normalizado == {"cnpj": "11222333000181", "classe": "acoes"}
+    assert entrada == {"cnpj": "11.222.333/0001-81", "classe": "acoes"}
+    # CNPJ inválido também é normalizado (quem recusa é a validação).
+    assert handler.normalizar_metadados({"cnpj": "11.222.333/0001-82"}) == {
+        "cnpj": "11222333000182"
+    }
+    copia = dict(normalizado)
+    assert handler.regras_adicionais(normalizado) == []
+    assert normalizado == copia
+    assert handler.regras_adicionais({"cnpj": "11222333000182"}) == [
+        DetalheCampo("cnpj", "CNPJ inválido.")
+    ]
+
+
+def test_normalizar_metadados_padrao_e_identidade() -> None:
+    # Os demais tipos não precisaram mudar: a base devolve os metadados como vieram.
+    for handler in REGISTRO_PADRAO.todos():
+        if handler.slug == "fundo":
+            continue
+        assert type(handler).normalizar_metadados is HandlerTipoAtivo.normalizar_metadados
+    handler = REGISTRO_PADRAO.obter("renda_fixa")
+    assert handler.validar_metadados(METADADOS_CDB) == handler.normalizar_metadados(
+        handler.validar_metadados(METADADOS_CDB)
+    )
 
 
 def test_acao_br_campos_opcionais() -> None:

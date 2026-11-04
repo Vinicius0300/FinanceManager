@@ -18,6 +18,7 @@ from app.domain.lancamentos import (
     validar_mes,
 )
 from app.domain.numeros import CASAS_MOEDA, ZERO, exigir_casas
+from app.domain.textos import texto_obrigatorio, texto_opcional
 from app.repositories import modelos as m
 from app.repositories.lancamentos import RepositorioCategorias, RepositorioLancamentos
 
@@ -27,14 +28,9 @@ TAMANHO_OBSERVACAO = 500
 
 
 def _nome_categoria(nome: str) -> str:
-    nome_limpo = nome.strip()
-    exigir(bool(nome_limpo), "nome", "Informe o nome da categoria.")
-    exigir(
-        len(nome_limpo) <= TAMANHO_NOME_CATEGORIA,
-        "nome",
-        f"Use no máximo {TAMANHO_NOME_CATEGORIA} caracteres.",
+    return texto_obrigatorio(
+        nome, "nome", TAMANHO_NOME_CATEGORIA, mensagem_vazio="Informe o nome da categoria."
     )
-    return nome_limpo
 
 
 def criar_categoria(sessao: Session, nome: str, tipo: TipoLancamento) -> m.Categoria:
@@ -91,21 +87,12 @@ class NovoLancamento:
 
 def _validar_lancamento(sessao: Session, dados: NovoLancamento) -> tuple[str, str | None]:
     """Valida os dados e devolve (descrição, observação) já limpos."""
-    descricao = dados.descricao.strip()
-    exigir(bool(descricao), "descricao", "Informe a descrição.")
-    exigir(
-        len(descricao) <= TAMANHO_DESCRICAO,
-        "descricao",
-        f"Use no máximo {TAMANHO_DESCRICAO} caracteres.",
+    descricao = texto_obrigatorio(
+        dados.descricao, "descricao", TAMANHO_DESCRICAO, mensagem_vazio="Informe a descrição."
     )
     exigir(dados.valor > ZERO, "valor", "O valor deve ser maior que zero.")
     exigir_casas(dados.valor, CASAS_MOEDA, "valor")
-    observacao = dados.observacao.strip() if dados.observacao and dados.observacao.strip() else None
-    exigir(
-        observacao is None or len(observacao) <= TAMANHO_OBSERVACAO,
-        "observacao",
-        f"Use no máximo {TAMANHO_OBSERVACAO} caracteres.",
-    )
+    observacao = texto_opcional(dados.observacao, "observacao", TAMANHO_OBSERVACAO)
     if dados.categoria_id is not None:
         categoria = obter_categoria(sessao, dados.categoria_id)
         exigir(

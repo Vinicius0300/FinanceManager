@@ -16,12 +16,18 @@ export function useConexaoBackend() {
   });
 }
 
-/** Reinicia o processo do backend e volta a aguardar a conexão. */
+/**
+ * Reinicia o processo do backend e volta a aguardar a conexão. A porta e o token mudam a cada
+ * início, então **todas** as consultas são canceladas e voltam ao estado inicial (nada do
+ * backend anterior fica em cache); as que estiverem na tela refazem com a conexão nova, e o SSE
+ * reconecta com ela porque depende do objeto `conexao`.
+ */
 export function useReiniciarBackend() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: reiniciarBackend,
-    onSettled: () => queryClient.resetQueries({ queryKey: CHAVE_CONEXAO }),
+    onMutate: () => queryClient.cancelQueries(),
+    onSettled: () => queryClient.resetQueries(),
   });
 }
 

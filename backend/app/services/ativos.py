@@ -22,6 +22,7 @@ from app.asset_types.catalogo import REGISTRO_PADRAO
 from app.asset_types.registry import RegistroTiposAtivo
 from app.domain.enums import OrigemPreco
 from app.domain.erros import DominioError, OperacaoNaoPermitidaError
+from app.domain.textos import texto_obrigatorio, texto_opcional
 from app.repositories import modelos as m
 from app.repositories.ativos import RepositorioAtivos
 from app.repositories.mercado import RepositorioEstadosColeta, RepositorioPrecos
@@ -29,8 +30,6 @@ from app.repositories.transacoes import RepositorioEventos, RepositorioTransacoe
 from app.services.cadastros import (
     TAMANHO_NOME_ATIVO,
     TAMANHO_SIMBOLO_EXTERNO,
-    _texto_obrigatorio,
-    _texto_opcional,
     handler_do_ativo,
     obter_ativo,
     simbolo_externo_efetivo,
@@ -83,9 +82,9 @@ def editar_ativo(
 ) -> m.Ativo:
     ativo = obter_ativo(sessao, ativo_id)
     handler = handler_do_ativo(ativo, registro)
-    nome = _texto_obrigatorio(dados.nome, "nome", "O nome do ativo", TAMANHO_NOME_ATIVO)
-    informado = _texto_opcional(
-        dados.simbolo_externo, "simbolo_externo", "O símbolo externo", TAMANHO_SIMBOLO_EXTERNO
+    nome = texto_obrigatorio(dados.nome, "nome", TAMANHO_NOME_ATIVO, "O nome do ativo")
+    informado = texto_opcional(
+        dados.simbolo_externo, "simbolo_externo", TAMANHO_SIMBOLO_EXTERNO, "O símbolo externo"
     )
     externo = simbolo_externo_efetivo(handler, informado, ativo.simbolo)
     anterior = simbolo_externo_efetivo(handler, ativo.simbolo_externo, ativo.simbolo)

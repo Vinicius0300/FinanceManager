@@ -22,7 +22,7 @@ A paleta de cores é definitiva desde a Parte 4 (seção 8.3); o visual final (l
 | 4 | Frontend funcional com a paleta definitiva: Dashboard, Carteira, Movimentações (Histórico com filtros, resumo e Excel; Eventos; Caixa), Receitas e Despesas, Configurações (indicadores, backup); gráficos; consumo do SSE; backend do histórico | **Validada** |
 | 4.1 | Ajuste de fluxo da Parte 4: formulário único de movimentação (o ativo é cadastrado junto com a compra/aporte), deduplicação por tipo, listas oficiais de tickers (B3 e NASDAQ) para busca e identificação do tipo, tipos `fundo_listado`, `etf_br` e `etf_us` | **Validada** |
 | 5A | Visual final a partir das referências (tokens de superfície, componentes, gráficos, layout responsivo, ícone do app) e blocos que só usam dados existentes: altas e baixas do dia, próximos vencimentos (rota de leitura nova), chip de status das cotações, sparkline do patrimônio, carteira por instituição com subtotais; regra das 6 cores por presença | **Entregue (aguardando validação)** |
-| 5B | Empacotamento do backend (PyInstaller), instalador, script único de build, portabilidade, versão 1.0.0 e bloco 2 do code review | A fazer |
+| 5B | Empacotamento do backend (PyInstaller), instalador, script único de build, portabilidade, versão 1.0.0 e bloco 2 do code review | **Em andamento**: etapa 1 (bloco 2 do review) entregue, aguardando validação; etapa 2 (empacotamento) a fazer |
 | 6 | Análises e Proventos: tela Proventos (por mês, yield on cost, últimos recebidos), cartão "Proventos 12 meses", evolução empilhada por tipo/instituição e modo "%", "Rentabilidade 12 meses vs. CDI", "Últimos 12 meses" e "Categorias vs. média de 3 meses" em Receitas e Despesas, "Taxa de poupança", mapa da carteira (treemap) | A fazer |
 
 ## 3. Decisões de arquitetura (definitivas)
@@ -83,6 +83,7 @@ backend/
   app/domain                  regras puras: numeros, calendario, posicao, montante, historico,
                               renda_fixa, poupanca, conta_corrente, metricas, carteira,
                               serie_patrimonio, lancamentos, indicadores, precos, agenda, erros,
+                              textos (texto opcional/obrigatório),
                               listas (classificação oficial dos tickers)
   app/asset_types             base (contrato), registry, catalogo (registro único), 10 handlers
   app/repositories            modelos (SQLAlchemy), tipos (DecimalTexto, DataHoraUTC), repositórios
@@ -154,7 +155,7 @@ Revisão de código feita antes da Parte 3. Correções aprovadas pelo dono (det
 - **Câmbio gravado no evento corporativo** (migração `0002_cambio_eventos`, com preenchimento dos eventos existentes pela regra dos 7 dias). `NovoEvento.cambio` é opcional; `estado_cotas`/`operacoes_cotas` não recebem mais moeda nem indicadores. A busca de câmbio de transações e eventos ficou em `services/posicoes.resolver_cambio`.
 - **Série de patrimônio:** o plano B entende posições em cotas (valor aplicado em BRL) e há aviso quando um ativo estrangeiro não tem câmbio algum.
 - **Para a Parte 3:** providers devem arredondar cotações (até 8 casas) e câmbio (até 6) antes de gravar, porque `registrar_preco`/`registrar_indicador` recusam valores com mais casas.
-- **Bloco 2 do review (limpeza)** ficou para depois: helper único de texto opcional, normalização de metadados separada da validação (CNPJ), fator de renda fixa criado uma vez só, `mensagemDeErro` sem mascarar `TypeError`, reset das consultas ao reiniciar o backend.
+- **Bloco 2 do review (limpeza)** ficou para depois e foi feito na Parte 5B (ver 8.6).
 
 ## 8.2 Decisões tomadas na Parte 3
 Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 3.md`):
@@ -251,6 +252,16 @@ Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 5.md`). 
 - **Animações** sutis (abrir diálogo, trocar aba, hover), desligadas por `prefers-reduced-motion` (regra global em `theme/index.css`).
 - **Contraste** dos pares novos (WCAG): texto no subtotal 15,8:1 (claro) e 14,2:1 (escuro); texto suave no subtotal 5,7:1 e 6,7:1; segmento ativo 8,4:1 e 9,9:1; inativo 5,7:1 e 6,3:1; barras brancas da marca sobre o violeta 6,1:1 (o contorno violeta da marca sobre a lateral azul-marinho do tema claro fica em 2,8:1, mas o desenho é reconhecido pelas barras brancas e é decorativo).
 
+## 8.6 Decisões tomadas na Parte 5B (empacotamento e 1.0.0)
+Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 6.md`). Entrega em duas etapas: (1) bloco 2 do code review da Parte 2, validado antes de (2) empacotamento.
+
+**Etapa 1: bloco 2 do code review** (sem mudar resultado de cálculo; os testes existentes passam sem ajuste de valores esperados):
+- **Helper único de texto** em `domain/textos.py`: `limpar_texto` (pontas sem espaço; vazio ou só espaços → `None`), `texto_opcional(valor, campo, tamanho, rotulo=None)` e `texto_obrigatorio(..., mensagem_vazio=None)`. O tamanho é contado depois da limpeza; acima do limite é recusado (nunca cortado). Com `rotulo`, a mensagem principal ganha o prefixo ("O símbolo: Use no máximo 30 caracteres."); o detalhe do campo é sempre "Use no máximo N caracteres.". Usado em `cadastros`/`ativos` (nome, símbolo, símbolo externo), `caixa` (descrição), `financeiro` (nome da categoria, descrição e observação) e `transacoes` (observação da transação e do evento). **Bug corrigido:** a observação do evento corporativo só com espaços era gravada como `""`; agora vira `None`. As mensagens ao usuário não mudaram.
+- **Normalização de metadados separada da validação:** `HandlerTipoAtivo.normalizar_metadados(metadados)` (padrão identidade) roda depois da normalização de cada campo e antes de `regras_adicionais`, devolvendo um dicionário novo. O fundo grava o CNPJ só com dígitos ali; `regras_adicionais` do fundo só valida. Os outros tipos não mudaram (`docs/TIPOS_DE_ATIVO.md` atualizado).
+- **Fator de renda fixa criado uma vez:** `posicoes.estado_montante(transacoes, fator)` recebe o fator pronto. A carteira cria um por posição (antes eram dois); reprocessamento, histórico e série de patrimônio criam um por ativo, reaproveitado entre as instituições.
+- **`mensagemDeErro` (front):** só a falha de rede do `fetch` (`TypeError` com "Failed to fetch", "network error", "NetworkError…" ou "Load failed", `ehFalhaDeRede`) vira "Não foi possível conectar ao serviço interno"; outro `TypeError` (bug de código) mostra "Ocorreu um erro inesperado." e vai para o console uma vez por erro.
+- **Reinício do backend:** `useReiniciarBackend` cancela todas as consultas ao começar e, ao terminar, **reseta todas** (porta e token mudam; nada do backend anterior fica em cache). O SSE já reconecta com a conexão nova porque o efeito depende do objeto `conexao` (teste novo cobre isso).
+
 ## 9. Pendências conhecidas
 - Build de release ainda não inclui o backend empacotado (Parte 5B): `tauri build` gera o app, mas ele mostrará "Executável do serviço interno não encontrado".
 - Atualização por cima, assinatura de código e SmartScreen: Parte 5B.
@@ -262,4 +273,3 @@ Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 5.md`). 
 - A lista de lançamentos mostra até 500 por mês (máximo da API por página).
 - Feriados da bolsa americana não são considerados na agenda (só geram coletas extras sem efeito).
 - O ciclo de coleta roda numa thread: no encerramento ele para entre alvos, mas um download em andamento (ex.: ZIP da CVM) pode segurar o processo até o timeout; o Tauri força o fim após 3 s (Job Object).
-- Bloco 2 do code review da Parte 2 (limpeza) continua pendente (ver 8.1).
