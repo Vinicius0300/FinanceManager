@@ -1,3 +1,4 @@
 """Backend local do app Finanças (FastAPI executado como sidecar do Tauri)."""
 
-__version__ = "0.1.0"
+# Gerado por scripts/versao.py a partir do package.json da raiz (fonte única): não edite à mão.
+__version__ = "1.0.0"

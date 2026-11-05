@@ -45,7 +45,9 @@ Stack: Tauri 2 (Rust mínimo) + React/TypeScript (Vite, Tailwind, shadcn/ui) + b
 | Lint, tipos e formatação do frontend | `npm run lint`, `npm run typecheck`, `npm run format:check` |
 | Gerar contrato OpenAPI + tipos TS | `npm run contrato` |
 | Conferir se o contrato está atualizado | `npm run contrato:verificar` |
-| Checar o Rust sem abrir o app | `cd apps\desktop\src-tauri; cargo check` |
+| Checar o Rust sem abrir o app | `cd apps\desktop\src-tauri; cargo check` (testes: `cargo test`) |
+| Gerar o instalador (com todas as checagens) | `npm run instalador` (ou dê dois cliques em `scripts\3_gerar_instalador.bat`) |
+| Sincronizar / conferir a versão | `npm run versao` / `npm run versao:verificar` |
 
 A primeira execução de `npm run dev` compila o Rust e leva alguns minutos; as seguintes são rápidas. Alterações no front recarregam na hora; alterações em `backend/app` reiniciam o backend automaticamente.
 
@@ -64,10 +66,35 @@ A atualização automática de cotações começa ao abrir; para depurar sem ace
 - Forçar agora: botão **Atualizar cotações** no topo do app (em qualquer tela) ou `POST /api/cotacoes/atualizar`. Status por ativo: `GET /api/cotacoes/status` (resumido no chip "N em dia · N defasadas · N com erro" do topo). Eventos em tempo real: `GET /api/eventos` (SSE).
 - Na primeira vez são baixados os fechamentos de até 1 ano (fundos: até 12 arquivos de ~12 MB da CVM, processados e descartados).
 
+## Instalar e usar o app (sem ambiente de desenvolvimento)
+1. Rode `Financas_<versão>_x64-setup.exe`. O instalador é em português, não pede administrador (instala só para o seu usuário, em `%LOCALAPPDATA%\Financas`) e cria atalhos no menu Iniciar e na área de trabalho.
+2. **Aviso do SmartScreen** ("O Windows protegeu o computador"): o instalador não tem assinatura de código, então o Windows não conhece o editor. Clique em **Mais informações** → **Executar assim mesmo**. Alguns antivírus podem acusar falso positivo em executáveis gerados pelo PyInstaller: se acontecer, libere o arquivo no antivírus. A solução definitiva é a assinatura de código (certificado de um emissor confiável), fora do escopo da 1.0.0.
+3. **WebView2:** o Windows 11 e o Windows 10 atualizado já trazem o runtime. Se faltar, o instalador baixa e instala o WebView2 sozinho, e para isso **precisa de internet**. Para instalar num computador sem internet e sem WebView2, instale antes o "Evergreen Standalone Installer" do WebView2 (baixado da Microsoft em outro computador).
+4. **Primeira abertura:** logo depois de instalar ou atualizar, o antivírus verifica os arquivos do serviço interno e a tela "Iniciando o serviço interno…" pode ficar até uns 30 s. Nas aberturas seguintes leva poucos segundos.
+5. **Atualizar:** rode o instalador da versão nova por cima. Banco, backups e logs são mantidos.
+6. **Desinstalar:** em Configurações do Windows → Aplicativos. Os seus dados em `%APPDATA%\Financas\` **nunca** são apagados (nem pela caixa "apagar dados do app" do desinstalador, que só remove o estado da janela e o cache do WebView2).
+
+## Gerar o instalador e versões novas
+- `npm run instalador` (ou `scripts\3_gerar_instalador.bat`, que espera uma tecla no fim) gera o instalador do zero. Antes do build ele sincroniza e confere a versão e roda os testes e lints do backend e do front, o contrato, o `cargo check`/`cargo test`, o PyInstaller e um smoke test do executável (inclui um download HTTPS real; sem internet, use `scripts\3_gerar_instalador.bat --sem-https`). Para no primeiro erro, com a mensagem.
+- Resultado: `apps\desktop\src-tauri\target\release\bundle\nsis\Financas_<versão>_x64-setup.exe` (caminho, tamanho e versão aparecem no fim).
+- **Versão nova (ex.: 1.0.1):** mude só o `"version"` do `package.json` da raiz e rode `npm run instalador`. Os demais arquivos (workspaces, `package-lock.json`, Cargo, `__version__` do backend e `docs/openapi.json`) são atualizados pelo `npm run versao`, que o script já roda. Commite os arquivos alterados.
+
 ## Onde ficam os dados
-- `%APPDATA%\Financas\` : banco `financas.db`, `logs\backend.log`, `backups\` (cópia automática antes de cada migração e antes de restaurar, além dos backups manuais pela API) e `models\`.
+- `%APPDATA%\Financas\` : banco `financas.db`, `logs\backend.log`, `logs\backend-stderr.log` (erros do serviço interno antes de o log existir, sobrescrito a cada abertura), `backups\` (cópia automática antes de cada migração e antes de restaurar, além dos backups manuais) e `models\`.
 - Nada é gravado na pasta de instalação.
+- **Apagar os dados à mão** (depois de desinstalar, para começar do zero): feche o app e apague a pasta `%APPDATA%\Financas` (digite `%APPDATA%` na barra do Explorador). Isso apaga o banco e os backups: copie antes um backup para outro lugar se quiser guardar algo.
 - Para testar com um banco descartável, defina `FINANCAS_DATA_DIR` com outra pasta antes de rodar o backend ou o `alembic`.
+
+## Migrar para outro computador
+**A) Só usar o app**
+1. No computador antigo: **Configurações → Backup e restauração → Fazer backup agora** e copie o arquivo `.db` gerado (fica em `%APPDATA%\Financas\backups\`) para um pendrive ou nuvem.
+2. No novo: instale o app (seção acima), abra-o uma vez e, em **Configurações → Backup e restauração → Restaurar de um arquivo…**, escolha o backup copiado. O app valida o arquivo, guarda um backup de segurança do banco atual e restaura carteira, caixa, lançamentos e configurações.
+
+**B) Continuar desenvolvendo**
+1. Instale o Git e clone o repositório.
+2. Rode `scripts\1_instalar_ferramentas.bat` **como administrador**.
+3. **Feche e reabra o terminal** e rode `scripts\2_preparar_projeto.bat` (venv, dependências, contrato e testes).
+4. `npm run dev` para desenvolver; `npm run instalador` para gerar o instalador. Para levar os dados, use o caminho A (backup e restauração).
 
 ## Documentação
 - [`docs/CONTEXTO.md`](docs/CONTEXTO.md): visão, decisões e roadmap.

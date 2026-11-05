@@ -11,7 +11,12 @@ import { TelaStatusBackend } from "./TelaStatusBackend";
 
 vi.mock("@/lib/backend", async (importOriginal) => {
   const original = await importOriginal<typeof backend>();
-  return { ...original, obterConexaoBackend: vi.fn(), reiniciarBackend: vi.fn() };
+  return {
+    ...original,
+    obterConexaoBackend: vi.fn(),
+    reiniciarBackend: vi.fn(),
+    obterVersaoApp: vi.fn(() => Promise.resolve("1.0.0")),
+  };
 });
 
 const CONEXAO = { urlBase: "http://127.0.0.1:50000", token: "t".repeat(64) };
@@ -30,11 +35,13 @@ function json(corpo: unknown, status = 200) {
 }
 
 /** fetch falso que responde pelas rotas do backend e confere o token. */
-function fetchFalso(opcoes: { pingStatus?: number } = {}) {
+function fetchFalso(opcoes: { pingStatus?: number; versao?: string } = {}) {
   return vi.fn((recurso: RequestInfo | URL) => {
     const entrada = recurso instanceof Request ? recurso : new Request(recurso);
     const url = new URL(entrada.url);
-    if (url.pathname === "/health") return Promise.resolve(json({ status: "ok", versao: "0.1.0" }));
+    if (url.pathname === "/health") {
+      return Promise.resolve(json({ status: "ok", versao: opcoes.versao ?? "1.0.0" }));
+    }
     if (url.pathname === "/api/ping") {
       const autorizado = entrada.headers.get("Authorization") === `Bearer ${CONEXAO.token}`;
       if (!autorizado || opcoes.pingStatus === 401) {
@@ -147,6 +154,35 @@ describe("TelaStatusBackend", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Token de sessão ausente ou inválido.",
     );
+  });
+
+  it("Sobre mostra a versão do app e a do serviço interno, sem aviso quando batem", async () => {
+    renderTela(fetchFalso());
+    await waitFor(() => {
+      expect(screen.getByText("Versão do app").nextElementSibling).toHaveTextContent("1.0.0");
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Versão do serviço interno").nextElementSibling).toHaveTextContent(
+        "1.0.0",
+      );
+    });
+    expect(screen.queryByText(/são diferentes/)).not.toBeInTheDocument();
+  });
+
+  it("Sobre avisa quando as versões do app e do serviço interno divergem", async () => {
+    renderTela(fetchFalso({ versao: "0.9.0" }));
+    expect(await screen.findByText(/são diferentes/)).toHaveTextContent(
+      "As versões do app (1.0.0) e do serviço interno (0.9.0) são diferentes.",
+    );
+  });
+
+  it("Sobre mostra traço fora do app (sem Tauri)", async () => {
+    vi.mocked(backend.obterVersaoApp).mockResolvedValueOnce(null);
+    renderTela(fetchFalso());
+    await waitFor(() => {
+      expect(screen.getByText("Versão do app").nextElementSibling).toHaveTextContent("—");
+    });
+    expect(screen.queryByText(/são diferentes/)).not.toBeInTheDocument();
   });
 
   it("mostra indisponível quando a rede falha", async () => {

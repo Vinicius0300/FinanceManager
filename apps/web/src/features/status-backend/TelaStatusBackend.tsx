@@ -1,19 +1,60 @@
-import { Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { mensagemDeErro } from "@/lib/backend";
 import { useClienteApi } from "@/lib/cliente-api";
 import { formatarDataHora } from "@/lib/formatacao";
-import { useHealth, usePing } from "./consultas";
+import { useHealth, usePing, useVersaoApp } from "./consultas";
 
-/** Tela única da Parte 1: estado do backend e chamada à rota protegida. */
+/**
+ * "Sobre" (versões do app e do serviço interno) e estado do backend: chamada à rota
+ * protegida e verificação periódica do /health.
+ */
 export function TelaStatusBackend() {
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-6 md:grid-cols-2">
+      <CartaoSobre />
       <CartaoServico />
       <CartaoPing />
     </div>
+  );
+}
+
+function CartaoSobre() {
+  const app = useVersaoApp();
+  const health = useHealth();
+  const versaoApp = app.data ?? null;
+  const versaoServico = health.data?.versao ?? null;
+  const divergentes = versaoApp !== null && versaoServico !== null && versaoApp !== versaoServico;
+
+  return (
+    <Card className="md:col-span-2">
+      <CardHeader>
+        <CardTitle>Finanças</CardTitle>
+        <CardDescription>
+          App desktop local de finanças pessoais. Dados só neste computador, em
+          <code className="mx-1">%APPDATA%Financas</code>.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Versão do app</span>
+          <span>{app.isPending ? "…" : (versaoApp ?? "—")}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Versão do serviço interno</span>
+          <span>{health.isPending ? "…" : (versaoServico ?? "—")}</span>
+        </div>
+        {divergentes && (
+          <p role="alert" className="flex items-start gap-2 text-aviso-texto">
+            <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
+            As versões do app ({versaoApp}) e do serviço interno ({versaoServico}) são diferentes.
+            Reinstale o aplicativo para atualizar os dois juntos.
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -37,10 +78,6 @@ function CartaoServico() {
           ) : (
             <Badge variant="sucesso">Conectado</Badge>
           )}
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Versão</span>
-          <span>{health.data?.versao ?? "—"}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Endereço</span>

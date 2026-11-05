@@ -22,7 +22,7 @@ A paleta de cores é definitiva desde a Parte 4 (seção 8.3); o visual final (l
 | 4 | Frontend funcional com a paleta definitiva: Dashboard, Carteira, Movimentações (Histórico com filtros, resumo e Excel; Eventos; Caixa), Receitas e Despesas, Configurações (indicadores, backup); gráficos; consumo do SSE; backend do histórico | **Validada** |
 | 4.1 | Ajuste de fluxo da Parte 4: formulário único de movimentação (o ativo é cadastrado junto com a compra/aporte), deduplicação por tipo, listas oficiais de tickers (B3 e NASDAQ) para busca e identificação do tipo, tipos `fundo_listado`, `etf_br` e `etf_us` | **Validada** |
 | 5A | Visual final a partir das referências (tokens de superfície, componentes, gráficos, layout responsivo, ícone do app) e blocos que só usam dados existentes: altas e baixas do dia, próximos vencimentos (rota de leitura nova), chip de status das cotações, sparkline do patrimônio, carteira por instituição com subtotais; regra das 6 cores por presença | **Entregue (aguardando validação)** |
-| 5B | Empacotamento do backend (PyInstaller), instalador, script único de build, portabilidade, versão 1.0.0 e bloco 2 do code review | **Em andamento**: etapa 1 (bloco 2 do review) entregue, aguardando validação; etapa 2 (empacotamento) a fazer |
+| 5B | Empacotamento do backend (PyInstaller), instalador, script único de build, portabilidade, versão 1.0.0 e bloco 2 do code review | Etapa 1 (bloco 2 do review) **validada**; etapa 2 (empacotamento, 1.0.0) **entregue (aguardando validação)** |
 | 6 | Análises e Proventos: tela Proventos (por mês, yield on cost, últimos recebidos), cartão "Proventos 12 meses", evolução empilhada por tipo/instituição e modo "%", "Rentabilidade 12 meses vs. CDI", "Últimos 12 meses" e "Categorias vs. média de 3 meses" em Receitas e Despesas, "Taxa de poupança", mapa da carteira (treemap) | A fazer |
 
 ## 3. Decisões de arquitetura (definitivas)
@@ -35,26 +35,28 @@ A paleta de cores é definitiva desde a Parte 4 (seção 8.3); o visual final (l
 
 ## 4. Integração Tauri + sidecar (como funciona)
 1. No `setup`, o Rust (`apps/desktop/src-tauri/src/backend.rs`) reserva uma porta livre em `127.0.0.1`, gera um token aleatório (32 bytes, hex) e inicia o backend com as variáveis `FINANCAS_PORTA`, `FINANCAS_TOKEN`, `FINANCAS_PID_PAI` (e `FINANCAS_DEV=1` em desenvolvimento). O token vai por variável de ambiente, nunca por argumento, para não aparecer na lista de processos.
-2. Uma thread consulta `GET /health` a cada 150 ms por até **30 s**. Se o processo morrer ou o tempo acabar, o estado vira "falhou" com mensagem em pt-BR.
+2. Uma thread consulta `GET /health` a cada 150 ms por até **120 s** (era 30 s até a Parte 5B; ver 8.6). Se o processo morrer ou o tempo acabar, o estado vira "falhou" com mensagem em pt-BR.
 3. O React chama `invoke("conexao_backend")`, que aguarda o estado e devolve `{ urlBase, token }` ou rejeita com a mensagem. Enquanto isso a UI mostra "Iniciando o serviço interno…"; em erro mostra a mensagem e o botão **Tentar novamente** (`invoke("reiniciar_backend")`).
 4. Todas as chamadas usam `Authorization: Bearer <token>`; só `/health` é aberto.
 5. **Encerramento:** no `RunEvent::Exit`, o Rust chama `POST /api/sistema/encerrar` (protegido, fora do contrato público), espera até 3 s o processo sair e então força (`TerminateJobObject` + `kill`).
 6. **Sem órfãos:** o processo do backend é associado a um **Job Object** com `KILL_ON_JOB_CLOSE` (se o app for finalizado à força, o Windows encerra o backend e os filhos dele) e o Python tem um **watchdog** que espera o PID do app terminar e chama `os._exit`.
 7. **Instância única:** plugin single-instance (registrado primeiro); a segunda abertura só foca a janela existente e não inicia outro backend.
 8. **Janela:** plugin window-state salva tamanho, posição e maximizado (arquivo do plugin em `%APPDATA%\br.com.financas.desktop\`).
-9. **Desenvolvimento:** em build debug o Rust usa `backend\.venv\Scripts\python.exe entrypoint.py --reload` (uvicorn com reload, sem empacotar). Em release usa `financas-backend.exe` ao lado do executável (empacotamento na Parte 5).
+9. **Desenvolvimento:** em build debug o Rust usa `backend\.venv\Scripts\python.exe entrypoint.py --reload` (uvicorn com reload, sem empacotar). Em release usa `financas-backend\financas-backend.exe` na pasta de recursos do app (`resource_dir()`, a pasta de instalação), empacotado com o PyInstaller `onedir` (Parte 5B, seção 8.6), com o stderr em `%APPDATA%\Financas\logs\backend-stderr.log`.
 
 ### Segurança
 - API só em `127.0.0.1`; porta e token dinâmicos por sessão; comparação do token com `secrets.compare_digest`.
 - CORS: `http://tauri.localhost` (sempre) e `http://localhost:5173` / `http://127.0.0.1:5173` (só com `FINANCAS_DEV=1`).
 - CSP do Tauri: `connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:*` (o `devCsp` acrescenta o Vite).
-- Capabilities: `capabilities/main.json` só com `dialog:allow-open` e `dialog:allow-save` (Parte 4: escolher o backup a restaurar e onde salvar a planilha). O front não lê nem grava arquivos: entrega o caminho e o backend faz o resto. Acrescente permissões somente quando uma tela precisar.
+- Capabilities: `capabilities/main.json` só com `dialog:allow-open` e `dialog:allow-save` (Parte 4: escolher o backup a restaurar e onde salvar a planilha) e `core:app:allow-version` (Parte 5B: versão do app em Configurações → Sobre). O front não lê nem grava arquivos: entrega o caminho e o backend faz o resto. Acrescente permissões somente quando uma tela precisar.
 - `/docs` (Swagger) só existe em modo dev.
 
 ## 5. Estrutura
 ```
 apps/desktop/                 package.json (CLI do Tauri), icone.svg (fonte dos ícones)
-apps/desktop/src-tauri/       Rust: lib.rs (plugins/comandos), backend.rs (sidecar), job.rs (Job Object)
+apps/desktop/src-tauri/       Rust: lib.rs (plugins/comandos), backend.rs (sidecar), job.rs (Job Object),
+                              locais.rs (backend instalado, pasta de dados e backend-stderr.log);
+                              tauri.instalador.conf.json (backend como recurso, só no build do instalador)
 apps/web/src/
   app/                        App, rotas, layout (navegação lateral), barra superior (chip de
                               status das cotações, Atualizar cotações, tema), navegação, erro global
@@ -73,6 +75,7 @@ apps/web/src/
   test/                       API falsa para testes de tela e o schema real dos tipos de ativo
 backend/
   entrypoint.py               ponto de entrada do sidecar
+  financas-backend.spec       spec do PyInstaller (onedir)
   alembic.ini, migrations/    Alembic (env.py + versions/); rodam sozinhas na inicialização
   app/api                     rotas por recurso (só validam/orquestram/serializam):
                               instituicoes (e caixa), ativos, transacoes (e eventos),
@@ -97,7 +100,9 @@ backend/
   app/analytics               protocolos (Protocol) e registry de modelos (sem modelos)
   tests/                      fabricas.py (dados sintéticos) + testes por camada
 docs/                         CONTEXTO.md, CALCULOS.md, TIPOS_DE_ATIVO.md, ANALYTICS.md, openapi.json
-scripts/                      contrato.py, 1_instalar_ferramentas.bat, 2_preparar_projeto.bat
+scripts/                      contrato.py, versao.py (versão com fonte única), empacotar_backend.py,
+                              smoke_backend.py, 1_instalar_ferramentas.bat, 2_preparar_projeto.bat,
+                              3_gerar_instalador.bat
 ```
 
 ## 6. Convenções
@@ -213,7 +218,7 @@ Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 4.1.md`)
   - ETF de renda fixa: `FORWARD` + `FIXED INCOME TRADABLE INSTRUMENT T1` **e** linha `ETF PRIMARY MARKET` do mesmo `Asst` (76 no arquivo; nenhum papel da categoria ficou sem o mercado primário);
   - fora da lista: `SHARES`/`DIA` (taxas de financiamento do termo), `SHARES`/`REC`, recibos, direitos, warrants e índices;
   - **não mapeado** (fica fora e vai para o log, nunca vira "ação"): qualquer categoria nova e as especificações `CPA`/`TPR` (7 papéis no arquivo);
-  - EUA: diretório da NASDAQ, coluna `ETF` (Y → `etf_us`, N → `acao_us`); emissões de teste e símbolos com sufixo especial (preferenciais `$`, warrants, direitos, units) ficam fora; `BRK.B` vira `BRK-B`. O cabeçalho real do `nasdaqlisted.txt` ainda não foi conferido (o parser exige a coluna `ETF` e recusa o arquivo sem ela).
+  - EUA: diretório da NASDAQ, coluna `ETF` (Y → `etf_us`, N → `acao_us`); emissões de teste e símbolos com sufixo especial (preferenciais `$`, warrants, direitos, units) ficam fora; `BRK.B` vira `BRK-B`. O cabeçalho real do `nasdaqlisted.txt` foi conferido em 04/11/2026 pelo smoke test da Parte 5B (lista dos EUA importada com 12.863 tickers); o parser continua exigindo a coluna `ETF`.
 - **FII, Fiagro e FI-Infra num tipo só** (`fundo_listado`, "Fundo listado (FII, Fiagro, FI-Infra)"): a B3 põe todos em `FUNDS` e o CFI não os separa (HGLG11 e RZAG11 têm o mesmo `CICIRU`). É diferente de `fundo` (fundo aberto da CVM, pelo CNPJ, sem ticker).
 - **ETFs com tipo próprio:** `etf_br` (BRL, agenda B3) e `etf_us` (USD, agenda EUA). Ação (Brasil) perdeu a opção "ETF" do tipo de papel; a migração tira esse campo dos ativos que o tinham, **sem reclassificar** o tipo.
 - **Ticker fora das listas:** a busca baixa a lista do dia em segundo plano (no máximo uma vez por dia e por bolsa) e, enquanto isso, a pesquisa do Yahoo só **sugere o nome** (tipo "não identificado"). O cadastro manual é permitido, com o aviso "a cotação pode falhar".
@@ -262,13 +267,55 @@ Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 6.md`). 
 - **`mensagemDeErro` (front):** só a falha de rede do `fetch` (`TypeError` com "Failed to fetch", "network error", "NetworkError…" ou "Load failed", `ehFalhaDeRede`) vira "Não foi possível conectar ao serviço interno"; outro `TypeError` (bug de código) mostra "Ocorreu um erro inesperado." e vai para o console uma vez por erro.
 - **Reinício do backend:** `useReiniciarBackend` cancela todas as consultas ao começar e, ao terminar, **reseta todas** (porta e token mudam; nada do backend anterior fica em cache). O SSE já reconecta com a conexão nova porque o efeito depende do objeto `conexao` (teste novo cobre isso).
 
+**Etapa 2: empacotamento e release 1.0.0**
+- **Versão com fonte única (1.0.0):** só o `"version"` do `package.json` da raiz é editado à mão. `scripts/versao.py` grava o número em `apps/web` e `apps/desktop` (`package.json`), `package-lock.json` (raiz e os três pacotes), `Cargo.toml`/`Cargo.lock` (pacote `financas`), `backend/app/__init__.py` (`__version__`, gerado: vai no executável, no `/health`, no `/api/ping` e no OpenAPI) e `docs/openapi.json` (`info.version`). `tauri.conf.json` usa `"version": "../../../package.json"` e o `pyproject.toml` usa `dynamic = ["version"]` lendo `app.__version__`. O modo `--verificar` falha se algo divergir (inclusive se o Tauri ou o pyproject voltarem a ter número próprio). A edição é textual (não muda a formatação) e não usa o `npm version`: assim não depende do Node e os testes (`tests/test_versao.py`) rodam o script de verdade numa cópia dos arquivos. **Release nova:** mude a versão no `package.json` da raiz e rode `npm run instalador`.
+- **Sobre (Configurações):** a seção "Serviço interno" virou "Sobre", com a versão do app (`getVersion()` do Tauri; capability `core:app:allow-version`, a única acrescentada) e a do serviço interno (`/health`). Se divergirem, aparece um aviso pedindo para reinstalar.
+- **PyInstaller `onedir`** (spec versionado em `backend/financas-backend.spec`; extra opcional `build` no `pyproject.toml`, instalado pelo `2_preparar_projeto.bat`). Executável de console (o Rust usa `CREATE_NO_WINDOW`). Entram: `migrations/` como dados na raiz do bundle (`_internal/migrations`, para onde `core/migracoes.PASTA_MIGRACOES` aponta), `collect_submodules("uvicorn")`, os módulos do Alembic e os que o `env.py` importa, o dialeto SQLite, os dados do `tzdata`, `openpyxl` e o `truststore`. Ficam fora: `watchfiles`, pytest, mypy, ruff, `certifi`, `httpcore`/`httpx` antigos e qualquer ML.
+- **Medição `onefile` × `onedir`** (`scripts/smoke_backend.py --repeticoes`, do início do processo até o `/health` responder; banco vazio com migrações; Windows 11, Python 3.13, PyInstaller 6.22, 04/11/2026):
+
+  | Cenário | onedir | onefile |
+  |---|---|---|
+  | 1ª execução de um binário recém-gerado (o Defender varre os arquivos novos; também é o caso da 1ª abertura depois de instalar ou atualizar) | **29,2 s** (2 builds) e **30,9 s** (app instalado, 1ª abertura após atualizar para a 1.0.1) | **40,9 s** |
+  | Cópia nova dos mesmos arquivos (hash já conhecido pelo Defender), 1 execução | 3,9 s | 5,7 s |
+  | Quente, N = 5 (mín / mediana / máx) | 2,36 / 2,38 / 2,41 s | 4,86 / 6,57 / 8,82 s |
+  | App instalado aberto pelo atalho (aberturas seguintes) | 3,6 a 5,4 s | — |
+  | Tamanho do backend | 85 MB em pasta | 42 MB num arquivo |
+  | Instalador final (NSIS, LZMA) | **36,6 MB** (38.367.003 bytes) | 44,9 MB (47.116.353 bytes) |
+
+  O instalador `onefile` sai maior porque o executável já vem comprimido (zlib) e o LZMA do NSIS não consegue comprimi-lo de novo. O frio de verdade (logo após reiniciar o Windows) não foi medido nesta sessão e fica no roteiro de validação. **Recomendação e decisão: `onedir`.** Inicia 2 a 3 vezes mais rápido nas aberturas normais e com tempo estável. Também gera o instalador menor, não extrai nada para o `%TEMP%` (não sobra `_MEIxxxx` quando o Job Object mata o processo) e tende a ter menos falso positivo de antivírus. O `onefile` continua no spec (`FINANCAS_EMPACOTAMENTO=onefile`) só para repetir a medição.
+- **`TIMEOUT_INICIO` do Rust: 30 s → 120 s** (decisão técnica desta parte, **aprovada pelo dono** em 04/11/2026). A 1ª abertura depois de instalar ou atualizar ficou em 29–31 s nas três medições (varredura do Defender nos ~85 MB do backend), ou seja, com 30 s o usuário veria "não respondeu em 30 segundos" na primeira vez. Se o processo morre, a falha continua aparecendo na hora (o Rust confere o processo a cada 150 ms); o limite longo só vale para um backend travado. O smoke test usa o mesmo limite.
+- **Como o Rust acha o backend:** o `tauri.instalador.conf.json` (passado com `--config` só no build do instalador, para o `cargo check` e o `npm run dev` não exigirem a pasta) inclui `binaries/financas-backend/` como recurso `financas-backend/`. Em release o `backend.rs` usa `app.path().resource_dir()` (no Windows, a pasta de instalação) + `financas-backend\financas-backend.exe` (`locais.rs`, com testes). Sem a pasta ou o arquivo, a mensagem pede para reinstalar.
+- **stderr do backend** em `%APPDATA%\Financas\logs\backend-stderr.log` (ou `FINANCAS_DATA_DIR`), sobrescrito a cada abertura, com a pasta criada pelo Rust. Assim fica registrado o que acontece antes do `backend.log` (import faltando, erro de configuração com código 2). Se o processo morre antes do `/health`, a mensagem cita esse arquivo e o `backend.log`. O stdout continua descartado.
+- **Smoke test do executável** (`scripts/smoke_backend.py`, rodado pelo build): pasta de dados temporária, token de teste, `FINANCAS_SEM_ATUALIZACAO=1`, espera o `/health`, confere a versão do `package.json`, o `/api/ping` com token e a revisão `head` num banco vazio, e encerra pela rota interna conferindo que o processo saiu (no `onefile`, também que não sobrou `_MEIxxxx`). Com `--https` (padrão no build; `--sem-https` para máquinas sem internet), baixa as listas de tickers e confere a dos EUA: prova que o `truststore` funciona no executável.
+- **Instalador NSIS** em pt-BR (`PortugueseBR`), `installMode: currentUser` (sem pedir administrador; instala em `%LOCALAPPDATA%\Financas`), ícone do app, atalhos no menu Iniciar e na área de trabalho, WebView2 por `embedBootstrapper` (≈ +1,8 MB; ainda precisa de internet quando o runtime falta). Sem assinatura de código.
+- **Desinstalar nunca apaga `%APPDATA%\Financas`.** A caixa "apagar dados do app" do desinstalador remove só `%APPDATA%\br.com.financas.desktop` e `%LOCALAPPDATA%\br.com.financas.desktop` (estado da janela e cache do WebView2).
+- **Script único** `scripts/3_gerar_instalador.bat` (`npm run instalador` = `--sem-pausa`), na ordem: versão (sincroniza e confere), backend (pytest, ruff check, ruff format --check, mypy), contrato, frontend (testes, lint, typecheck, prettier), Rust (`cargo check`, `cargo test`; `clippy` não está configurado), PyInstaller (`scripts/empacotar_backend.py`), smoke test e `tauri build`. Para no primeiro erro e no fim mostra o caminho, o tamanho e a versão do instalador.
+- **Validação feita nesta sessão** (04/11/2026, Windows 11; o terminal rodava dentro do pacote MSIX do app Claude, então a instalação ficou virtualizada em `...\Packages\Claude_...\LocalCache\Local\Financas` e os testes usaram `FINANCAS_DATA_DIR` numa pasta temporária, sem tocar no banco do dono):
+  - instalação silenciosa (`/S`) da 1.0.0: pasta de instalação com `financas.exe`, `uninstall.exe` e `financas-backend\` (com `_internal\migrations`), atalhos no menu Iniciar e na área de trabalho e registro de desinstalação (`Financas`, 1.0.0, editor "Finanças");
+  - abertura pelo atalho do menu Iniciar: backend achado na pasta de recursos, `/health` com a versão 1.0.0, migrações no `head` em banco novo, `backend-stderr.log` criado (vazio) e a UI fazendo requisições;
+  - fechamento normal (backend encerra de forma graciosa) e fechamento à força do `financas.exe`: nenhum processo restante (Job Object); sem pasta `_MEI` (onedir);
+  - encerramento durante um download (listas de tickers): o processo saiu em 1,66 s (abaixo dos 3 s em que o Tauri força);
+  - atualização por cima (1.0.1 sobre 1.0.0): versão 1.0.1 no registro e no `/health`, dados preservados; desinstalação: pasta, atalhos e registro removidos, `%APPDATA%\Financas` intacto (mesmo hash do banco, 9 backups); reinstalação da 1.0.0 abre com os mesmos dados;
+  - backup e restauração entre duas pastas de dados independentes com o backend instalado: dados criados na A (instituição, depósito, CDB, categoria, lançamento, intervalo de 10 min), backup manual, restauração na B vazia (com backup de segurança) e 8 rotas comparadas (instituições, contas, configurações, categorias, transações, lançamentos, resumo, ativos) idênticas.
+- **Checklist da máquina limpa** (VM com Windows 10 e 11; uma delas **sem WebView2** e com internet), a fazer pelo dono:
+  1. instalar com dois cliques: SmartScreen ("Mais informações" → "Executar assim mesmo"); instalador em português; sem pedir administrador; na VM sem WebView2, o bootstrapper baixa e instala o runtime;
+  2. abrir pelo atalho da área de trabalho e pelo menu Iniciar; a 1ª abertura pode levar até ~30 s ("Iniciando o serviço interno…"), as seguintes poucos segundos;
+  3. Configurações → Sobre: versão do app e do serviço interno 1.0.0, sem aviso;
+  4. criar uma instituição, um depósito, uma compra de ação e uma despesa; esperar a primeira carga do histórico (a UI continua respondendo);
+  5. fechar pela janela e conferir no Gerenciador de Tarefas que não sobrou `financas-backend.exe`; abrir de novo e fechar à força o `financas.exe` pelo Gerenciador: o backend some junto;
+  6. instalar a 1.0.1 por cima: dados mantidos, Sobre mostra 1.0.1;
+  7. desinstalar (com e sem a caixa "apagar dados do app"): `%APPDATA%\Financas` continua lá; reinstalar e conferir os dados;
+  8. backup na VM A, restaurar na VM B e conferir carteira, caixa, lançamentos e configurações.
+- **Evolução futura (fora da 1.0.0):** módulo de IA em `analytics/` como extra opcional, fora do executável (instalado à parte, sem inflar o instalador); auto-update opcional pelo plugin updater do Tauri, que exige assinar as atualizações (chave própria) e um lugar para publicar os arquivos; assinatura de código (resolve o SmartScreen e reduz falso positivo de antivírus); Parte 6 (Análises e Proventos).
+
 ## 9. Pendências conhecidas
-- Build de release ainda não inclui o backend empacotado (Parte 5B): `tauri build` gera o app, mas ele mostrará "Executável do serviço interno não encontrado".
-- Atualização por cima, assinatura de código e SmartScreen: Parte 5B.
-- Empacotamento (Parte 5B): incluir a pasta `backend/migrations` e os dados do `tzdata` no executável do PyInstaller (`core/migracoes.PASTA_MIGRACOES` aponta para ela).
+- Sem assinatura de código: o Windows mostra o aviso do SmartScreen e antivírus podem acusar falso positivo (README explica como contornar). Assinatura e auto-update (plugin updater do Tauri, que exige assinar as atualizações) ficam para depois da 1.0.0.
+- Validação em máquina limpa (VM com Windows 10 e 11, uma sem WebView2) e backup/restauração entre duas instalações distintas: checklist em 8.6, a fazer pelo dono (esta sessão validou numa instalação só).
+- Tempo de abertura com cache frio (logo após reiniciar o Windows) não medido nesta sessão; comando no roteiro de 8.6.
+- Os backups (pré-migração, pré-restauração e manuais) deixam arquivos `-shm`/`-wal` vazios ao lado do `.db` (já acontecia desde a Parte 2; não afeta a restauração, que usa só o `.db`).
+- A importação da lista da B3 respondeu "B3 recusou a consulta (erro 400)" nos testes de 04/11/2026 de madrugada (a dos EUA funcionou). Acontece igual pelo venv, então não é do executável; em 30/10 importava normalmente. Conferir se é temporário da B3 ou mudança na API (fora do escopo da 5B).
 - Fundos com subclasses (Resolução CVM 175) precisam do `ID_SUBCLASSE` em `simbolo_externo` (a tela de cadastro explica isso).
 - Parte 6 (Análises e Proventos): blocos das sugestões do dono que exigem cálculo ou agregação nova (ver roadmap), deixados fora da 5A de propósito; entre eles as sparklines de Variação do dia, Rentabilidade e Saldo do mês (não há série).
-- Cabeçalho real do `nasdaqlisted.txt` não conferido (o parser exige a coluna `ETF`; sem ela, a lista dos EUA falha com mensagem e a da B3 segue).
 - Papéis da B3 com especificação `CPA`/`TPR` ficam fora da lista (não mapeados); só entram por cadastro manual.
 - A lista de lançamentos mostra até 500 por mês (máximo da API por página).
 - Feriados da bolsa americana não são considerados na agenda (só geram coletas extras sem efeito).

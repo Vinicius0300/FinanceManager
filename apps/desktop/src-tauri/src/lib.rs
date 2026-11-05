@@ -4,6 +4,7 @@
 mod backend;
 #[cfg(windows)]
 mod job;
+mod locais;
 
 use backend::GerenciadorBackend;
 use tauri::{Manager, RunEvent};
@@ -25,7 +26,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(GerenciadorBackend::default())
         .setup(|app| {
-            app.state::<GerenciadorBackend>().iniciar();
+            let gerenciador = app.state::<GerenciadorBackend>();
+            // Pasta de recursos = onde o instalador pôs o backend (`financas-backend\`).
+            gerenciador.configurar(app.path().resource_dir().ok());
+            gerenciador.iniciar();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

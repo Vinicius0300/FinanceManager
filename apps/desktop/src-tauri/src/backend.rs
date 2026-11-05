@@ -9,7 +9,7 @@
 
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -21,8 +21,13 @@ use tauri::State;
 
 #[cfg(windows)]
 use crate::job::JobObject;
+use crate::locais;
 
-const TIMEOUT_INICIO: Duration = Duration::from_secs(30);
+/// Espera máxima pelo `/health`. Na primeira abertura depois de instalar ou atualizar, o
+/// antivírus (Defender) varre os ~85 MB do backend e o `/health` levou 29–31 s nas medições da
+/// Parte 5B (aberturas seguintes: 2–5 s). Se o processo morrer, a falha aparece na hora (não
+/// espera o timeout); o limite longo só vale para um backend travado.
+const TIMEOUT_INICIO: Duration = Duration::from_secs(120);
 const TIMEOUT_ENCERRAMENTO: Duration = Duration::from_secs(3);
 const FOLGA_APOS_PARAR: Duration = Duration::from_millis(300);
 const INTERVALO_VERIFICACAO: Duration = Duration::from_millis(150);
@@ -48,6 +53,8 @@ struct Processo {
     filho: Child,
     porta: u16,
     token: String,
+    /// `backend-stderr.log` (só no app instalado; em desenvolvimento o stderr vai ao terminal).
+    log_stderr: Option<PathBuf>,
     #[cfg(windows)]
     _job: Option<JobObject>,
 }
@@ -55,6 +62,8 @@ struct Processo {
 struct Interno {
     estado: Mutex<Estado>,
     processo: Mutex<Option<Processo>>,
+    /// Pasta de recursos do app (`resource_dir()`), onde o instalador põe o backend.
+    pasta_recursos: Mutex<Option<PathBuf>>,
     /// Incrementada a cada início/encerramento; invalida inicializações antigas.
     geracao: AtomicU64,
 }
@@ -67,6 +76,7 @@ impl Default for GerenciadorBackend {
         Self(Arc::new(Interno {
             estado: Mutex::new(Estado::Iniciando),
             processo: Mutex::new(None),
+            pasta_recursos: Mutex::new(None),
             geracao: AtomicU64::new(0),
         }))
     }
@@ -78,6 +88,11 @@ fn travar<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 impl GerenciadorBackend {
+    /// Informa a pasta de recursos do app (chamado no `setup`, antes de `iniciar`).
+    pub fn configurar(&self, pasta_recursos: Option<PathBuf>) {
+        *travar(&self.0.pasta_recursos) = pasta_recursos;
+    }
+
     /// Inicia o backend em segundo plano; o resultado fica disponível em `estado`.
     pub fn iniciar(&self) {
         let geracao = self.0.geracao.fetch_add(1, Ordering::SeqCst) + 1;
@@ -100,8 +115,9 @@ impl GerenciadorBackend {
                 };
             });
         if let Err(erro) = disparo {
-            *travar(&self.0.estado) =
-                Estado::Falhou(format!("Não foi possível iniciar o serviço interno: {erro}"));
+            *travar(&self.0.estado) = Estado::Falhou(format!(
+                "Não foi possível iniciar o serviço interno: {erro}"
+            ));
         }
     }
 
@@ -123,7 +139,8 @@ fn iniciar_e_aguardar(interno: &Interno, geracao: u64) -> Result<ConexaoBackend,
     let porta =
         porta_livre().map_err(|e| format!("Não foi possível reservar uma porta local: {e}"))?;
     let token = gerar_token()?;
-    let processo = iniciar_processo(porta, &token)?;
+    let pasta_recursos = travar(&interno.pasta_recursos).clone();
+    let processo = iniciar_processo(porta, &token, pasta_recursos.as_deref())?;
 
     {
         let mut guarda = travar(&interno.processo);
@@ -150,10 +167,11 @@ fn iniciar_e_aguardar(interno: &Interno, geracao: u64) -> Result<ConexaoBackend,
                 return Err("O serviço interno foi encerrado durante a inicialização.".into());
             };
             if let Ok(Some(status)) = atual.filho.try_wait() {
+                let log_stderr = atual.log_stderr.clone();
                 *guarda = None;
-                return Err(format!(
-                    "O serviço interno fechou logo após iniciar ({}). {DICA_LOGS}",
-                    descrever_saida(status)
+                return Err(mensagem_saida_precoce(
+                    &descrever_saida(status),
+                    log_stderr.as_deref(),
                 ));
             }
         }
@@ -179,9 +197,22 @@ fn iniciar_e_aguardar(interno: &Interno, geracao: u64) -> Result<ConexaoBackend,
     }
 }
 
-/// Comando do backend. Em desenvolvimento usa o Python do venv com reload;
-/// no app instalado, o executável empacotado ao lado do app.
-fn comando_backend() -> Result<Command, String> {
+/// Mensagem quando o processo morre antes de responder ao `/health`. No app instalado aponta
+/// também o `backend-stderr.log`, que guarda o que aconteceu antes de o log do Python existir.
+fn mensagem_saida_precoce(saida: &str, log_stderr: Option<&Path>) -> String {
+    match log_stderr {
+        Some(caminho) => format!(
+            "O serviço interno fechou logo após iniciar ({saida}). Veja os detalhes em {} \
+             e em %APPDATA%\\Financas\\logs\\backend.log.",
+            caminho.display()
+        ),
+        None => format!("O serviço interno fechou logo após iniciar ({saida}). {DICA_LOGS}"),
+    }
+}
+
+/// Comando do backend. Em desenvolvimento usa o Python do venv com reload; no app
+/// instalado, o executável `onedir` que o instalador põe na pasta de recursos.
+fn comando_backend(pasta_recursos: Option<&Path>) -> Result<Command, String> {
     if cfg!(debug_assertions) {
         let pasta = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../backend");
         let python = if cfg!(windows) {
@@ -197,40 +228,63 @@ fn comando_backend() -> Result<Command, String> {
             ));
         }
         let mut comando = Command::new(python);
-        comando.arg("entrypoint.py").arg("--reload").current_dir(pasta);
+        comando
+            .arg("entrypoint.py")
+            .arg("--reload")
+            .current_dir(pasta);
         Ok(comando)
     } else {
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("Não foi possível localizar o aplicativo: {e}"))?;
-        let pasta = exe.parent().map(PathBuf::from).unwrap_or_default();
-        let sidecar = pasta.join(if cfg!(windows) {
-            "financas-backend.exe"
-        } else {
-            "financas-backend"
-        });
-        if !sidecar.exists() {
-            return Err(format!(
-                "Executável do serviço interno não encontrado ({}). Reinstale o aplicativo.",
-                sidecar.display()
-            ));
-        }
-        Ok(Command::new(sidecar))
+        Ok(Command::new(executavel_instalado(pasta_recursos)?))
     }
 }
 
-fn iniciar_processo(porta: u16, token: &str) -> Result<Processo, String> {
-    let mut comando = comando_backend()?;
+/// Executável do backend no app instalado (`<recursos>\financas-backend\financas-backend.exe`),
+/// com mensagem em pt-BR se a pasta de recursos ou o arquivo faltarem.
+fn executavel_instalado(pasta_recursos: Option<&Path>) -> Result<PathBuf, String> {
+    let pasta = pasta_recursos.ok_or_else(|| {
+        "Não foi possível localizar a pasta do aplicativo. Reinstale o aplicativo.".to_string()
+    })?;
+    let sidecar = locais::executavel_backend(pasta);
+    if !sidecar.is_file() {
+        return Err(format!(
+            "Executável do serviço interno não encontrado ({}). Reinstale o aplicativo.",
+            sidecar.display()
+        ));
+    }
+    Ok(sidecar)
+}
+
+fn iniciar_processo(
+    porta: u16,
+    token: &str,
+    pasta_recursos: Option<&Path>,
+) -> Result<Processo, String> {
+    let mut comando = comando_backend(pasta_recursos)?;
     comando
         .env("FINANCAS_PORTA", porta.to_string())
         .env("FINANCAS_TOKEN", token)
         .env("FINANCAS_PID_PAI", std::process::id().to_string())
         .stdin(Stdio::null());
 
+    let mut log_stderr = None;
     if cfg!(debug_assertions) {
         // Logs do backend aparecem no terminal do `tauri dev`.
         comando.env("FINANCAS_DEV", "1");
     } else {
-        comando.stdout(Stdio::null()).stderr(Stdio::null());
+        // stdout descartado (o Python loga em arquivo); stderr em backend-stderr.log para
+        // registrar falhas anteriores ao log do Python. Sem a pasta, descarta (não impede abrir).
+        let stderr = match locais::pasta_logs().map(|pasta| locais::abrir_log_stderr(&pasta)) {
+            Some(Ok((arquivo, caminho))) => {
+                log_stderr = Some(caminho);
+                Stdio::from(arquivo)
+            }
+            Some(Err(erro)) => {
+                eprintln!("[financas] não foi possível criar o backend-stderr.log: {erro}");
+                Stdio::null()
+            }
+            None => Stdio::null(),
+        };
+        comando.stdout(Stdio::null()).stderr(stderr);
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
@@ -257,6 +311,7 @@ fn iniciar_processo(porta: u16, token: &str) -> Result<Processo, String> {
         filho,
         porta,
         token: token.to_owned(),
+        log_stderr,
         #[cfg(windows)]
         _job: job,
     })
@@ -280,7 +335,8 @@ fn encerrar_processo(mut processo: Processo) {
             break;
         }
         if cfg!(debug_assertions) {
-            if parou_em.is_none() && requisicao_http(processo.porta, "GET", "/health", None).is_none()
+            if parou_em.is_none()
+                && requisicao_http(processo.porta, "GET", "/health", None).is_none()
             {
                 parou_em = Some(Instant::now());
             }
@@ -370,4 +426,59 @@ pub async fn reiniciar_backend(gerenciador: State<'_, GerenciadorBackend>) -> Re
     })
     .await
     .map_err(|e| format!("Falha ao reiniciar o serviço interno: {e}"))
+}
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+
+    #[test]
+    fn saida_precoce_no_app_instalado_aponta_o_log_de_stderr() {
+        let caminho = PathBuf::from(r"C:\Users\x\AppData\Roaming\Financas\logs\backend-stderr.log");
+        let mensagem = mensagem_saida_precoce("código 2", Some(&caminho));
+        assert!(mensagem.starts_with("O serviço interno fechou logo após iniciar (código 2)."));
+        assert!(
+            mensagem.contains(&caminho.display().to_string()),
+            "{mensagem}"
+        );
+        assert!(
+            mensagem.contains(r"%APPDATA%\Financas\logs\backend.log"),
+            "{mensagem}"
+        );
+    }
+
+    #[test]
+    fn saida_precoce_em_desenvolvimento_usa_a_dica_padrao() {
+        let mensagem = mensagem_saida_precoce("código 1", None);
+        assert!(mensagem.ends_with(DICA_LOGS), "{mensagem}");
+        assert!(!mensagem.contains("backend-stderr.log"));
+    }
+
+    #[test]
+    fn sem_pasta_de_recursos_o_erro_e_claro() {
+        let erro = executavel_instalado(None).expect_err("deveria falhar");
+        assert!(erro.contains("Reinstale"), "{erro}");
+    }
+
+    #[test]
+    fn backend_ausente_na_pasta_de_recursos() {
+        let pasta = std::env::temp_dir().join("financas-teste-sem-backend");
+        let erro = executavel_instalado(Some(&pasta)).expect_err("deveria falhar");
+        assert!(
+            erro.contains("Executável do serviço interno não encontrado"),
+            "{erro}"
+        );
+        assert!(erro.contains(&locais::executavel_backend(&pasta).display().to_string()));
+    }
+
+    #[test]
+    fn backend_instalado_e_encontrado_na_pasta_de_recursos() {
+        let recursos =
+            std::env::temp_dir().join(format!("financas-teste-recursos-{}", std::process::id()));
+        let exe = locais::executavel_backend(&recursos);
+        std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
+        std::fs::write(&exe, b"").unwrap();
+        assert_eq!(executavel_instalado(Some(&recursos)), Ok(exe));
+        let _ = std::fs::remove_dir_all(&recursos);
+    }
 }

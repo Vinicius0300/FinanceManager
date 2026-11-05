@@ -3,6 +3,8 @@ rem ============================================================================
 rem  Financas - 1/2: instala as ferramentas de desenvolvimento (Windows).
 rem  Execute COMO ADMINISTRADOR. Idempotente: o que ja estiver instalado e pulado.
 rem  Depois de terminar, FECHE e reabra o terminal e rode 2_preparar_projeto.bat.
+rem  O instalador (3_gerar_instalador.bat) nao exige outra ferramenta: o PyInstaller
+rem  vem pelo venv (2_preparar_projeto.bat) e o NSIS e baixado pelo tauri build.
 rem ============================================================================
 setlocal EnableExtensions
 chcp 65001 >nul

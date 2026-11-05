@@ -52,7 +52,7 @@ export function TelaConfiguracoes({ agora = new Date() }: { agora?: Date }) {
         <SecaoListasTickers />
         <SecaoBackups />
       </div>
-      <Secao titulo="Serviço interno">
+      <Secao titulo="Sobre">
         <TelaStatusBackend />
       </Secao>
     </div>

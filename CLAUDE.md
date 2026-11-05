@@ -67,7 +67,8 @@ docs/  scripts/
 | Nova migração após mudar model | `cd backend && .venv\Scripts\alembic revision --autogenerate -m "descricao"` (revisar à mão) |
 | Gerar contrato OpenAPI + tipos TS | `npm run contrato` (raiz; `scripts/contrato.py`) |
 | Verificar contrato (CI/build) | `npm run contrato:verificar` (falha se desatualizado) |
-| Build do instalador (Parte 5) | script único em `scripts/` (checa contrato e testes antes) |
+| Build do instalador | `npm run instalador` (raiz; = `scripts\3_gerar_instalador.bat --sem-pausa`: versão, testes, lint, contrato, Rust, PyInstaller, smoke test e `tauri build`) |
+| Sincronizar/conferir a versão (fonte: `package.json` da raiz) | `npm run versao` / `npm run versao:verificar` |
 | Preparar nova máquina | `scripts/1_instalar_ferramentas.bat` (admin), reabrir o terminal, `scripts/2_preparar_projeto.bat` |
 
 ## Definição de pronto (qualquer mudança)

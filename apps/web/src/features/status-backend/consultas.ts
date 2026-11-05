@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FalhaApi, obterConexaoBackend, reiniciarBackend } from "@/lib/backend";
+import { FalhaApi, obterConexaoBackend, obterVersaoApp, reiniciarBackend } from "@/lib/backend";
 import { useClienteApi } from "@/lib/cliente-api";
 
 export const CHAVE_CONEXAO = ["conexao-backend"] as const;
@@ -28,6 +28,16 @@ export function useReiniciarBackend() {
     mutationFn: reiniciarBackend,
     onMutate: () => queryClient.cancelQueries(),
     onSettled: () => queryClient.resetQueries(),
+  });
+}
+
+/** Versão do app (Tauri). Não muda durante a execução. */
+export function useVersaoApp() {
+  return useQuery({
+    queryKey: ["versao-app"],
+    queryFn: obterVersaoApp,
+    staleTime: Infinity,
+    retry: false,
   });
 }
 

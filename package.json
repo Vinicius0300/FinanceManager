@@ -1,7 +1,7 @@
 {
   "name": "financas",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Finanças: app desktop local de finanças pessoais (Tauri + React + FastAPI)",
   "workspaces": [
     "apps/web",
@@ -17,7 +17,10 @@
     "format:check": "prettier --check .",
     "typecheck": "npm --workspace apps/web run typecheck",
     "contrato": "backend\\.venv\\Scripts\\python.exe scripts\\contrato.py",
-    "contrato:verificar": "backend\\.venv\\Scripts\\python.exe scripts\\contrato.py --verificar"
+    "contrato:verificar": "backend\\.venv\\Scripts\\python.exe scripts\\contrato.py --verificar",
+    "versao": "backend\\.venv\\Scripts\\python.exe scripts\\versao.py",
+    "versao:verificar": "backend\\.venv\\Scripts\\python.exe scripts\\versao.py --verificar",
+    "instalador": "scripts\\3_gerar_instalador.bat --sem-pausa"
   },
   "devDependencies": {
     "prettier": "^3.9.10",

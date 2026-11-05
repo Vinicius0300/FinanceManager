@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "financas-backend"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Backend local (sidecar) do app Finanças"
 requires-python = ">=3.11"
 dependencies = [
@@ -33,6 +33,14 @@ dev = [
     # Apenas para o reload do uvicorn no desenvolvimento.
     "watchfiles>=1.0",
 ]
+# Empacotamento do backend num executável (scripts\3_gerar_instalador.bat).
+build = [
+    "pyinstaller>=6.11,<7",
+]
+
+[tool.setuptools.dynamic]
+# Versão gerada por scripts/versao.py a partir do package.json da raiz (fonte única).
+version = {attr = "app.__version__"}
 
 [tool.setuptools.packages.find]
 include = ["app*"]

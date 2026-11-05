@@ -1,3 +1,4 @@
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import createClient from "openapi-fetch";
 import type { components, paths } from "@/api/schema";
@@ -28,6 +29,15 @@ export async function obterConexaoBackend(): Promise<ConexaoBackend> {
       typeof erro === "string" ? erro : "Não foi possível iniciar o serviço interno.";
     throw new Error(mensagem, { cause: erro });
   }
+}
+
+/**
+ * Versão do app instalado (a do `tauri.conf.json`, que vem do `package.json` da raiz).
+ * Fora do Tauri (navegador comum, testes) devolve `null`.
+ */
+export async function obterVersaoApp(): Promise<string | null> {
+  if (!isTauri()) return null;
+  return getVersion();
 }
 
 /** Encerra e inicia novamente o backend (botão "Tentar novamente"). */

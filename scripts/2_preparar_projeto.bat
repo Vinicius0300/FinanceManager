@@ -27,7 +27,8 @@ if not exist "backend\.venv\Scripts\python.exe" (
   echo backend\.venv já existe.
 )
 backend\.venv\Scripts\python.exe -m pip install --upgrade pip -q || goto :falha
-backend\.venv\Scripts\python.exe -m pip install -e ".\backend[dev]" -q || goto :falha
+rem Extras: "dev" (testes, lint, tipos) e "build" (PyInstaller, para o instalador).
+backend\.venv\Scripts\python.exe -m pip install -e ".\backend[dev,build]" -q || goto :falha
 
 echo.
 echo === [3/6] Node: dependências ===
@@ -53,6 +54,8 @@ echo.
 echo ============================================================================
 echo  Projeto pronto. Para abrir o app em modo desenvolvimento:
 echo    npm run dev
+echo  Para gerar o instalador:
+echo    npm run instalador   ^(ou scripts\3_gerar_instalador.bat^)
 echo  ^(a primeira compilação do Rust leva alguns minutos^)
 echo ============================================================================
 pause
