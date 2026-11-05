@@ -23,11 +23,15 @@ use tauri::State;
 use crate::job::JobObject;
 use crate::locais;
 
-/// Espera máxima pelo `/health`. Na primeira abertura depois de instalar ou atualizar, o
-/// antivírus (Defender) varre os ~85 MB do backend e o `/health` levou 29–31 s nas medições da
-/// Parte 5B (aberturas seguintes: 2–5 s). Se o processo morrer, a falha aparece na hora (não
-/// espera o timeout); o limite longo só vale para um backend travado.
-const TIMEOUT_INICIO: Duration = Duration::from_secs(120);
+/// Espera máxima pelo `/health` na primeira abertura de um executável neste computador (depois
+/// de instalar ou atualizar): o antivírus (Defender) varre os ~85 MB do backend e o `/health`
+/// levou 29–31 s nas medições da Parte 5B. Também vale em desenvolvimento e quando não dá para
+/// saber se o executável já iniciou antes.
+const TIMEOUT_INICIO_PRIMEIRA: Duration = Duration::from_secs(120);
+/// Espera máxima nas aberturas seguintes do mesmo executável (medido: 2–5 s). Assim um backend
+/// travado não prende o usuário 2 minutos em toda abertura. Se o processo morrer, a falha
+/// aparece na hora (não espera nenhum dos dois limites).
+const TIMEOUT_INICIO_HABITUAL: Duration = Duration::from_secs(30);
 const TIMEOUT_ENCERRAMENTO: Duration = Duration::from_secs(3);
 const FOLGA_APOS_PARAR: Duration = Duration::from_millis(300);
 const INTERVALO_VERIFICACAO: Duration = Duration::from_millis(150);
@@ -140,6 +144,7 @@ fn iniciar_e_aguardar(interno: &Interno, geracao: u64) -> Result<ConexaoBackend,
         porta_livre().map_err(|e| format!("Não foi possível reservar uma porta local: {e}"))?;
     let token = gerar_token()?;
     let pasta_recursos = travar(&interno.pasta_recursos).clone();
+    let (timeout, marca) = limite_inicio(pasta_recursos.as_deref());
     let processo = iniciar_processo(porta, &token, pasta_recursos.as_deref())?;
 
     {
@@ -156,7 +161,7 @@ fn iniciar_e_aguardar(interno: &Interno, geracao: u64) -> Result<ConexaoBackend,
         }
     }
 
-    let limite = Instant::now() + TIMEOUT_INICIO;
+    let limite = Instant::now() + timeout;
     loop {
         if interno.geracao.load(Ordering::SeqCst) != geracao {
             return Err("Inicialização cancelada.".into());
@@ -177,6 +182,10 @@ fn iniciar_e_aguardar(interno: &Interno, geracao: u64) -> Result<ConexaoBackend,
         }
 
         if requisicao_http(porta, "GET", "/health", None) == Some(200) {
+            if let Some(marca) = &marca {
+                // Próximas aberturas deste executável usam o limite habitual.
+                let _ = std::fs::write(&marca.arquivo, &marca.assinatura);
+            }
             return Ok(ConexaoBackend {
                 url_base: format!("http://127.0.0.1:{porta}"),
                 token,
@@ -188,23 +197,69 @@ fn iniciar_e_aguardar(interno: &Interno, geracao: u64) -> Result<ConexaoBackend,
             if let Some(processo) = processo {
                 encerrar_processo(processo);
             }
+            if let Some(marca) = &marca {
+                // Ex.: o antivírus voltou a varrer o executável. O "Tentar novamente" espera o
+                // limite longo.
+                let _ = std::fs::remove_file(&marca.arquivo);
+            }
             return Err(format!(
                 "O serviço interno não respondeu em {} segundos. {DICA_LOGS}",
-                TIMEOUT_INICIO.as_secs()
+                timeout.as_secs()
             ));
         }
         thread::sleep(INTERVALO_VERIFICACAO);
     }
 }
 
-/// Mensagem quando o processo morre antes de responder ao `/health`. No app instalado aponta
-/// também o `backend-stderr.log`, que guarda o que aconteceu antes de o log do Python existir.
+/// Arquivo que registra o executável que já iniciou com sucesso, e a assinatura a gravar nele.
+struct MarcaPronto {
+    arquivo: PathBuf,
+    assinatura: String,
+}
+
+/// Escolhe o limite de espera pelo `/health`: o habitual só quando a marca gravada é a do
+/// executável atual (ele já iniciou antes neste computador); senão, o da primeira abertura.
+fn escolher_timeout(marca_gravada: Option<&str>, assinatura_atual: Option<&str>) -> Duration {
+    match (marca_gravada, assinatura_atual) {
+        (Some(gravada), Some(atual)) if gravada.trim() == atual => TIMEOUT_INICIO_HABITUAL,
+        _ => TIMEOUT_INICIO_PRIMEIRA,
+    }
+}
+
+/// Limite de espera desta abertura e a marca a gravar quando o backend ficar pronto (só no app
+/// instalado; em desenvolvimento usa sempre o limite longo, sem marca).
+fn limite_inicio(pasta_recursos: Option<&Path>) -> (Duration, Option<MarcaPronto>) {
+    if cfg!(debug_assertions) {
+        return (TIMEOUT_INICIO_PRIMEIRA, None);
+    }
+    let assinatura = pasta_recursos
+        .and_then(|pasta| locais::assinatura_executavel(&locais::executavel_backend(pasta)));
+    let arquivo = locais::pasta_logs().map(|pasta| pasta.join(locais::ARQUIVO_PRONTO));
+    let gravada = arquivo
+        .as_ref()
+        .and_then(|arquivo| std::fs::read_to_string(arquivo).ok());
+    let timeout = escolher_timeout(gravada.as_deref(), assinatura.as_deref());
+    let marca = arquivo
+        .zip(assinatura)
+        .map(|(arquivo, assinatura)| MarcaPronto {
+            arquivo,
+            assinatura,
+        });
+    (timeout, marca)
+}
+
+/// Mensagem quando o processo morre antes de responder ao `/health`. No app instalado aponta o
+/// `backend-stderr.log`, que guarda o que aconteceu antes de o log do Python existir, e o
+/// `backend.log` da mesma pasta (respeita `FINANCAS_DATA_DIR`).
 fn mensagem_saida_precoce(saida: &str, log_stderr: Option<&Path>) -> String {
     match log_stderr {
         Some(caminho) => format!(
             "O serviço interno fechou logo após iniciar ({saida}). Veja os detalhes em {} \
-             e em %APPDATA%\\Financas\\logs\\backend.log.",
-            caminho.display()
+             e em {}.",
+            caminho.display(),
+            caminho
+                .with_file_name(locais::ARQUIVO_LOG_BACKEND)
+                .display()
         ),
         None => format!("O serviço interno fechou logo após iniciar ({saida}). {DICA_LOGS}"),
     }
@@ -442,9 +497,53 @@ mod testes {
             "{mensagem}"
         );
         assert!(
-            mensagem.contains(r"%APPDATA%\Financas\logs\backend.log"),
+            mensagem.contains(&caminho.with_file_name("backend.log").display().to_string()),
             "{mensagem}"
         );
+    }
+
+    #[test]
+    fn saida_precoce_com_pasta_de_dados_trocada_aponta_o_backend_log_da_mesma_pasta() {
+        // FINANCAS_DATA_DIR (validação com pasta temporária): nada de %APPDATA% na mensagem.
+        let caminho = PathBuf::from(r"D:\temp\dados\logs\backend-stderr.log");
+        let mensagem = mensagem_saida_precoce("código 2", Some(&caminho));
+        assert!(
+            mensagem.contains(
+                &PathBuf::from(r"D:\temp\dados\logs\backend.log")
+                    .display()
+                    .to_string()
+            ),
+            "{mensagem}"
+        );
+        assert!(!mensagem.contains("%APPDATA%"), "{mensagem}");
+    }
+
+    #[test]
+    fn timeout_habitual_so_quando_o_mesmo_executavel_ja_iniciou() {
+        assert_eq!(
+            escolher_timeout(Some("10 99"), Some("10 99")),
+            TIMEOUT_INICIO_HABITUAL
+        );
+        // Arquivo gravado com quebra de linha (editado à mão) continua valendo.
+        assert_eq!(
+            escolher_timeout(Some("10 99\r\n"), Some("10 99")),
+            TIMEOUT_INICIO_HABITUAL
+        );
+        // Executável novo (instalação ou atualização): o antivírus varre de novo.
+        assert_eq!(
+            escolher_timeout(Some("10 99"), Some("11 100")),
+            TIMEOUT_INICIO_PRIMEIRA
+        );
+        // Primeira abertura no computador ou sem como ler a assinatura.
+        assert_eq!(
+            escolher_timeout(None, Some("10 99")),
+            TIMEOUT_INICIO_PRIMEIRA
+        );
+        assert_eq!(
+            escolher_timeout(Some("10 99"), None),
+            TIMEOUT_INICIO_PRIMEIRA
+        );
+        assert_eq!(escolher_timeout(None, None), TIMEOUT_INICIO_PRIMEIRA);
     }
 
     #[test]
@@ -462,7 +561,10 @@ mod testes {
 
     #[test]
     fn backend_ausente_na_pasta_de_recursos() {
-        let pasta = std::env::temp_dir().join("financas-teste-sem-backend");
+        // Pasta única e garantidamente vazia (sobra de outra execução não muda o resultado).
+        let pasta =
+            std::env::temp_dir().join(format!("financas-teste-sem-backend-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&pasta);
         let erro = executavel_instalado(Some(&pasta)).expect_err("deveria falhar");
         assert!(
             erro.contains("Executável do serviço interno não encontrado"),

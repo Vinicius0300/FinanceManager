@@ -34,7 +34,7 @@ function CartaoSobre() {
         <CardTitle>Finanças</CardTitle>
         <CardDescription>
           App desktop local de finanças pessoais. Dados só neste computador, em
-          <code className="mx-1">%APPDATA%Financas</code>.
+          <code className="mx-1">{"%APPDATA%\\Financas"}</code>.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 text-sm">

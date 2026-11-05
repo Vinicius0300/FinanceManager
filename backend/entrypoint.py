@@ -19,7 +19,7 @@ from pathlib import Path
 import uvicorn
 
 from app.core.config import HOST, ConfiguracaoInvalidaError, Settings
-from app.core.logs import configurar_logging
+from app.core.logs import configurar_logging, redirecionar_stderr_para_log
 from app.core.watchdog import iniciar_watchdog
 from app.main import create_app
 
@@ -55,6 +55,10 @@ def main(argv: list[str] | None = None) -> int:
     # No modo reload, este processo é só o supervisor: loga no console e o
     # processo filho (worker) cuida do arquivo de log.
     configurar_logging(arquivo=not args.reload, console=settings.dev or args.reload)
+    if not (settings.dev or args.reload):
+        # App instalado: o stderr do processo é um arquivo sem rotação (backend-stderr.log).
+        # Daqui em diante o que cair no sys.stderr vai para o backend.log (rotativo).
+        redirecionar_stderr_para_log()
     if settings.pid_pai:
         iniciar_watchdog(settings.pid_pai)
 

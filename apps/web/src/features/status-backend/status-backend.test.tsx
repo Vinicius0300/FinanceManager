@@ -167,6 +167,7 @@ describe("TelaStatusBackend", () => {
       );
     });
     expect(screen.queryByText(/são diferentes/)).not.toBeInTheDocument();
+    expect(screen.getByText("%APPDATA%\\Financas")).toBeInTheDocument();
   });
 
   it("Sobre avisa quando as versões do app e do serviço interno divergem", async () => {

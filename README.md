@@ -80,7 +80,7 @@ A atualização automática de cotações começa ao abrir; para depurar sem ace
 - **Versão nova (ex.: 1.0.1):** mude só o `"version"` do `package.json` da raiz e rode `npm run instalador`. Os demais arquivos (workspaces, `package-lock.json`, Cargo, `__version__` do backend e `docs/openapi.json`) são atualizados pelo `npm run versao`, que o script já roda. Commite os arquivos alterados.
 
 ## Onde ficam os dados
-- `%APPDATA%\Financas\` : banco `financas.db`, `logs\backend.log`, `logs\backend-stderr.log` (erros do serviço interno antes de o log existir, sobrescrito a cada abertura), `backups\` (cópia automática antes de cada migração e antes de restaurar, além dos backups manuais) e `models\`.
+- `%APPDATA%\Financas\` : banco `financas.db`, `logs\backend.log`, `logs\backend-stderr.log` (erros do serviço interno antes de o log existir, novo a cada abertura; o da abertura anterior fica em `logs\backend-stderr.anterior.log`), `logs\backend-pronto.txt` (marca de que o executável instalado já iniciou, para usar o limite de espera curto), `backups\` (cópia automática antes de cada migração e antes de restaurar, além dos backups manuais) e `models\`.
 - Nada é gravado na pasta de instalação.
 - **Apagar os dados à mão** (depois de desinstalar, para começar do zero): feche o app e apague a pasta `%APPDATA%\Financas` (digite `%APPDATA%` na barra do Explorador). Isso apaga o banco e os backups: copie antes um backup para outro lugar se quiser guardar algo.
 - Para testar com um banco descartável, defina `FINANCAS_DATA_DIR` com outra pasta antes de rodar o backend ou o `alembic`.
