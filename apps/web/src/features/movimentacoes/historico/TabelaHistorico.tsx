@@ -22,7 +22,7 @@ import {
   formatarData,
   formatarMesAno,
   formatarMoeda,
-  formatarNumero,
+  formatarQuantidade,
   formatarPreco,
   plural,
 } from "@/lib/formatacao";
@@ -114,7 +114,7 @@ export function TabelaHistorico({
         </TableCell>
         <TableCell>{instituicoes.get(op.instituicao_id)?.nome ?? "—"}</TableCell>
         <TableCell className="tabular text-right">
-          {temQuantidade ? formatarNumero(op.quantidade) : "—"}
+          {temQuantidade ? formatarQuantidade(op.quantidade) : "—"}
         </TableCell>
         <TableCell className="tabular text-right">
           {temQuantidade ? formatarPreco(op.preco_unitario, op.moeda) : "—"}

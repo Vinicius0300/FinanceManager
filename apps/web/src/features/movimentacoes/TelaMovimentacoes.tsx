@@ -14,12 +14,15 @@ import { AbaHistorico } from "./historico/AbaHistorico";
 import { useEstadoHistorico } from "./historico/estado";
 import { useExportarHistorico } from "./historico/consultas";
 import { DialogoTransacao } from "./transacao/DialogoTransacao";
+import { useValoresOcultos } from "@/lib/valores-ocultos";
 
 const ABAS = ["historico", "eventos", "caixa"] as const;
 type Aba = (typeof ABAS)[number];
 
 /** Movimentações: Histórico de operações, Eventos corporativos e Caixa (aba na URL). */
 export function TelaMovimentacoes() {
+  // Redesenha ao alternar o modo privacidade (os formatadores leem o store).
+  useValoresOcultos();
   const [agora] = useState(() => new Date());
   const [params, setParams] = useSearchParams();
   const abaUrl = params.get("aba");

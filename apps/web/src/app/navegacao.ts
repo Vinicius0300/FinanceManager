@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  BookOpen,
   LayoutDashboard,
   type LucideIcon,
   Settings,
@@ -18,5 +19,6 @@ export const NAVEGACAO: readonly ItemNavegacao[] = [
   { para: "/carteira", rotulo: "Carteira", icone: Wallet },
   { para: "/movimentacoes", rotulo: "Movimentações", icone: ArrowLeftRight },
   { para: "/receitas-despesas", rotulo: "Receitas e Despesas", icone: WalletCards },
+  { para: "/glossario", rotulo: "Glossário", icone: BookOpen },
   { para: "/configuracoes", rotulo: "Configurações", icone: Settings },
 ];

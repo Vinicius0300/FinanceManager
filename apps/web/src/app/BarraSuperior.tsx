@@ -1,4 +1,4 @@
-import { Loader2, RefreshCw } from "lucide-react";
+import { Eye, EyeOff, Loader2, RefreshCw } from "lucide-react";
 import { useMemo } from "react";
 import { SeletorTema } from "@/components/SeletorTema";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,13 @@ import {
 import { usePosicoes } from "@/features/dashboard/consultas";
 import { useEstadoAtualizacao } from "@/features/tempo-real/atualizacao";
 import { formatarDataHora } from "@/lib/formatacao";
+import { useValoresOcultosStore } from "@/lib/valores-ocultos";
 import { cn } from "@/lib/utils";
 import { contarStatus, textoStatus } from "./status-cotacoes";
 
 /**
  * Topo global (Parte 5A): chip de status das cotações, hora da última atualização,
- * "Atualizar cotações" (vale para todas as telas) e o switch de tema.
+ * "Atualizar cotações" (vale para todas as telas), o olho do modo privacidade e o switch de tema.
  */
 export function BarraSuperior() {
   return (
@@ -23,6 +24,7 @@ export function BarraSuperior() {
       <ChipStatusCotacoes />
       <StatusAtualizacao />
       <BotaoAtualizar />
+      <BotaoOcultarValores />
       <SeletorTema />
     </header>
   );
@@ -106,5 +108,25 @@ export function BotaoAtualizar() {
         </span>
       )}
     </div>
+  );
+}
+
+/** Olho do modo privacidade: oculta/mostra os valores do usuário em todas as telas. */
+export function BotaoOcultarValores() {
+  const ocultos = useValoresOcultosStore((s) => s.ocultos);
+  const alternar = useValoresOcultosStore((s) => s.alternar);
+  const rotulo = ocultos ? "Mostrar valores" : "Ocultar valores";
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label={rotulo}
+      aria-pressed={ocultos}
+      title={rotulo}
+      onClick={alternar}
+      className="text-muted-foreground hover:text-foreground"
+    >
+      {ocultos ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+    </Button>
   );
 }

@@ -13,6 +13,7 @@ import { ORDEM_TIPOS_ATIVO, prepararFatias, type FatiaEntrada } from "@/lib/fati
 import { formatarData, formatarMesCurto, formatarMoeda, formatarRazao } from "@/lib/formatacao";
 import { useCoresTema } from "@/theme/cores";
 import type { Evolucao, Fatia } from "./consultas";
+import { useValoresOcultos } from "@/lib/valores-ocultos";
 
 /**
  * Rosca de alocação por tipo de ativo, com a fatia caixa (regra das 6 cores em
@@ -20,6 +21,7 @@ import type { Evolucao, Fatia } from "./consultas";
  * contraste no claro), o que também serve de resumo textual do gráfico.
  */
 export function GraficoAlocacao({ fatias }: { fatias: readonly Fatia[] }) {
+  const ocultos = useValoresOcultos();
   const cores = useCoresTema();
   const tipos = useTiposAtivo();
   const opcoes = useMemo(() => {
@@ -35,24 +37,25 @@ export function GraficoAlocacao({ fatias }: { fatias: readonly Fatia[] }) {
         rotulo: f.rotulo,
         valor: paraGrafico(f.valor),
         cor: f.cor,
-        texto: `${formatarMoeda(f.valor)} (${formatarRazao(f.percentual ?? null)})`,
+        texto: `${formatarMoeda(f.valor, "BRL", { ocultar: ocultos })} (${formatarRazao(f.percentual ?? null)})`,
       })),
       cores,
     );
-  }, [fatias, tipos.data, cores]);
+  }, [fatias, tipos.data, cores, ocultos]);
   return <GraficoECharts opcoes={opcoes} rotulo="Alocação da carteira por tipo de ativo" />;
 }
 
 /** Linha do patrimônio (--grafico-1) com área em degradê do próprio token (35% → 0%). */
 export function GraficoEvolucao({ evolucao }: { evolucao: Evolucao }) {
+  const ocultos = useValoresOcultos();
   const cores = useCoresTema();
   const opcoes = useMemo(() => {
     const linha = cores.series[0] ?? cores.texto;
     const pontos = evolucao.pontos;
     const textos = pontos.map(
       (p) =>
-        `${formatarData(p.data)}<br/>Patrimônio: ${formatarMoeda(p.patrimonio)}<br/>` +
-        `Investimentos: ${formatarMoeda(p.investimentos)}<br/>Caixa: ${formatarMoeda(p.caixa)}`,
+        `${formatarData(p.data)}<br/>Patrimônio: ${formatarMoeda(p.patrimonio, "BRL", { ocultar: ocultos })}<br/>` +
+        `Investimentos: ${formatarMoeda(p.investimentos, "BRL", { ocultar: ocultos })}<br/>Caixa: ${formatarMoeda(p.caixa, "BRL", { ocultar: ocultos })}`,
     );
     return {
       grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
@@ -75,7 +78,8 @@ export function GraficoEvolucao({ evolucao }: { evolucao: Evolucao }) {
         scale: true,
         axisLabel: {
           ...eixoValores(cores).axisLabel,
-          formatter: (v: number) => formatarMoeda(String(Math.round(v)), "BRL", { casas: 0 }),
+          formatter: (v: number) =>
+            formatarMoeda(String(Math.round(v)), "BRL", { casas: 0, ocultar: ocultos }),
         },
       },
       series: [
@@ -90,6 +94,6 @@ export function GraficoEvolucao({ evolucao }: { evolucao: Evolucao }) {
         },
       ],
     };
-  }, [evolucao, cores]);
+  }, [evolucao, cores, ocultos]);
   return <GraficoECharts opcoes={opcoes} rotulo="Evolução do patrimônio" altura={300} />;
 }

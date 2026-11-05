@@ -16,21 +16,31 @@ registrarModulos([
   CanvasRenderer,
 ]);
 
+/** O que o ECharts informa no clique (só os campos usados pelo app). */
+export interface EventoCliqueGrafico {
+  dataType?: string; // "node" ou "edge" no grafo
+  name?: string;
+  data?: unknown;
+}
+
 /**
  * Invólucro do ECharts: cria o gráfico no elemento, aplica as opções (que já vêm com as
  * cores lidas dos tokens) e acompanha o tamanho do contêiner. Quando o tema muda, as
  * opções mudam e o gráfico é redesenhado. Uma falha do ECharts não derruba a tela.
+ * `aoClicar` (opcional) recebe o clique num elemento do gráfico (ex.: nó do glossário).
  */
 export function GraficoECharts({
   opcoes,
   rotulo,
   altura = 280,
   className,
+  aoClicar,
 }: {
   opcoes: EChartsCoreOption;
   rotulo: string;
   altura?: number;
   className?: string;
+  aoClicar?: (evento: EventoCliqueGrafico) => void;
 }) {
   const elemento = useRef<HTMLDivElement>(null);
   const grafico = useRef<ECharts | null>(null);
@@ -71,6 +81,18 @@ export function GraficoECharts({
       setFalhou(true);
     }
   }, [opcoes]);
+
+  useEffect(() => {
+    const instancia = grafico.current;
+    if (!instancia || !aoClicar) return;
+    const tratar = (evento: unknown) => {
+      aoClicar(evento as EventoCliqueGrafico);
+    };
+    instancia.on("click", tratar);
+    return () => {
+      instancia.off("click", tratar);
+    };
+  }, [aoClicar]);
 
   if (falhou) {
     return (

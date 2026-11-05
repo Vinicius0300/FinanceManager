@@ -19,7 +19,7 @@ import {
   formatarData,
   formatarDataHora,
   formatarMoeda,
-  formatarNumero,
+  formatarQuantidade,
   formatarPreco,
 } from "@/lib/formatacao";
 import { useStatusCotacoes, type StatusAtivo } from "./consultas";
@@ -27,12 +27,15 @@ import { DetalheAtivo } from "./DetalheAtivo";
 import { CarteiraPorInstituicao } from "./PorInstituicao";
 import { NOMES_ORIGEM } from "./rotulos";
 import { DialogoTransacao } from "@/features/movimentacoes/transacao/DialogoTransacao";
+import { useValoresOcultos } from "@/lib/valores-ocultos";
 
 /**
  * Posições com filtros e status da cotação de cada ativo. O ativo é cadastrado na própria
  * movimentação ("Nova movimentação"); aqui ele pode ser editado pelo detalhe.
  */
 export function TelaCarteira() {
+  // Redesenha ao alternar o modo privacidade (os formatadores leem o store).
+  useValoresOcultos();
   const instituicaoId = useInstituicaoAnalise();
   const [novo, setNovo] = useState(false);
   const [detalhe, setDetalhe] = useState<number | null>(null);
@@ -161,7 +164,7 @@ function Posicoes({
         header: "Qtd.",
         sortingFn: ordenarDecimal,
         meta: { numerica: true },
-        cell: ({ getValue }) => formatarNumero(getValue()),
+        cell: ({ getValue }) => formatarQuantidade(getValue()),
       }),
       coluna.accessor("preco_medio", {
         header: "Preço médio",

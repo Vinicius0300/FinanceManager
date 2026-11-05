@@ -5,6 +5,7 @@ import { TelaDashboard } from "@/features/dashboard/TelaDashboard";
 import { TelaMovimentacoes } from "@/features/movimentacoes/TelaMovimentacoes";
 import { TelaReceitasDespesas } from "@/features/receitas-despesas/TelaReceitasDespesas";
 import { ErroGlobal } from "./ErroGlobal";
+import { GlossarioSobDemanda } from "./GlossarioSobDemanda";
 import { LayoutApp } from "./LayoutApp";
 
 export const ROTAS: RouteObject[] = [
@@ -17,6 +18,7 @@ export const ROTAS: RouteObject[] = [
       { path: "carteira", element: <TelaCarteira /> },
       { path: "movimentacoes", element: <TelaMovimentacoes /> },
       { path: "receitas-despesas", element: <TelaReceitasDespesas /> },
+      { path: "glossario/:termo?", element: <GlossarioSobDemanda /> },
       { path: "configuracoes", element: <TelaConfiguracoes /> },
       { path: "*", element: <ErroGlobal /> },
     ],

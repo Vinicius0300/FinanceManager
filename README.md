@@ -66,6 +66,10 @@ A atualização automática de cotações começa ao abrir; para depurar sem ace
 - Forçar agora: botão **Atualizar cotações** no topo do app (em qualquer tela) ou `POST /api/cotacoes/atualizar`. Status por ativo: `GET /api/cotacoes/status` (resumido no chip "N em dia · N defasadas · N com erro" do topo). Eventos em tempo real: `GET /api/eventos` (SSE).
 - Na primeira vez são baixados os fechamentos de até 1 ano (fundos: até 12 arquivos de ~12 MB da CVM, processados e descartados).
 
+### Glossário
+- Aba **Glossário** no menu: grafo de termos de finanças e investimentos. Clique numa bolinha, busque pelo nome ou use a lista para abrir a explicação, com exemplo numérico e termos relacionados.
+- O conteúdo é fixo e vem dentro do app (um arquivo por termo em `apps/web/src/features/glossario/conteudo/*.md`); não é editável pela tela. Para acrescentar um termo, crie o `.md` no modelo dos outros, ligue com `[[slug]]` e rode `npm test` (a validação aponta link quebrado, seção faltando ou tamanho fora do modelo). Detalhes em `docs/CONTEXTO.md` (8.8).
+
 ## Instalar e usar o app (sem ambiente de desenvolvimento)
 1. Rode `Financas_<versão>_x64-setup.exe`. O instalador é em português, não pede administrador (instala só para o seu usuário, em `%LOCALAPPDATA%\Financas`) e cria atalhos no menu Iniciar e na área de trabalho.
 2. **Aviso do SmartScreen** ("O Windows protegeu o computador"): o instalador não tem assinatura de código, então o Windows não conhece o editor. Clique em **Mais informações** → **Executar assim mesmo**. Alguns antivírus podem acusar falso positivo em executáveis gerados pelo PyInstaller: se acontecer, libere o arquivo no antivírus. A solução definitiva é a assinatura de código (certificado de um emissor confiável), fora do escopo da 1.0.0.

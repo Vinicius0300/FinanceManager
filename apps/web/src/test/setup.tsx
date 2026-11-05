@@ -1,9 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
+import { useValoresOcultosStore } from "@/lib/valores-ocultos";
 
 afterEach(() => {
   cleanup();
+  // O modo privacidade é global e persistido: cada teste começa com os valores visíveis.
+  useValoresOcultosStore.getState().definir(false);
 });
 
 // jsdom não tem canvas: os gráficos viram um marcador com o rótulo acessível e os dados

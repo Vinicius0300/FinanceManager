@@ -20,7 +20,13 @@ import {
   useTiposAtivo,
 } from "@/lib/consultas-comuns";
 import { ehZero, somar } from "@/lib/decimal";
-import { formatarData, formatarMoeda, formatarNumero, formatarPreco } from "@/lib/formatacao";
+import {
+  formatarData,
+  formatarMoeda,
+  formatarNumero,
+  formatarQuantidade,
+  formatarPreco,
+} from "@/lib/formatacao";
 import { DialogoTransacao } from "../transacao/DialogoTransacao";
 import { useExcluirTransacao, type Operacao } from "./consultas";
 import { SeloOperacao } from "./SeloOperacao";
@@ -75,7 +81,7 @@ export function DetalheOperacao({
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
             {op.quantidade !== null && (
               <>
-                <Linha rotulo="Quantidade">{formatarNumero(op.quantidade)}</Linha>
+                <Linha rotulo="Quantidade">{formatarQuantidade(op.quantidade)}</Linha>
                 <Linha rotulo="Preço unitário">{formatarPreco(op.preco_unitario, op.moeda)}</Linha>
               </>
             )}

@@ -27,7 +27,7 @@ import {
 } from "@/lib/consultas-comuns";
 import { hojeIso } from "@/lib/datas";
 import { comparar, normalizarDecimal } from "@/lib/decimal";
-import { formatarMoeda, formatarNumero } from "@/lib/formatacao";
+import { formatarMoeda, formatarQuantidade } from "@/lib/formatacao";
 import { aplicarErrosDaApi } from "@/lib/formularios";
 import { NOMES_OPERACAO, OPERACOES } from "../historico/filtros";
 import { AtivoEscolhido, BuscaAtivo, type Escolha } from "./BuscaAtivo";
@@ -802,7 +802,7 @@ function CamposDaOperacao({
     disponivel === null || disponivel === undefined
       ? undefined
       : usaQuantidade(operacao)
-        ? `Disponível: ${formatarNumero(disponivel, { minimo: 0, maximo: 8 })}`
+        ? `Disponível: ${formatarQuantidade(disponivel, { minimo: 0, maximo: 8 })}`
         : `Disponível: ${formatarMoeda(disponivel, moeda)} (estimado)`;
   const ajuda = acima ? (
     <span className="text-aviso-texto">

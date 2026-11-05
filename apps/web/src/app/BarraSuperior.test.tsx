@@ -1,5 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { formatarMoeda } from "@/lib/formatacao";
+import { useValoresOcultos, useValoresOcultosStore } from "@/lib/valores-ocultos";
 import { renderizar } from "@/test/api-falsa";
 import { BarraSuperior } from "./BarraSuperior";
 import { contarStatus, textoStatus } from "./status-cotacoes";
@@ -112,5 +114,33 @@ describe("barra superior", () => {
     });
     await usuario.click(screen.getByRole("button", { name: "Atualizar cotações" }));
     expect(await screen.findByText("Já existe uma atualização em andamento.")).toBeInTheDocument();
+  });
+
+  it("olho oculta e mostra os valores da tela sem recarregá-la", async () => {
+    function Saldo() {
+      useValoresOcultos();
+      return <p data-testid="saldo">{formatarMoeda("1234.5")}</p>;
+    }
+    const { usuario } = renderizar(
+      <>
+        <BarraSuperior />
+        <Saldo />
+      </>,
+      { rotas: ROTAS },
+    );
+    expect(limpo(screen.getByTestId("saldo").textContent)).toBe("R$ 1.234,50");
+
+    await usuario.click(screen.getByRole("button", { name: "Ocultar valores" }));
+    expect(screen.getByTestId("saldo")).toHaveTextContent("R$ •••••");
+    const botao = screen.getByRole("button", { name: "Mostrar valores" });
+    expect(botao).toHaveAttribute("aria-pressed", "true");
+    expect(useValoresOcultosStore.getState().ocultos).toBe(true);
+
+    await usuario.click(botao);
+    expect(limpo(screen.getByTestId("saldo").textContent)).toBe("R$ 1.234,50");
+    expect(screen.getByRole("button", { name: "Ocultar valores" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 });

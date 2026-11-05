@@ -36,12 +36,15 @@ import {
 } from "./consultas";
 import { GraficoAlocacao, GraficoEvolucao } from "./graficos";
 import { separarAltasEBaixas } from "./variacoes";
+import { useValoresOcultos } from "@/lib/valores-ocultos";
 
 /**
  * Visão geral (Parte 5A): cartões de métrica (patrimônio com sparkline), evolução com
  * altas e baixas do dia ao lado e, embaixo, alocação, próximos vencimentos e maiores ativos.
  */
 export function TelaDashboard({ agora = new Date() }: { agora?: Date }) {
+  // Redesenha ao alternar o modo privacidade (os formatadores leem o store).
+  useValoresOcultos();
   const instituicaoId = useInstituicaoAnalise();
   // A janela vale para o gráfico de evolução e para a sparkline do patrimônio (mesma consulta).
   const [janela, setJanela] = useState<JanelaEvolucao>("1a");

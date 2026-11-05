@@ -83,4 +83,4 @@ docs/  scripts/
 - Scripts `.bat` devem ser idempotentes e usar caminhos relativos à pasta do projeto.
 
 ## Skills do projeto (`.claude/skills/`)
-Procedimentos recorrentes estão em skills; use-as quando a tarefa casar: `entrega-por-partes`, `novo-tipo-de-ativo`, `novo-provider-cotacao`, `novo-endpoint-api`, `nova-migracao-alembic`, `nova-feature-frontend`, `contrato-openapi`, `calculo-financeiro-decimal`, `build-instalador-windows`.
+Procedimentos recorrentes estão em skills; use-as quando a tarefa casar: `entrega-por-partes`, `novo-tipo-de-ativo`, `novo-provider-cotacao`, `novo-endpoint-api`, `nova-migracao-alembic`, `nova-feature-frontend`, `contrato-openapi`, `calculo-financeiro-decimal`, `build-instalador-windows`, `novo-termo-glossario`.

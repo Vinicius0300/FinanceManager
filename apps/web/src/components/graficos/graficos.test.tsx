@@ -68,6 +68,39 @@ describe("GraficoECharts", () => {
     expect(echarts.init).toHaveBeenCalledTimes(1);
   });
 
+  it("aoClicar registra o handler de clique e o remove ao desmontar", () => {
+    const on = vi.fn();
+    const off = vi.fn();
+    echarts.init.mockReturnValue({
+      setOption: echarts.setOption,
+      dispose: echarts.dispose,
+      resize: echarts.resize,
+      on,
+      off,
+    });
+    const aoClicar = vi.fn();
+    const { unmount } = render(<GraficoECharts opcoes={{}} rotulo="Grafo" aoClicar={aoClicar} />);
+    expect(on).toHaveBeenCalledWith("click", expect.any(Function));
+    const handler = on.mock.calls[0]?.[1] as (e: unknown) => void;
+    handler({ dataType: "node", data: { id: "cdi" } });
+    expect(aoClicar).toHaveBeenCalledWith({ dataType: "node", data: { id: "cdi" } });
+    unmount();
+    expect(off).toHaveBeenCalledWith("click", handler);
+  });
+
+  it("sem aoClicar não registra handler (gráficos atuais)", () => {
+    const on = vi.fn();
+    echarts.init.mockReturnValue({
+      setOption: echarts.setOption,
+      dispose: echarts.dispose,
+      resize: echarts.resize,
+      on,
+      off: vi.fn(),
+    });
+    render(<GraficoECharts opcoes={{}} rotulo="X" />);
+    expect(on).not.toHaveBeenCalled();
+  });
+
   it("falha da biblioteca não derruba a tela", () => {
     echarts.init.mockImplementation(() => {
       throw new Error("sem canvas");

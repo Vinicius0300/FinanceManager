@@ -34,9 +34,12 @@ import {
 } from "./consultas";
 import { DialogoCategorias } from "./DialogoCategorias";
 import { DialogoLancamento } from "./DialogoLancamento";
+import { useValoresOcultos } from "@/lib/valores-ocultos";
 
 /** Receitas e despesas do mês: resumo, gráfico por categoria, lançamentos e categorias. */
 export function TelaReceitasDespesas({ agora = new Date() }: { agora?: Date }) {
+  // Redesenha ao alternar o modo privacidade (os formatadores leem o store).
+  useValoresOcultos();
   const [mes, setMes] = useState<Mes>({ ano: agora.getFullYear(), mes: agora.getMonth() + 1 });
   const resumo = useResumoMensal(mes.ano, mes.mes);
   const [editando, setEditando] = useState<Lancamento | "novo" | null>(null);
@@ -169,6 +172,7 @@ export function TelaReceitasDespesas({ agora = new Date() }: { agora?: Date }) {
 
 /** Rosca das despesas do mês; cores pela regra das 6 cores (ordem de criação das categorias). */
 function GraficoCategorias({ resumo }: { resumo: ResumoMensal }) {
+  const ocultos = useValoresOcultos();
   const cores = useCoresTema();
   const categorias = useCategorias();
   const opcoes = useMemo(() => {
@@ -192,11 +196,11 @@ function GraficoCategorias({ resumo }: { resumo: ResumoMensal }) {
         rotulo: f.rotulo,
         valor: paraGrafico(f.valor),
         cor: f.cor,
-        texto: `${formatarMoeda(f.valor)} (${formatarRazao(f.percentual ?? null)})`,
+        texto: `${formatarMoeda(f.valor, "BRL", { ocultar: ocultos })} (${formatarRazao(f.percentual ?? null)})`,
       })),
       cores,
     );
-  }, [resumo, categorias.data, cores]);
+  }, [resumo, categorias.data, cores, ocultos]);
   if (!resumo.por_categoria.some((c) => c.tipo === "despesa")) {
     return <EstadoVazio titulo="Nenhuma despesa neste mês" />;
   }

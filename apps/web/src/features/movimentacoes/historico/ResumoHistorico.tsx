@@ -12,6 +12,7 @@ import { ehZero, paraGrafico } from "@/lib/decimal";
 import { formatarMesAno, formatarMesCurto, formatarMoeda, plural } from "@/lib/formatacao";
 import { useCoresTema } from "@/theme/cores";
 import type { ResumoHistorico } from "./consultas";
+import { useValoresOcultos } from "@/lib/valores-ocultos";
 
 /** Cartões do resumo do filtro: totais calculados pela API (o front não soma). */
 export function CartoesResumo({
@@ -69,6 +70,7 @@ export function CartoesResumo({
 
 /** Barras mensais: compras e aportes, vendas e resgates, proventos (cores fixas por série). */
 export function GraficoMensal({ resumo }: { resumo: ResumoHistorico }) {
+  const ocultos = useValoresOcultos();
   const cores = useCoresTema();
   const opcoes = useMemo(() => {
     const series = [
@@ -88,7 +90,9 @@ export function GraficoMensal({ resumo }: { resumo: ResumoHistorico }) {
           if (!ponto) return "";
           return [
             formatarMesAno(ponto.mes),
-            ...series.map((s) => `${s.nome}: ${formatarMoeda(ponto[s.campo])}`),
+            ...series.map(
+              (s) => `${s.nome}: ${formatarMoeda(ponto[s.campo], "BRL", { ocultar: ocultos })}`,
+            ),
           ].join("<br/>");
         },
       },
@@ -102,7 +106,7 @@ export function GraficoMensal({ resumo }: { resumo: ResumoHistorico }) {
         data: meses.map((p) => paraGrafico(p[s.campo])),
       })),
     };
-  }, [resumo, cores]);
+  }, [resumo, cores, ocultos]);
   return (
     <GraficoECharts opcoes={opcoes} rotulo="Compras, vendas e proventos por mês" altura={260} />
   );

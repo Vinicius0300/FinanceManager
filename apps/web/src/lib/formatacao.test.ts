@@ -8,11 +8,13 @@ import {
   formatarNumero,
   formatarPercentual,
   formatarPreco,
+  formatarQuantidade,
   formatarRazao,
   formatarRazaoComSinal,
   plural,
   tomDoValor,
 } from "./formatacao";
+import { useValoresOcultosStore } from "./valores-ocultos";
 
 // Intl usa espaço não separável depois do símbolo em algumas versões; normalizamos.
 const limpo = (texto: string) => texto.replace(/\u00a0/g, " ");
@@ -90,5 +92,36 @@ describe("datas de calendário (sem fuso)", () => {
     expect(plural(1, "operação", "operações")).toBe("1 operação");
     expect(plural(1500, "operação", "operações")).toBe("1.500 operações");
     expect(plural(0, "operação", "operações")).toBe("0 operações");
+  });
+});
+
+describe("modo privacidade (valores ocultos)", () => {
+  const ocultar = () => {
+    useValoresOcultosStore.getState().definir(true);
+  };
+
+  it("dinheiro vira máscara com o símbolo da moeda, sem sinal", () => {
+    ocultar();
+    expect(formatarMoeda("1234.5")).toBe("R$ •••••");
+    expect(formatarMoeda("-40", "USD")).toBe("US$ •••••");
+    expect(formatarMoedaComSinal("195")).toBe("R$ •••••");
+    expect(formatarMoedaComSinal("-195")).toBe("R$ •••••");
+  });
+
+  it("quantidade some; percentuais, cotações e números públicos continuam", () => {
+    ocultar();
+    expect(formatarQuantidade("12.5")).toBe("•••••");
+    expect(formatarRazao("0.1234")).toBe("12,34%");
+    expect(limpo(formatarPreco("31.42"))).toBe("R$ 31,42");
+    expect(formatarNumero("5.5", { minimo: 2 })).toBe("5,50");
+  });
+
+  it("valor ausente continua com traço; ao mostrar de novo, volta o valor", () => {
+    ocultar();
+    expect(formatarMoeda(null)).toBe("—");
+    expect(formatarQuantidade(undefined)).toBe("—");
+    useValoresOcultosStore.getState().definir(false);
+    expect(limpo(formatarMoeda("1234.5"))).toBe("R$ 1.234,50");
+    expect(formatarQuantidade("12.5")).toBe("12,5");
   });
 });

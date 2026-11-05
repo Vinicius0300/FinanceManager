@@ -5,6 +5,7 @@
  * passar por fuso horário.
  */
 import { absoluto, ehDecimal, moverVirgula, sinal } from "./decimal";
+import { MASCARA_VALOR, valoresOcultos } from "./valores-ocultos";
 
 type TextoNumerico = Intl.StringNumericLiteral;
 
@@ -80,19 +81,22 @@ function texto(valor: string): TextoNumerico {
 /**
  * Valor monetário: "1234.5" → "R$ 1.234,50"; USD → "US$ 1.234,50".
  * Negativos usam o sinal de menos tipográfico antes do símbolo ("−R$ 10,00").
+ * Com os valores ocultos (modo privacidade): "R$ •••••", sem sinal. `ocultar` força o modo
+ * (gráficos que guardam o texto em `useMemo` passam o valor que assinaram).
  */
 export function formatarMoeda(
   valor: string | null | undefined,
   moeda = "BRL",
-  opcoes: { casas?: number } = {},
+  opcoes: { casas?: number; ocultar?: boolean } = {},
 ): string {
   if (valor === null || valor === undefined || !ehDecimal(valor)) return TRACO;
+  const simbolo = SIMBOLOS_MOEDA[moeda] ?? moeda;
+  if (opcoes.ocultar ?? valoresOcultos()) return `${simbolo} ${MASCARA_VALOR}`;
   const casas = opcoes.casas ?? 2;
   const numero = formatador(`moeda-${casas}`, {
     minimumFractionDigits: casas,
     maximumFractionDigits: casas,
   }).format(texto(absoluto(valor)));
-  const simbolo = SIMBOLOS_MOEDA[moeda] ?? moeda;
   const negativo = sinal(valor) < 0 ? SINAL_NEGATIVO : "";
   return `${negativo}${simbolo} ${numero}`;
 }
@@ -110,6 +114,15 @@ export function formatarNumero(
     maximumFractionDigits: maximo,
   }).format(texto(absoluto(valor)));
   return sinal(valor) < 0 ? `${SINAL_NEGATIVO}${numero}` : numero;
+}
+
+/** Quantidade do usuário (cotas, ações, moedas): como `formatarNumero`, mas some no modo privacidade. */
+export function formatarQuantidade(
+  valor: string | null | undefined,
+  opcoes: { minimo?: number; maximo?: number } = {},
+): string {
+  if (valor === null || valor === undefined || !ehDecimal(valor)) return TRACO;
+  return valoresOcultos() ? MASCARA_VALOR : formatarNumero(valor, opcoes);
 }
 
 /** Preço unitário na moeda do ativo, com até 8 casas e no mínimo 2. */
@@ -147,6 +160,7 @@ export function tomDoValor(valor: string | null | undefined): TomValor {
 /** Valor com sinal explícito: "+R$ 195,00", "−R$ 40,00", "R$ 0,00". */
 export function formatarMoedaComSinal(valor: string | null | undefined, moeda = "BRL"): string {
   const formatado = formatarMoeda(valor, moeda);
+  if (valoresOcultos()) return formatado;
   return tomDoValor(valor) === "positivo" ? `+${formatado}` : formatado;
 }
 

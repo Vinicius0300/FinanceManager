@@ -19,12 +19,15 @@ import { SecaoBackups } from "./Backups";
 import { esquemaIntervalo } from "./definicoes";
 import { SecaoIndicadores } from "./Indicadores";
 import { SecaoListasTickers } from "./ListasTickers";
+import { useValoresOcultos } from "@/lib/valores-ocultos";
 
 /**
  * Intervalo de atualização, tema, indicadores, lista de tickers, backup/restauração e
  * serviço interno.
  */
 export function TelaConfiguracoes({ agora = new Date() }: { agora?: Date }) {
+  // Redesenha ao alternar o modo privacidade (os formatadores leem o store).
+  useValoresOcultos();
   return (
     <div className="flex flex-col gap-3.5">
       <CabecalhoPagina titulo="Configurações" />
