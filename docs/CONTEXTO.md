@@ -24,7 +24,7 @@ A paleta de cores é definitiva desde a Parte 4 (seção 8.3); o visual final (l
 | 5A | Visual final a partir das referências (tokens de superfície, componentes, gráficos, layout responsivo, ícone do app) e blocos que só usam dados existentes: altas e baixas do dia, próximos vencimentos (rota de leitura nova), chip de status das cotações, sparkline do patrimônio, carteira por instituição com subtotais; regra das 6 cores por presença | **Entregue (aguardando validação)** |
 | 5B | Empacotamento do backend (PyInstaller), instalador, script único de build, portabilidade, versão 1.0.0 e bloco 2 do code review | Etapa 1 (bloco 2 do review) **validada**; etapa 2 (empacotamento, 1.0.0) **entregue (aguardando validação)** |
 | 6 | Análises e Proventos: tela Proventos (por mês, yield on cost, últimos recebidos), cartão "Proventos 12 meses", evolução empilhada por tipo/instituição e modo "%", "Rentabilidade 12 meses vs. CDI", "Últimos 12 meses" e "Categorias vs. média de 3 meses" em Receitas e Despesas, "Taxa de poupança", mapa da carteira (treemap) | A fazer |
-| 7 | Glossário: aba com grafo de conhecimento (estilo Obsidian) de termos de finanças e investimentos, conteúdo fixo em Markdown embutido no app, busca, filtro por categoria, verbete com exemplo numérico e relacionados. Só frontend, independente da Parte 6 | Etapa 1 (estrutura e tela) **validada**; etapa 2 (conteúdo completo: 61 termos) **entregue (aguardando revisão do texto pelo dono)** |
+| 7 | Glossário: aba com grafo de conhecimento (estilo Obsidian) de termos de finanças e investimentos, conteúdo fixo em Markdown embutido no app, busca, filtro por categoria, verbete com exemplo numérico e relacionados. Só frontend, independente da Parte 6 | **Validada** (estrutura, tela e conteúdo completo: 61 termos) |
 
 ## 3. Decisões de arquitetura (definitivas)
 - **Desktop:** Tauri 2 (WebView2). Rust mínimo: inicialização, ciclo de vida do backend, plugins (dialog, single-instance, window-state) e configuração.
@@ -361,7 +361,7 @@ Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 6.md`). 
 - A importação da lista da B3 respondeu "B3 recusou a consulta (erro 400)" nos testes de 04/11/2026 de madrugada (a dos EUA funcionou). Acontece igual pelo venv, então não é do executável; em 30/10 importava normalmente. Conferir se é temporário da B3 ou mudança na API (fora do escopo da 5B).
 - Fundos com subclasses (Resolução CVM 175) precisam do `ID_SUBCLASSE` em `simbolo_externo` (a tela de cadastro explica isso).
 - Parte 6 (Análises e Proventos): blocos das sugestões do dono que exigem cálculo ou agregação nova (ver roadmap), deixados fora da 5A de propósito; entre eles as sparklines de Variação do dia, Rentabilidade e Saldo do mês (não há série).
-- Parte 7 (Glossário): revisão do texto dos 61 verbetes pelo dono. Regras de imposto mudam: revisar os verbetes da categoria Impostos e custos (e o `revisado_em`) quando houver mudança de lei.
+- Glossário: regras de imposto mudam; revisar os verbetes da categoria Impostos e custos (e o `revisado_em`) quando houver mudança de lei.
 - Papéis da B3 com especificação `CPA`/`TPR` ficam fora da lista (não mapeados); só entram por cadastro manual.
 - A lista de lançamentos mostra até 500 por mês (máximo da API por página).
 - Feriados da bolsa americana não são considerados na agenda (só geram coletas extras sem efeito).
