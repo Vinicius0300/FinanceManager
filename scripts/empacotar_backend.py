@@ -4,7 +4,7 @@ Uso (na raiz do projeto, com o venv do backend):
     backend\\.venv\\Scripts\\python.exe scripts\\empacotar_backend.py
 
 1. Roda ``pyinstaller backend\\financas-backend.spec`` no modo ``onedir`` (decisão da Parte 5B;
-   medições em docs/CONTEXTO.md §8.6), do zero (``--clean``).
+   medições em docs/HISTORICO.md, Parte 5B), do zero (``--clean``).
 2. Substitui ``apps/desktop/src-tauri/binaries/financas-backend/`` pela pasta gerada; o
    ``tauri.instalador.conf.json`` a inclui no instalador como recurso (``financas-backend\\``
    ao lado do app). A pasta ``binaries/`` não é versionada.

@@ -6,7 +6,7 @@ description: Empacota o app Finanças para Windows (backend com PyInstaller como
 # Build do instalador e portabilidade (Windows)
 
 ## Backend com PyInstaller
-1. Compare `onefile` (extrai a cada abertura, inicia mais devagar) e `onedir` (inicia mais rápido, entra como resource do Tauri). **Meça** o tempo até `/health` responder, várias execuções, com e sem cache frio, e registre os números em `docs/CONTEXTO.md` junto com a recomendação.
+1. Compare `onefile` (extrai a cada abertura, inicia mais devagar) e `onedir` (inicia mais rápido, entra como resource do Tauri). **Meça** o tempo até `/health` responder, várias execuções, com e sem cache frio, e registre os números em `docs/HISTORICO.md` junto com a recomendação (resumo em `docs/CONTEXTO.md`).
 2. O binário do sidecar segue a convenção de nome por **target triple** do Tauri (ex.: `...-x86_64-pc-windows-msvc.exe`).
 3. Inclua no spec do PyInstaller as migrações Alembic e demais arquivos de dados; dependências pesadas de ML ficam **fora** (opcionais).
 

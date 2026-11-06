@@ -1,7 +1,7 @@
 # Finanças: app desktop local de finanças pessoais (Windows)
 
 App instalável (Tauri 2) para acompanhar carteira de investimentos quase em tempo real e registrar receitas e despesas mensais. Uso single-user, dados 100% locais (sem login, nuvem ou sincronização).
-Visão completa, decisões e roadmap: **`docs/CONTEXTO.md`**. Leia-o antes de qualquer tarefa e atualize-o ao tomar decisões novas.
+Visão completa, decisões e roadmap: **`docs/CONTEXTO.md`**. Leia-o antes de qualquer tarefa e atualize-o ao tomar decisões novas (uma linha no `CONTEXTO.md`; motivo e detalhe em `docs/HISTORICO.md`).
 
 ## Como trabalhar neste repositório
 - O projeto avança em partes sequenciais validadas pelo dono. **Não adiante etapas** de partes futuras (ver roadmap em `docs/CONTEXTO.md`).

@@ -68,15 +68,13 @@ A atualização automática de cotações começa ao abrir; para depurar sem ace
 
 ### Glossário
 - Aba **Glossário** no menu: grafo de termos de finanças e investimentos. Clique numa bolinha, busque pelo nome ou use a lista para abrir a explicação, com exemplo numérico e termos relacionados.
-- O conteúdo é fixo e vem dentro do app (um arquivo por termo em `apps/web/src/features/glossario/conteudo/*.md`); não é editável pela tela. Para acrescentar um termo, crie o `.md` no modelo dos outros, ligue com `[[slug]]` e rode `npm test` (a validação aponta link quebrado, seção faltando ou tamanho fora do modelo). Detalhes em `docs/CONTEXTO.md` (8.8).
+- O conteúdo é fixo e vem dentro do app (um arquivo por termo em `apps/web/src/features/glossario/conteudo/*.md`); não é editável pela tela. Para acrescentar um termo, crie o `.md` no modelo dos outros, ligue com `[[slug]]` e rode `npm test` (a validação aponta link quebrado, seção faltando ou tamanho fora do modelo). Detalhes em `docs/HISTORICO.md` (Parte 7).
 
 ## Instalar e usar o app (sem ambiente de desenvolvimento)
-1. Rode `Financas_<versão>_x64-setup.exe`. O instalador é em português, não pede administrador (instala só para o seu usuário, em `%LOCALAPPDATA%\Financas`) e cria atalhos no menu Iniciar e na área de trabalho.
-2. **Aviso do SmartScreen** ("O Windows protegeu o computador"): o instalador não tem assinatura de código, então o Windows não conhece o editor. Clique em **Mais informações** → **Executar assim mesmo**. Alguns antivírus podem acusar falso positivo em executáveis gerados pelo PyInstaller: se acontecer, libere o arquivo no antivírus. A solução definitiva é a assinatura de código (certificado de um emissor confiável), fora do escopo da 1.0.0.
-3. **WebView2:** o Windows 11 e o Windows 10 atualizado já trazem o runtime. Se faltar, o instalador baixa e instala o WebView2 sozinho, e para isso **precisa de internet**. Para instalar num computador sem internet e sem WebView2, instale antes o "Evergreen Standalone Installer" do WebView2 (baixado da Microsoft em outro computador).
-4. **Primeira abertura:** logo depois de instalar ou atualizar, o antivírus verifica os arquivos do serviço interno e a tela "Iniciando o serviço interno…" pode ficar até uns 30 s. Nas aberturas seguintes leva poucos segundos.
-5. **Atualizar:** rode o instalador da versão nova por cima. Banco, backups e logs são mantidos.
-6. **Desinstalar:** em Configurações do Windows → Aplicativos. Os seus dados em `%APPDATA%\Financas\` **nunca** são apagados (nem pela caixa "apagar dados do app" do desinstalador, que só remove o estado da janela e o cache do WebView2).
+Passo a passo de instalação, atualização, desinstalação e problemas comuns em [`docs/INSTALACAO.md`](docs/INSTALACAO.md). Em resumo:
+- **Instalar:** rode `Financas_<versão>_x64-setup.exe` (sem administrador; no aviso do SmartScreen, **Mais informações** → **Executar assim mesmo**). A 1ª abertura pode levar até ~30 s.
+- **Atualizar:** rode o instalador novo por cima; os dados ficam.
+- **Desinstalar:** Configurações do Windows → Aplicativos → **Financas**. Os dados em `%APPDATA%\Financas\` **nunca** são apagados pelo desinstalador.
 
 ## Gerar o instalador e versões novas
 - `npm run instalador` (ou `scripts\3_gerar_instalador.bat`, que espera uma tecla no fim) gera o instalador do zero. Antes do build ele sincroniza e confere a versão e roda os testes e lints do backend e do front, o contrato, o `cargo check`/`cargo test`, o PyInstaller e um smoke test do executável (inclui um download HTTPS real; sem internet, use `scripts\3_gerar_instalador.bat --sem-https`). Para no primeiro erro, com a mensagem.
@@ -101,7 +99,9 @@ A atualização automática de cotações começa ao abrir; para depurar sem ace
 4. `npm run dev` para desenvolver; `npm run instalador` para gerar o instalador. Para levar os dados, use o caminho A (backup e restauração).
 
 ## Documentação
-- [`docs/CONTEXTO.md`](docs/CONTEXTO.md): visão, decisões e roadmap.
+- [`docs/CONTEXTO.md`](docs/CONTEXTO.md): visão, roadmap e regras vigentes (resumo).
+- [`docs/HISTORICO.md`](docs/HISTORICO.md): decisões por parte, com motivos, medições e validações.
+- [`docs/INSTALACAO.md`](docs/INSTALACAO.md): instalar, atualizar e desinstalar o app.
 - [`docs/CALCULOS.md`](docs/CALCULOS.md): regras de cálculo (preço médio, caixa, renda fixa, poupança...).
 - [`docs/TIPOS_DE_ATIVO.md`](docs/TIPOS_DE_ATIVO.md): registry de tipos de ativo, providers de cotação e como criar um tipo novo.
 - [`docs/ANALYTICS.md`](docs/ANALYTICS.md): plano da futura camada de previsão e sugestões.

@@ -28,6 +28,6 @@ Termine sempre com estas seções, nesta ordem:
 5. **Decisões novas**: o que foi decidido e foi registrado em `docs/CONTEXTO.md`.
 
 ## 4. Fechamento
-- Atualize `docs/CONTEXTO.md` (e `README.md` se mudou o dia a dia).
+- Atualize `docs/CONTEXTO.md` (resumo: roadmap e regras vigentes), `docs/HISTORICO.md` (seção da parte, com dúvidas resolvidas, decisões e validação) e `README.md` se mudou o dia a dia.
 - Rode a "definição de pronto" do `CLAUDE.md`.
 - Declare explicitamente: "Não avancei para a Parte N+1."

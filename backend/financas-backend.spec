@@ -6,7 +6,7 @@ para o Tauri):
     .venv\\Scripts\\pyinstaller financas-backend.spec --noconfirm --clean
 
 Modo: variável FINANCAS_EMPACOTAMENTO = "onedir" (padrão, decisão da Parte 5B) ou "onefile"
-(mantido só para medir/comparar; ver docs/CONTEXTO.md §8.6).
+(mantido só para medir/comparar; ver docs/HISTORICO.md, Parte 5B).
 
 - Console (sem --noconsole): o Rust já cria o processo com CREATE_NO_WINDOW, e com
   --noconsole o sys.stdout/sys.stderr viram None.

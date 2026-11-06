@@ -5,7 +5,7 @@ description: Acrescenta, revisa ou corrige termos do Glossário do app (verbetes
 
 # Novo termo do glossário
 
-O glossário é **fixo e só leitura**: cada termo é um arquivo `apps/web/src/features/glossario/conteudo/<slug>.md`, embutido no build. Não há backend, banco nem edição pela tela (decisão do dono, `docs/CONTEXTO.md` 8.8). As ligações do grafo saem dos links `[[slug]]` do texto.
+O glossário é **fixo e só leitura**: cada termo é um arquivo `apps/web/src/features/glossario/conteudo/<slug>.md`, embutido no build. Não há backend, banco nem edição pela tela (decisão do dono, `docs/HISTORICO.md`, Parte 7). As ligações do grafo saem dos links `[[slug]]` do texto.
 
 ## Passos
 1. **Confira se já existe** um termo igual ou um sinônimo (`sinonimos` dos arquivos). Se existir, proponha ampliar o verbete em vez de criar outro.
