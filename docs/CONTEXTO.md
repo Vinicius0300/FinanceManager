@@ -152,6 +152,7 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 - **Desinstalar nunca apaga `%APPDATA%\Financas`.** A caixa "apagar dados" só remove estado da janela e cache do WebView2.
 - Versão com fonte única: `scripts/versao.py` propaga o número; `--verificar` falha se divergir. Release nova: mudar o `package.json` da raiz e rodar `npm run instalador`.
 - `scripts/3_gerar_instalador.bat` roda versão, testes, lints, contrato, Rust, PyInstaller, smoke test e `tauri build`, parando no primeiro erro.
+- Distribuição: o `.exe` gerado e testado localmente é anexado à mão a uma Release do GitHub (tag `vX.Y.Z`); o README aponta para `releases/latest`. Sem build no CI (lançamentos esporádicos). Roteiro no `README.md`.
 
 **Glossário** (Parte 7)
 - Conteúdo fixo e só leitura: um `.md` por termo em `features/glossario/conteudo/`, sem backend nem contrato. Termo novo pela skill `novo-termo-glossario`.
@@ -172,4 +173,4 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 - Parte 6: blocos que exigem cálculo novo (inclui sparklines de Variação do dia, Rentabilidade e Saldo do mês).
 
 ## 8. Evolução futura (fora da 1.0.0)
-Módulo de IA em `analytics/` como extra opcional fora do executável; auto-update pelo plugin updater do Tauri (exige assinar as atualizações e um lugar para publicar); assinatura de código; no glossário, ícones "ⓘ" nas telas e bloco "Na sua carteira".
+Módulo de IA em `analytics/` como extra opcional fora do executável; auto-update pelo plugin updater do Tauri (exige assinar as atualizações; publicaria nas Releases do GitHub); build do instalador no GitHub Actions, se os lançamentos ficarem frequentes; assinatura de código; no glossário, ícones "ⓘ" nas telas e bloco "Na sua carteira".

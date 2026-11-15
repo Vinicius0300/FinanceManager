@@ -17,11 +17,12 @@ Guia para usar o app no modo desktop, sem ambiente de desenvolvimento. Para gera
 - Internet só para as cotações; sem internet o app abre e usa os últimos valores salvos (marcados como defasados).
 
 ## Onde conseguir o instalador
-O arquivo se chama `Financas_<versão>_x64-setup.exe` (cerca de 37 MB). Quem gera o build encontra em:
-```
-apps\desktop\src-tauri\target\release\bundle\nsis\
-```
-Para instalar em outro computador, copie só esse arquivo (pendrive, nuvem, e-mail).
+O arquivo se chama `Financas_<versão>_x64-setup.exe` (cerca de 38 MB). Ele já traz tudo o que o app precisa: não é preciso clonar o repositório nem instalar Python, Node ou Rust.
+
+- **Download:** [página da versão mais recente no GitHub](https://github.com/Vinicius0300/FinanceManager/releases/latest) → em **Assets**, clique no `.exe`. Não precisa de conta no GitHub. Em versões novas, o mesmo link já leva à mais recente.
+- **Quem gera o build** encontra o arquivo em `apps\desktop\src-tauri\target\release\bundle\nsis\` e pode copiar só ele para outro computador (pendrive, nuvem, e-mail).
+
+O navegador pode avisar que o arquivo "não é baixado com frequência": escolha **Manter** (mesmo motivo do aviso do SmartScreen, abaixo).
 
 ## Instalar
 1. **Feche o Finanças**, se uma versão anterior estiver aberta.
@@ -54,7 +55,7 @@ Financas_1.0.0_x64-setup.exe /S
 
 ## Atualizar para uma versão nova
 1. Feche o app.
-2. Rode o instalador da versão nova, do mesmo jeito da instalação. Não precisa desinstalar antes.
+2. Baixe o instalador novo pelo [mesmo link](https://github.com/Vinicius0300/FinanceManager/releases/latest) e rode-o do mesmo jeito da instalação. Não precisa desinstalar antes.
 3. Banco, backups, logs, tema e tamanho da janela são mantidos. Se a versão nova mudar o banco, o app faz um backup automático antes (em `%APPDATA%\Financas\backups\`, com `pre-migracao` no nome).
 4. A primeira abertura depois de atualizar pode levar até uns 30 s (mesmo motivo da instalação).
 5. Confira em **Configurações → Sobre** que as duas versões mostram o número novo.

@@ -4,6 +4,16 @@ App desktop local (Windows) de finanças pessoais: carteira de investimentos qua
 
 Stack: Tauri 2 (Rust mínimo) + React/TypeScript (Vite, Tailwind, shadcn/ui) + backend Python FastAPI como sidecar. Detalhes e decisões em [`docs/CONTEXTO.md`](docs/CONTEXTO.md).
 
+## Baixar o app (só para usar)
+**[⬇ Baixar a versão mais recente](https://github.com/Vinicius0300/FinanceManager/releases/latest)**: na página, em **Assets**, baixe o `Financas_<versão>_x64-setup.exe` (~38 MB).
+
+- Não precisa clonar o repositório nem instalar Python, Node ou Rust: tudo vai dentro do instalador. Instalado, o app ocupa cerca de 90 MB.
+- Windows 10/11 64 bits, sem administrador. No aviso do SmartScreen: **Mais informações** → **Executar assim mesmo** (o instalador não tem assinatura de código).
+- Para atualizar, baixe o instalador novo pelo mesmo link e instale por cima: os dados ficam.
+- Passo a passo completo em [`docs/INSTALACAO.md`](docs/INSTALACAO.md).
+
+As seções abaixo são para quem vai **desenvolver** o app.
+
 ## Pré-requisitos (Windows 10/11)
 | Ferramenta | Versão | Observação |
 |---|---|---|
@@ -72,6 +82,7 @@ A atualização automática de cotações começa ao abrir; para depurar sem ace
 
 ## Instalar e usar o app (sem ambiente de desenvolvimento)
 Passo a passo de instalação, atualização, desinstalação e problemas comuns em [`docs/INSTALACAO.md`](docs/INSTALACAO.md). Em resumo:
+- **Baixar:** [página da versão mais recente](https://github.com/Vinicius0300/FinanceManager/releases/latest), em **Assets**.
 - **Instalar:** rode `Financas_<versão>_x64-setup.exe` (sem administrador; no aviso do SmartScreen, **Mais informações** → **Executar assim mesmo**). A 1ª abertura pode levar até ~30 s.
 - **Atualizar:** rode o instalador novo por cima; os dados ficam.
 - **Desinstalar:** Configurações do Windows → Aplicativos → **Financas**. Os dados em `%APPDATA%\Financas\` **nunca** são apagados pelo desinstalador.
@@ -80,6 +91,20 @@ Passo a passo de instalação, atualização, desinstalação e problemas comuns
 - `npm run instalador` (ou `scripts\3_gerar_instalador.bat`, que espera uma tecla no fim) gera o instalador do zero. Antes do build ele sincroniza e confere a versão e roda os testes e lints do backend e do front, o contrato, o `cargo check`/`cargo test`, o PyInstaller e um smoke test do executável (inclui um download HTTPS real; sem internet, use `scripts\3_gerar_instalador.bat --sem-https`). Para no primeiro erro, com a mensagem.
 - Resultado: `apps\desktop\src-tauri\target\release\bundle\nsis\Financas_<versão>_x64-setup.exe` (caminho, tamanho e versão aparecem no fim).
 - **Versão nova (ex.: 1.0.1):** mude só o `"version"` do `package.json` da raiz e rode `npm run instalador`. Os demais arquivos (workspaces, `package-lock.json`, Cargo, `__version__` do backend e `docs/openapi.json`) são atualizados pelo `npm run versao`, que o script já roda. Commite os arquivos alterados.
+
+### Publicar uma versão no GitHub (para o link de download)
+Feito à mão no site, só quando houver versão nova (não há build automático no GitHub: o instalador publicado é o gerado e testado aqui).
+1. Mude o `"version"` do `package.json` da raiz (ex.: `1.0.0` → `1.1.0`), rode `npm run instalador` e confira o app instalado (roteiro curto: instalar por cima, abrir, **Configurações → Sobre** com a versão nova nas duas linhas, dados preservados).
+2. Commite e envie (`git push`) os arquivos alterados.
+3. No GitHub: **Releases → Draft a new release** (ou `https://github.com/Vinicius0300/FinanceManager/releases/new`).
+   - **Choose a tag:** digite `v1.1.0` (mesmo número do `package.json`, com `v` na frente) → **Create new tag** sobre a branch `main`.
+   - **Release title:** `Finanças 1.1.0`.
+   - **Descrição:** o que mudou para quem usa (novidades, correções e, se houver, "o banco é atualizado sozinho, com backup antes").
+   - **Attach binaries:** arraste `apps\desktop\src-tauri\target\release\bundle\nsis\Financas_1.1.0_x64-setup.exe`. Só esse arquivo; o GitHub acrescenta sozinho os `.zip`/`.tar.gz` do código.
+   - Deixe marcado **Set as the latest release** e clique em **Publish release**.
+4. Confira: abra o link [releases/latest](https://github.com/Vinicius0300/FinanceManager/releases/latest) numa janela anônima; deve mostrar a versão nova com o `.exe` em **Assets**.
+
+Errou algo? Edite a release (trocar o `.exe`: apague o anexo e envie de novo). Para retirar uma versão com problema, apague a release e a tag (**Tags** → tag → **Delete**); o link passa a apontar para a anterior. Nunca reaproveite o número de uma versão já publicada: gere a próxima (ex.: `1.1.1`).
 
 ## Onde ficam os dados
 - `%APPDATA%\Financas\` : banco `financas.db`, `logs\backend.log`, `logs\backend-stderr.log` (erros do serviço interno antes de o log existir, novo a cada abertura; o da abertura anterior fica em `logs\backend-stderr.anterior.log`), `logs\backend-pronto.txt` (marca de que o executável instalado já iniciou, para usar o limite de espera curto), `backups\` (cópia automática antes de cada migração e antes de restaurar, além dos backups manuais) e `models\`.
