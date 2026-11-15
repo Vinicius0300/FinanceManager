@@ -378,6 +378,32 @@ def test_ativo_sem_compra_baixa_um_ano_e_filtro_por_ativo(cenario: Cenario) -> N
     assert cenario.sgs.chamadas == []  # o filtro por ativo não coleta indicadores
 
 
+def test_forcada_por_ativo_inclui_so_os_indicadores_desses_ativos(cenario: Cenario) -> None:
+    """Botões do painel de status: forçar alguns ativos também recoleta o que eles usam.
+
+    CDB atrelado ao CDI aplicado em 05/01/2026 → CDI desde 29/12/2025 (7 dias antes). A
+    ação americana sem operações não entra no filtro, então o câmbio USD não é pedido.
+    """
+    with sessao_transacional(cenario.fabrica) as sessao:
+        rico = instituicao(sessao)
+        deposito(sessao, rico, "5000", date(2026, 1, 5))
+        titulo = cdb(sessao, "cdi", aplicacao=date(2026, 1, 5))
+        montante(sessao, titulo, rico, TipoTransacao.APORTE, date(2026, 1, 5), "1000")
+        itub = acao_br(sessao, "ITUB4")
+        acao_us(sessao)
+    cenario.yahoo.precos[itub.id] = D("30")
+    resumo = cenario.coletor.executar(forcar=True, ativo_ids=[itub.id, titulo.id])
+    assert resumo.forcado is True
+    assert cenario.yahoo.chamadas_cotacao == [[itub.id]]
+    assert cenario.sgs.chamadas == [(TipoIndicador.CDI, "BRL", date(2025, 12, 29), HOJE)]
+    assert cenario.yahoo_cambio.chamadas == []
+
+    # Sem forçar (ativo recém-cadastrado) continua sem indicadores.
+    cenario.sgs.chamadas.clear()
+    cenario.coletor.executar(ativo_ids=[titulo.id])
+    assert cenario.sgs.chamadas == []
+
+
 def test_cripto_grava_o_id_descoberto_em_simbolo_externo(cenario: Cenario) -> None:
     from app.services.cadastros import NovoAtivo, criar_ativo
 

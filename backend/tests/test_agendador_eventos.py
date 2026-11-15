@@ -119,6 +119,26 @@ def test_forcar_nao_duplica_execucao_e_coleta_de_um_ativo(engine: Engine) -> Non
     asyncio.run(cenario())
 
 
+def test_forcar_ativos_roda_so_os_escolhidos_e_respeita_a_trava(engine: Engine) -> None:
+    async def cenario() -> None:
+        coletor = ColetorFalso()
+        coletor.liberar.clear()
+        ag = agendador(engine, coletor)
+        disparo = ag.forcar_ativos([9, 3, 9])
+        assert disparo.iniciado
+        assert ag.em_execucao
+        assert not ag.forcar_ativos([1]).iniciado
+        assert not ag.forcar_atualizacao().iniciado
+        coletor.liberar.set()
+        await asyncio.sleep(0.05)
+        assert coletor.ciclos == [(True, [3, 9])]  # sem repetidos
+        assert ag.ultimo_resumo is None  # parcial: não vira o "último ciclo completo"
+        assert not ag.em_execucao
+        await ag.parar()
+
+    asyncio.run(cenario())
+
+
 def test_falha_no_ciclo_nao_derruba_o_agendador(engine: Engine) -> None:
     async def cenario() -> None:
         ag = agendador(engine, ColetorFalso(falhar=True))

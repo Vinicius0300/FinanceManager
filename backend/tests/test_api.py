@@ -606,6 +606,53 @@ def test_atualizacao_forcada_recusada_se_ja_houver_uma(api: TestClient, app_api:
         api.portal.call(liberar)  # type: ignore[union-attr]
 
 
+def test_status_traz_situacao_e_atualizacao_so_de_alguns_ativos(
+    api: TestClient, yahoo: CotacaoFalsa
+) -> None:
+    _, petr = preparar(api)
+    # O cadastro já dispara a coleta do ativo; a fonte falsa ainda não conhece o PETR4.
+    for _ in range(50):
+        item = api.get(f"/api/ativos/{petr}/status").json()
+        if item["situacao"] == "com_erro":
+            break
+    assert (item["situacao"], item["simbolo"], item["moeda"]) == ("com_erro", "PETR4", "BRL")
+    assert item["ultimo_erro"] == "Petrobras não encontrado."
+
+    yahoo.precos[petr] = Decimal("52.2")
+    resposta = api.post("/api/cotacoes/atualizar-ativos", json={"ativo_ids": [petr]})
+    assert resposta.status_code == 202
+    for _ in range(50):
+        item = api.get(f"/api/ativos/{petr}/status").json()
+        if item["situacao"] == "em_dia":
+            break
+    assert (item["situacao"], item["valor"], item["origem"]) == ("em_dia", "52.2", "automatico")
+
+
+def test_atualizacao_de_ativos_valida_a_lista(api: TestClient, app_api: FastAPI) -> None:
+    vazio = api.post("/api/cotacoes/atualizar-ativos", json={"ativo_ids": []})
+    assert vazio.status_code == 422
+    assert vazio.json()["mensagem"] == "Informe ao menos um ativo para atualizar."
+    demais = api.post("/api/cotacoes/atualizar-ativos", json={"ativo_ids": list(range(501))})
+    assert demais.status_code == 422
+    assert demais.json()["mensagem"] == "Informe no máximo 500 ativos por vez."
+
+    agendador = app_api.state.agendador
+
+    async def ocupar() -> None:
+        await agendador._trava.acquire()
+
+    async def liberar() -> None:
+        agendador._trava.release()
+
+    api.portal.call(ocupar)  # type: ignore[union-attr]
+    try:
+        ocupado = api.post("/api/cotacoes/atualizar-ativos", json={"ativo_ids": [1]})
+        assert ocupado.status_code == 409
+        assert ocupado.json()["codigo"] == "atualizacao_em_andamento"
+    finally:
+        api.portal.call(liberar)  # type: ignore[union-attr]
+
+
 # ---------------------------------------------------------------- backup
 
 

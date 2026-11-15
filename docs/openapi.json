@@ -210,6 +210,23 @@
         "title": "AtivoSaida",
         "type": "object"
       },
+      "AtualizacaoAtivosEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "ativo_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Ativo Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ativo_ids"
+        ],
+        "title": "AtualizacaoAtivosEntrada",
+        "type": "object"
+      },
       "AtualizacaoIniciada": {
         "additionalProperties": false,
         "properties": {
@@ -2922,6 +2939,16 @@
         "title": "ResumoSaida",
         "type": "object"
       },
+      "SituacaoCotacao": {
+        "enum": [
+          "em_dia",
+          "defasado",
+          "com_erro",
+          "manual"
+        ],
+        "title": "SituacaoCotacao",
+        "type": "string"
+      },
       "SituacaoListasSaida": {
         "additionalProperties": false,
         "properties": {
@@ -2998,6 +3025,10 @@
             "title": "Defasado",
             "type": "boolean"
           },
+          "moeda": {
+            "title": "Moeda",
+            "type": "string"
+          },
           "nome": {
             "title": "Nome",
             "type": "string"
@@ -3033,6 +3064,20 @@
               }
             ],
             "title": "Provider Preco"
+          },
+          "simbolo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Simbolo"
+          },
+          "situacao": {
+            "$ref": "#/components/schemas/SituacaoCotacao"
           },
           "tipo": {
             "title": "Tipo",
@@ -3092,7 +3137,9 @@
         "required": [
           "ativo_id",
           "nome",
+          "simbolo",
           "tipo",
+          "moeda",
           "provider",
           "origem",
           "data",
@@ -3103,7 +3150,8 @@
           "aviso",
           "ultima_tentativa",
           "ultimo_sucesso",
-          "ultimo_erro"
+          "ultimo_erro",
+          "situacao"
         ],
         "title": "StatusAtivoSaida",
         "type": "object"
@@ -5316,6 +5364,73 @@
           }
         ],
         "summary": "Força a atualização de cotações e indicadores agora",
+        "tags": [
+          "preços e cotações"
+        ]
+      }
+    },
+    "/api/cotacoes/atualizar-ativos": {
+      "post": {
+        "description": "Usada pelos botões \"Atualizar valores defasados\" e \"Atualizar valores com erro\" do painel de status. Ativos sem fonte automática são ignorados. Roda em segundo plano; se já houver uma atualização rodando, responde 409.",
+        "operationId": "forcar_atualizacao_ativos",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AtualizacaoAtivosEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AtualizacaoIniciada"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Conflito com os dados atuais."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Dados inválidos ou regra de negócio violada."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Força a atualização só dos ativos informados (e dos indicadores que eles usam)",
         "tags": [
           "preços e cotações"
         ]

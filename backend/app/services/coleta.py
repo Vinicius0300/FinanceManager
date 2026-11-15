@@ -187,9 +187,17 @@ def _inicio_do_indicador(tipo: TipoIndicador, dia: date) -> date:
 
 
 def indicadores_necessarios(
-    sessao: Session, hoje: date, registro: RegistroTiposAtivo = REGISTRO_PADRAO
+    sessao: Session,
+    hoje: date,
+    registro: RegistroTiposAtivo = REGISTRO_PADRAO,
+    *,
+    ativo_ids: Iterable[int] | None = None,
 ) -> dict[tuple[TipoIndicador, str], date]:
-    """Indicadores usados pela carteira e a data mais antiga necessária de cada um."""
+    """Indicadores usados pela carteira e a data mais antiga necessária de cada um.
+
+    Com ``ativo_ids``, só os indicadores desses ativos (sem o câmbio das contas correntes).
+    """
+    filtro = set(ativo_ids) if ativo_ids is not None else None
     necessidades: dict[tuple[TipoIndicador, str], date] = {}
     primeira_operacao: dict[int, date] = {}
     for transacao in RepositorioTransacoes(sessao).listar_ate():
@@ -200,6 +208,8 @@ def indicadores_necessarios(
             evento.data if atual is None else min(atual, evento.data)
         )
     for ativo in RepositorioAtivos(sessao).listar():
+        if filtro is not None and ativo.id not in filtro:
+            continue
         handler = registro.obter(ativo.tipo)
         inicio = primeira_operacao.get(ativo.id)
         if isinstance(handler, HandlerMontante) and inicio is not None:
@@ -211,6 +221,8 @@ def indicadores_necessarios(
                 (TipoIndicador.CAMBIO, ativo.moeda),
                 _inicio_do_indicador(TipoIndicador.CAMBIO, inicio or hoje),
             )
+    if filtro is not None:
+        return necessidades
     movimentos = RepositorioMovimentos(sessao)
     for conta in RepositorioContas(sessao).listar():
         if conta.moeda == MOEDA_BASE:
@@ -275,11 +287,13 @@ def montar_plano(
                 TarefaAtivo(_alvo(ativo), ativo.provider, cotar, historico, completo)
             )
 
-    if filtro is not None:
-        return plano
+    if filtro is not None and not forcar:
+        return plano  # ativo recém-cadastrado: só ele, sem indicadores
 
+    # Forçada só para alguns ativos (painel de status): também os indicadores deles.
+    necessarios = indicadores_necessarios(sessao, hoje, registro, ativo_ids=filtro)
     indicadores = RepositorioIndicadores(sessao)
-    for (tipo, moeda), inicio in sorted(indicadores_necessarios(sessao, hoje, registro).items()):
+    for (tipo, moeda), inicio in sorted(necessarios.items()):
         estado = estados.obter(chave_indicador(tipo, moeda))
         desde = estado.historico_desde if estado else None
         completo = desde is None or inicio < desde

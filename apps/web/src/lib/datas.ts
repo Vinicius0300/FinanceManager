@@ -88,3 +88,29 @@ export function inicioDaJanela(janela: JanelaEvolucao, agora: Date): string {
       return paraIso(addDays(subYears(agora, 1), 1));
   }
 }
+
+const MINUTO_MS = 60_000;
+const HORA_MS = 60 * MINUTO_MS;
+const DIA_MS = 24 * HORA_MS;
+
+function contar(n: number, singular: string, plural: string): string {
+  return `há ${n} ${n === 1 ? singular : plural}`;
+}
+
+/**
+ * Tempo passado desde um instante ISO, em pt-BR ("agora há pouco", "há 10 minutos",
+ * "há 3 dias", "há 2 meses"). Sempre arredonda para baixo; instante no futuro (relógio
+ * adiantado) conta como "agora há pouco".
+ */
+export function tempoDecorrido(iso: string, agora: Date = new Date()): string {
+  const instante = new Date(iso);
+  if (Number.isNaN(instante.getTime())) return "—";
+  const ms = agora.getTime() - instante.getTime();
+  if (ms < MINUTO_MS) return "agora há pouco";
+  if (ms < HORA_MS) return contar(Math.floor(ms / MINUTO_MS), "minuto", "minutos");
+  if (ms < DIA_MS) return contar(Math.floor(ms / HORA_MS), "hora", "horas");
+  const dias = Math.floor(ms / DIA_MS);
+  if (dias < 30) return contar(dias, "dia", "dias");
+  if (dias < 365) return contar(Math.floor(dias / 30), "mês", "meses");
+  return contar(Math.floor(dias / 365), "ano", "anos");
+}

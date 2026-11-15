@@ -234,6 +234,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cotacoes/atualizar-ativos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Força a atualização só dos ativos informados (e dos indicadores que eles usam)
+         * @description Usada pelos botões "Atualizar valores defasados" e "Atualizar valores com erro" do painel de status. Ativos sem fonte automática são ignorados. Roda em segundo plano; se já houver uma atualização rodando, responde 409.
+         */
+        post: operations["forcar_atualizacao_ativos"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cotacoes/status": {
         parameters: {
             query?: never;
@@ -973,6 +993,11 @@ export interface components {
             simbolo_externo: string | null;
             /** Tipo */
             tipo: string;
+        };
+        /** AtualizacaoAtivosEntrada */
+        AtualizacaoAtivosEntrada: {
+            /** Ativo Ids */
+            ativo_ids: number[];
         };
         /** AtualizacaoIniciada */
         AtualizacaoIniciada: {
@@ -1908,6 +1933,11 @@ export interface components {
              */
             variacao_dia_brl: string;
         };
+        /**
+         * SituacaoCotacao
+         * @enum {string}
+         */
+        SituacaoCotacao: "em_dia" | "defasado" | "com_erro" | "manual";
         /** SituacaoListasSaida */
         SituacaoListasSaida: {
             /** Em Andamento */
@@ -1932,6 +1962,8 @@ export interface components {
             data_hora: string | null;
             /** Defasado */
             defasado: boolean;
+            /** Moeda */
+            moeda: string;
             /** Nome */
             nome: string;
             origem: components["schemas"]["OrigemPreco"] | null;
@@ -1939,6 +1971,9 @@ export interface components {
             provider: string | null;
             /** Provider Preco */
             provider_preco: string | null;
+            /** Simbolo */
+            simbolo: string | null;
+            situacao: components["schemas"]["SituacaoCotacao"];
             /** Tipo */
             tipo: string;
             /** Ultima Tentativa */
@@ -3171,6 +3206,57 @@ export interface operations {
             };
             /** @description Conflito com os dados atuais. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    forcar_atualizacao_ativos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtualizacaoAtivosEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtualizacaoIniciada"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -44,6 +44,22 @@ export function useForcarAtualizacao() {
   });
 }
 
+/**
+ * Atualização forçada só de alguns ativos (botões do painel de status: defasados ou com erro).
+ * Mesmo comportamento da completa: responde na hora e o progresso chega pelo SSE.
+ */
+export function useForcarAtualizacaoAtivos() {
+  const { cliente } = useClienteApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ativoIds: number[]) =>
+      exigir(
+        await cliente.POST("/api/cotacoes/atualizar-ativos", { body: { ativo_ids: ativoIds } }),
+      ),
+    onSuccess: () => invalidarCotacoes(queryClient),
+  });
+}
+
 export function usePrecos(ativoId: number, inicio: string) {
   const { cliente } = useClienteApi();
   return useQuery({

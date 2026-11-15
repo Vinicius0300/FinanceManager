@@ -19,6 +19,7 @@ from app.core.errors import AplicacaoError
 from app.domain.enums import OrigemPreco
 from app.domain.erros import exigir
 from app.domain.precos import instante_fechamento
+from app.domain.situacao_cotacao import SituacaoCotacao
 from app.repositories import modelos as m
 from app.services import mercado
 from app.services.status_cotacoes import StatusAtivo, status_ativo, status_ativos
@@ -42,10 +43,15 @@ class PrecoManualEntrada(Modelo):
     valor: Numero
 
 
+MAX_ATIVOS_POR_ATUALIZACAO = 500
+
+
 class StatusAtivoSaida(Modelo):
     ativo_id: int
     nome: str
+    simbolo: str | None
     tipo: str
+    moeda: str
     provider: str | None
     origem: OrigemPreco | None
     data: date | None
@@ -57,6 +63,11 @@ class StatusAtivoSaida(Modelo):
     ultima_tentativa: datetime | None
     ultimo_sucesso: datetime | None
     ultimo_erro: str | None
+    situacao: SituacaoCotacao
+
+
+class AtualizacaoAtivosEntrada(Modelo):
+    ativo_ids: list[int]
 
 
 class AtualizacaoStatus(Modelo):
@@ -88,7 +99,9 @@ def _status(item: StatusAtivo) -> StatusAtivoSaida:
     return StatusAtivoSaida(
         ativo_id=item.ativo_id,
         nome=item.nome,
+        simbolo=item.simbolo,
         tipo=item.tipo,
+        moeda=item.moeda,
         provider=item.provider,
         origem=item.origem,
         data=item.data,
@@ -100,6 +113,7 @@ def _status(item: StatusAtivo) -> StatusAtivoSaida:
         ultima_tentativa=item.ultima_tentativa,
         ultimo_sucesso=item.ultimo_sucesso,
         ultimo_erro=item.ultimo_erro,
+        situacao=item.situacao,
     )
 
 
@@ -211,6 +225,33 @@ def obter_atualizacao(agendador: AgendadorDep) -> AtualizacaoStatus:
 )
 async def forcar_atualizacao(agendador: AgendadorDep) -> AtualizacaoIniciada:
     disparo = agendador.forcar_atualizacao()
+    if not disparo.iniciado:
+        raise AplicacaoError(409, "atualizacao_em_andamento", disparo.mensagem)
+    return AtualizacaoIniciada(mensagem=disparo.mensagem)
+
+
+@router.post(
+    "/cotacoes/atualizar-ativos",
+    response_model=AtualizacaoIniciada,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Força a atualização só dos ativos informados (e dos indicadores que eles usam)",
+    description=(
+        'Usada pelos botões "Atualizar valores defasados" e "Atualizar valores com erro" '
+        "do painel de status. Ativos sem fonte automática são ignorados. Roda em segundo "
+        "plano; se já houver uma atualização rodando, responde 409."
+    ),
+    responses=respostas(409, 422),
+)
+async def forcar_atualizacao_ativos(
+    dados: AtualizacaoAtivosEntrada, agendador: AgendadorDep
+) -> AtualizacaoIniciada:
+    exigir(len(dados.ativo_ids) > 0, "ativo_ids", "Informe ao menos um ativo para atualizar.")
+    exigir(
+        len(dados.ativo_ids) <= MAX_ATIVOS_POR_ATUALIZACAO,
+        "ativo_ids",
+        f"Informe no máximo {MAX_ATIVOS_POR_ATUALIZACAO} ativos por vez.",
+    )
+    disparo = agendador.forcar_ativos(dados.ativo_ids)
     if not disparo.iniciado:
         raise AplicacaoError(409, "atualizacao_em_andamento", disparo.mensagem)
     return AtualizacaoIniciada(mensagem=disparo.mensagem)

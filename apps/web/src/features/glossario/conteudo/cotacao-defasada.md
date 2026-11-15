@@ -18,7 +18,7 @@ O app busca preços em fontes externas (bolsa, Banco Central, Tesouro, CVM) em s
 - a tela mostra o aviso de defasado, com a data e a hora da última atualização;
 - os demais ativos continuam sendo atualizados normalmente.
 
-Cada preço guarda a **origem**: `automatico` (veio da fonte), `manual` (você informou) ou `calculado` (o app calculou, como o saldo de um [[cdb]] pelo [[cdi]]). O chip no topo resume quantos ativos estão em dia, defasados ou com erro.
+Cada preço guarda a **origem**: `automatico` (veio da fonte), `manual` (você informou) ou `calculado` (o app calculou, como o saldo de um [[cdb]] pelo [[cdi]]). O chip no topo resume quantos ativos estão em dia, defasados, com erro ou manuais (sem fonte automática); clique nele para ver a situação de cada ativo e atualizar só os defasados ou só os com erro.
 
 ## Exemplo
 

@@ -66,7 +66,8 @@ apps/desktop/                 CLI do Tauri, icone.svg (fonte dos ícones)
 apps/desktop/src-tauri/       lib.rs (plugins/comandos), backend.rs (sidecar), job.rs (Job Object),
                               locais.rs (backend instalado e pasta de dados); tauri.instalador.conf.json
 apps/web/src/
-  app/                        rotas, layout, barra superior (status das cotações, Atualizar, ocultar valores, tema)
+  app/                        rotas, layout, barra superior (chip e painel de status das cotações, Atualizar,
+                              ocultar valores, tema)
   features/                   uma pasta por tela: dashboard, carteira, movimentacoes, receitas-despesas,
                               configuracoes, glossario; status-backend (portão); tempo-real (SSE)
   components/                 compartilhados (CartaoMetrica, TabelaDados, Estados, ValorFinanceiro,
@@ -141,6 +142,8 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 - Histórico inicial de até 1 ano; depois só completa lacunas.
 - Ciclo: rede sem sessão aberta, gravação por alvo; um `asyncio.Lock` único para coleta, listas e restauração (atualização simultânea → 409). `FINANCAS_SEM_ATUALIZACAO=1` desliga a automática.
 - Tempo real por SSE em `GET /api/eventos` lido com `fetch` (o token não vai na URL).
+- **Situação da cotação** (chip e painel da barra superior): calculada no backend (`domain/situacao_cotacao.py`), prioridade com erro > manual > defasado > em dia; **manual** = ativo cotado sem fonte automática (não conta como defasado nem entra nos botões).
+- **Painel de status** (popover ao clicar no chip): situação de cada ativo com posição aberta, filtros, busca, tempo passado ("há 3 dias") e dois botões: atualizar só os defasados ou só os com erro (`POST /api/cotacoes/atualizar-ativos`, ciclo forçado só desses ativos e dos indicadores que eles usam).
 
 **Backup e migrações** (Partes 2 e 3)
 - Migrações na inicialização, com backup validado antes (só se há dados e migração pendente; mantém 10); falha restaura; banco de versão mais nova é recusado.

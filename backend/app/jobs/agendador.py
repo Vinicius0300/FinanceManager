@@ -153,6 +153,18 @@ class Agendador:
         self._forcada = self._em_segundo_plano(self.executar_ciclo(forcar=True))
         return Disparo(True, "Atualização iniciada. O resultado chega pelos eventos.")
 
+    def forcar_ativos(self, ativo_ids: Iterable[int]) -> Disparo:
+        """Atualização manual só destes ativos (e dos indicadores que eles usam).
+
+        Usada pelos botões do painel de status ("defasados" e "com erro"). Mesma regra da
+        atualização completa: recusada se já houver uma rodando.
+        """
+        if self.em_execucao:
+            return Disparo(False, "Já existe uma atualização em andamento.")
+        ids = sorted(set(ativo_ids))
+        self._forcada = self._em_segundo_plano(self.executar_ciclo(forcar=True, ativo_ids=ids))
+        return Disparo(True, "Atualização iniciada. O resultado chega pelos eventos.")
+
     def coletar_ativo(self, ativo_id: int) -> None:
         """Coleta (e baixa o histórico de) um ativo recém-cadastrado, em segundo plano."""
         self._em_segundo_plano(self.executar_ciclo(ativo_ids=[ativo_id]))

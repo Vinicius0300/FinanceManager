@@ -1,7 +1,8 @@
-import { Eye, EyeOff, Loader2, RefreshCw } from "lucide-react";
+import { ChevronDown, Eye, EyeOff, Loader2, RefreshCw } from "lucide-react";
 import { useMemo } from "react";
 import { SeletorTema } from "@/components/SeletorTema";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   useAtualizacao,
   useForcarAtualizacao,
@@ -12,7 +13,14 @@ import { useEstadoAtualizacao } from "@/features/tempo-real/atualizacao";
 import { formatarDataHora } from "@/lib/formatacao";
 import { useValoresOcultosStore } from "@/lib/valores-ocultos";
 import { cn } from "@/lib/utils";
-import { contarStatus, textoStatus } from "./status-cotacoes";
+import { PainelStatusCotacoes } from "./PainelStatusCotacoes";
+import {
+  COR_SITUACAO,
+  contarStatus,
+  partesStatus,
+  soAbertos,
+  textoStatus,
+} from "./status-cotacoes";
 
 /**
  * Topo global (Parte 5A): chip de status das cotações, hora da última atualização,
@@ -30,36 +38,41 @@ export function BarraSuperior() {
   );
 }
 
-/** "N em dia · N defasadas · N com erro" dos ativos com posição aberta (Análise Geral). */
+/**
+ * Chip "N em dia · N defasadas · N com erro · N manuais" dos ativos com posição aberta
+ * (Análise Geral). Clicar abre o painel com a situação de cada ativo.
+ */
 export function ChipStatusCotacoes() {
   const status = useStatusCotacoes();
   const posicoes = usePosicoes(null);
-  const contagem = useMemo(() => {
+  const dados = useMemo(() => {
     if (!status.data || !posicoes.data) return null;
-    return contarStatus(status.data, new Set(posicoes.data.map((p) => p.ativo_id)));
+    const abertos = new Set(posicoes.data.map((p) => p.ativo_id));
+    return { itens: soAbertos(status.data, abertos), contagem: contarStatus(status.data, abertos) };
   }, [status.data, posicoes.data]);
-  if (!contagem) return null;
-  const texto = textoStatus(contagem);
+  if (!dados) return null;
+  const partes = partesStatus(dados.contagem);
+  const texto = textoStatus(dados.contagem);
   return (
-    <p
-      role="status"
-      aria-label={`Cotações: ${texto}`}
-      className="tabular inline-flex items-center gap-2.5 rounded-full border bg-muted px-2.5 py-0.5 text-xs font-semibold"
-    >
-      {texto.split(" · ").map((parte) => (
-        <span key={parte} aria-hidden className="inline-flex items-center gap-1.5">
-          <span className={cn("size-2 shrink-0 rounded-full", corDaParte(parte))} />
-          {parte}
-        </span>
-      ))}
-    </p>
+    <Popover>
+      <PopoverTrigger
+        aria-label={`Cotações: ${texto}. Ver a situação de cada ativo`}
+        title="Ver a situação de cada ativo"
+        className="tabular inline-flex items-center gap-2.5 rounded-full border bg-muted px-2.5 py-0.5 text-xs font-semibold transition-colors hover:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none data-[state=open]:border-primary"
+      >
+        {partes.map((parte) => (
+          <span key={parte.situacao} aria-hidden className="inline-flex items-center gap-1.5">
+            <span className={cn("size-2 shrink-0 rounded-full", COR_SITUACAO[parte.situacao])} />
+            {parte.texto}
+          </span>
+        ))}
+        <ChevronDown aria-hidden className="size-3.5 text-muted-foreground" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="p-0">
+        <PainelStatusCotacoes itens={dados.itens} contagem={dados.contagem} />
+      </PopoverContent>
+    </Popover>
   );
-}
-
-function corDaParte(parte: string): string {
-  if (parte.includes("erro")) return "bg-perigo";
-  if (parte.includes("defasad")) return "bg-aviso";
-  return "bg-sucesso";
 }
 
 /** Última atualização automática concluída (vem do stream SSE). */
