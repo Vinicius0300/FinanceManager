@@ -36,17 +36,69 @@ export function useCategorias() {
   });
 }
 
-/** Lançamentos do mês (até 500, o máximo por página da API). */
-export function useLancamentos(mes: Mes) {
+export type ResumoMensalFiltrado = components["schemas"]["ResumoMensalSaida"];
+export type ResumoInstituicao = components["schemas"]["ResumoInstituicaoSaida"];
+export type TagLancamento = Lancamento["tag"];
+
+/**
+ * Lançamentos e transferências em BRL do mês (até 500, o máximo por página da API).
+ * `instituicaoId` nulo = todas as instituições.
+ */
+export function useLancamentos(mes: Mes, instituicaoId: number | null = null) {
   const { cliente } = useClienteApi();
   const { inicio, fim } = limitesDoMes(mes);
   return useQuery({
-    queryKey: ["lancamentos", mes.ano, mes.mes],
+    queryKey: ["lancamentos", mes.ano, mes.mes, instituicaoId],
     placeholderData: keepPreviousData,
     queryFn: async ({ signal }) =>
       exigir(
         await cliente.GET("/api/lancamentos", {
-          params: { query: { inicio, fim, limite: 500 } },
+          params: {
+            query: {
+              inicio,
+              fim,
+              limite: 500,
+              ...(instituicaoId === null ? {} : { instituicao_id: instituicaoId }),
+            },
+          },
+          signal,
+        }),
+      ),
+  });
+}
+
+/** Cartões e rosca do mês, com filtro opcional por instituição (transferências fora). */
+export function useResumoDoMes(mes: Mes, instituicaoId: number | null) {
+  const { cliente } = useClienteApi();
+  return useQuery({
+    queryKey: ["resumo-mensal", mes.ano, mes.mes, instituicaoId],
+    placeholderData: keepPreviousData,
+    queryFn: async ({ signal }) =>
+      exigir(
+        await cliente.GET("/api/resumo-mensal", {
+          params: {
+            query: {
+              ano: mes.ano,
+              mes: mes.mes,
+              ...(instituicaoId === null ? {} : { instituicao_id: instituicaoId }),
+            },
+          },
+          signal,
+        }),
+      ),
+  });
+}
+
+/** Receitas, despesas, transferências e saldo do mês de cada instituição (só BRL). */
+export function useResumoPorInstituicao(mes: Mes) {
+  const { cliente } = useClienteApi();
+  return useQuery({
+    queryKey: ["resumo-mensal", "instituicoes", mes.ano, mes.mes],
+    placeholderData: keepPreviousData,
+    queryFn: async ({ signal }) =>
+      exigir(
+        await cliente.GET("/api/resumo-mensal/instituicoes", {
+          params: { query: { ano: mes.ano, mes: mes.mes } },
           signal,
         }),
       ),

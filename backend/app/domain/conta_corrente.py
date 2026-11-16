@@ -6,11 +6,14 @@ Regras (decididas com o dono):
 - venda/resgate credita (quantidade × preço − taxas, arredondado a centavos, ou o valor
   do resgate);
 - provento credita o valor líquido; depósito e saque são manuais;
-- o saldo **nunca fica negativo**. A verificação usa o saldo ao **fim de cada dia**
-  (movimentos do mesmo dia se compensam), a partir da data do movimento novo, porque
-  um lançamento retroativo afeta todos os saldos seguintes.
-- se uma compra/aporte excede o saldo, o déficit vira um ``ajuste_saldo`` (depósito
-  não informado) na mesma data, que leva o menor saldo futuro exatamente a zero.
+- receita credita e despesa debita a conta em BRL da instituição;
+- transferência: saída do valor na origem e entrada do valor no destino; a tarifa é uma
+  despesa separada na origem (a checagem da origem usa valor + tarifa);
+- o saldo **nunca fica negativo**, em nenhum dia. A verificação usa o saldo ao **fim de
+  cada dia** (movimentos do mesmo dia se compensam), a partir da data do movimento novo,
+  porque um lançamento retroativo afeta todos os saldos seguintes;
+- se uma compra/aporte ou despesa excede o saldo, o déficit vira um ``ajuste_saldo``
+  (depósito não informado) na mesma data, que leva o menor saldo futuro exatamente a zero.
 """
 
 from collections import defaultdict
@@ -19,7 +22,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from app.domain.enums import MOVIMENTOS_DE_SAIDA, TipoMovimento, TipoTransacao
+from app.domain.enums import MOVIMENTOS_DE_SAIDA, TipoLancamento, TipoMovimento, TipoTransacao
 from app.domain.numeros import ZERO, arredondar_moeda
 
 MENSAGEM_SALDO_INSUFICIENTE = (
@@ -71,6 +74,36 @@ def movimento_da_transacao(
     return TipoMovimento.CREDITO_PROVENTO, valor
 
 
+def movimento_do_lancamento(tipo: TipoLancamento) -> TipoMovimento:
+    """Receita credita e despesa debita (o valor do movimento é o do lançamento)."""
+    if tipo is TipoLancamento.RECEITA:
+        return TipoMovimento.CREDITO_RECEITA
+    return TipoMovimento.DEBITO_DESPESA
+
+
+@dataclass(frozen=True)
+class MovimentosTransferencia:
+    """Efeito de uma transferência: saída e entrada do valor; tarifa à parte (despesa)."""
+
+    saida: Decimal
+    entrada: Decimal
+    tarifa: Decimal
+
+    @property
+    def total_origem(self) -> Decimal:
+        """O que sai do caixa da origem: valor + tarifa (usado na checagem de saldo)."""
+        return self.saida + self.tarifa
+
+
+def movimentos_da_transferencia(valor: Decimal, tarifa: Decimal = ZERO) -> MovimentosTransferencia:
+    """Ex.: 1.000 com tarifa de 10 → saída 1.000, entrada 1.000, tarifa 10 (origem −1.010)."""
+    if valor <= ZERO:
+        raise ValueError("O valor da transferência deve ser maior que zero.")
+    if tarifa < ZERO:
+        raise ValueError("A tarifa não pode ser negativa.")
+    return MovimentosTransferencia(saida=valor, entrada=valor, tarifa=tarifa)
+
+
 def saldo_em(lancamentos: Iterable[LancamentoCaixa], dia: date) -> Decimal:
     """Saldo ao fim de ``dia``."""
     return sum((lanc.valor for lanc in lancamentos if lanc.data <= dia), ZERO)
@@ -95,6 +128,21 @@ def menor_saldo_a_partir(lancamentos: Iterable[LancamentoCaixa], dia: date) -> D
     candidatos = [saldo_em(lista, dia)]
     candidatos += [saldo for data, saldo in saldos_fim_do_dia(lista) if data >= dia]
     return min(candidatos)
+
+
+def primeiro_dia_negativo(lancamentos: Iterable[LancamentoCaixa], a_partir_de: date) -> date | None:
+    """Primeiro dia (≥ ``a_partir_de``) que termina com saldo negativo, ou ``None``.
+
+    Ex.: 0 até 04/11, +5.000 em 05/11 e −2.000 em 10/11, sem a receita de 05/11 → o
+    primeiro dia negativo a partir de 05/11 é 10/11.
+    """
+    lista = list(lancamentos)
+    if saldo_em(lista, a_partir_de) < ZERO:
+        return a_partir_de
+    for data, saldo in saldos_fim_do_dia(lista):
+        if data > a_partir_de and saldo < ZERO:
+            return data
+    return None
 
 
 def deficit(lancamentos: Iterable[LancamentoCaixa], a_partir_de: date) -> Decimal:

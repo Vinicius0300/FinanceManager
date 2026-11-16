@@ -17,7 +17,7 @@ O orçamento mensal é o controle de quanto dinheiro entra (receitas) e quanto s
 - **Despesas variáveis:** mercado, lazer, transporte; são onde costuma haver mais espaço para ajuste.
 - Separar as despesas por **categoria** mostra quais pesam mais e permite comparar com os meses anteriores.
 
-No app, a tela Receitas e Despesas faz esse registro mensal, com gráfico por categoria e o saldo do mês. A sobra do mês é a base da [[taxa-de-poupanca]] e da [[reserva-de-emergencia]].
+No app, a tela Receitas e Despesas faz esse registro mensal, com gráfico por categoria e o saldo do mês. Cada lançamento pertence a uma instituição e movimenta o [[caixa-da-instituicao|caixa]] dela; lance primeiro as receitas e depois as despesas. Uma [[transferencia-entre-instituicoes|transferência]] entre bancos não é receita nem despesa e fica fora dos totais. A sobra do mês é a base da [[taxa-de-poupanca]] e da [[reserva-de-emergencia]].
 
 ## Exemplo
 

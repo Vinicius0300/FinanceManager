@@ -22,8 +22,10 @@ from app.domain.textos import texto_obrigatorio, texto_opcional
 from app.repositories.ativos import RepositorioAtivos
 from app.repositories.contas import RepositorioContas, RepositorioMovimentos
 from app.repositories.instituicoes import RepositorioInstituicoes
+from app.repositories.lancamentos import RepositorioLancamentos
 from app.repositories.modelos import Ativo, Instituicao
 from app.repositories.transacoes import RepositorioTransacoes
+from app.repositories.transferencias import RepositorioTransferencias
 
 TAMANHO_NOME_INSTITUICAO = 100
 TAMANHO_NOME_ATIVO = 150
@@ -65,21 +67,32 @@ def editar_instituicao(
 
 
 def excluir_instituicao(sessao: Session, instituicao_id: int) -> None:
-    """Exclui a instituição só se não houver transações nem movimentos de caixa.
+    """Exclui a instituição só se ela não tiver nada ligado a ela.
 
-    Contas correntes vazias (sem movimentos) são removidas junto.
+    Bloqueiam (nesta ordem): transações, lançamentos de Receitas e Despesas,
+    transferências e depósitos ou saques. Contas correntes vazias são removidas junto.
     """
     instituicao = obter_instituicao(sessao, instituicao_id)
     if RepositorioTransacoes(sessao).existe_da_instituicao(instituicao.id):
         raise OperacaoNaoPermitidaError(
             "A instituição tem transações. Exclua-as antes de excluir a instituição."
         )
+    if RepositorioLancamentos(sessao).existe_da_instituicao(instituicao.id):
+        raise OperacaoNaoPermitidaError(
+            "A instituição tem receitas ou despesas. Exclua-as (ou mude a instituição delas) "
+            "antes de excluir a instituição."
+        )
+    if RepositorioTransferencias(sessao).existe_da_instituicao(instituicao.id):
+        raise OperacaoNaoPermitidaError(
+            "A instituição tem transferências. Exclua-as antes de excluir a instituição."
+        )
     contas = RepositorioContas(sessao)
     movimentos = RepositorioMovimentos(sessao)
     vazias = contas.da_instituicao_todas(instituicao.id)
     if any(movimentos.existe_na_conta(conta.id) for conta in vazias):
         raise OperacaoNaoPermitidaError(
-            "A instituição tem depósitos ou saques. Exclua-os antes de excluir a instituição."
+            "A instituição tem depósitos, saques ou ajustes de saldo. Exclua-os antes de "
+            "excluir a instituição."
         )
     for conta in vazias:
         contas.remover(conta)

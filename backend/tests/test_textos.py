@@ -121,13 +121,22 @@ def test_descricao_do_movimento_e_observacao_do_lancamento_so_com_espacos(
     lancamento = registrar_lancamento(
         sessao,
         NovoLancamento(
-            TipoLancamento.DESPESA, date(2025, 3, 1), " Feira ", D(10), observacao="   "
+            TipoLancamento.DESPESA,
+            date(2025, 3, 1),
+            " Feira ",
+            D(10),
+            observacao="   ",
+            instituicao_id=rico.id,
         ),
-    )
+    ).lancamento
+    assert lancamento is not None
     assert (lancamento.descricao, lancamento.observacao) == ("Feira", None)
     with pytest.raises(ValidacaoError) as erro:
         registrar_lancamento(
-            sessao, NovoLancamento(TipoLancamento.DESPESA, date(2025, 3, 1), "   ", D(10))
+            sessao,
+            NovoLancamento(
+                TipoLancamento.DESPESA, date(2025, 3, 1), "   ", D(10), instituicao_id=rico.id
+            ),
         )
     assert detalhes(erro) == {"descricao": "Informe a descrição."}
     with pytest.raises(ValidacaoError) as erro:

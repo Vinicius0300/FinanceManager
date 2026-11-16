@@ -41,8 +41,12 @@ class TipoMovimento(StrEnum):
     - ``debito_compra``: compra ou aporte (automático, ligado à transação).
     - ``credito_venda``: venda ou resgate (automático, ligado à transação).
     - ``credito_provento``: provento líquido (automático, ligado à transação).
-    - ``ajuste_saldo``: depósito não informado, criado quando uma compra/aporte
-      excede o saldo e o usuário opta por não atualizar os valores.
+    - ``credito_receita``/``debito_despesa``: receita ou despesa de Receitas e Despesas
+      (automático, ligado ao lançamento; sempre na conta em BRL).
+    - ``transferencia_saida``/``transferencia_entrada``: as duas pontas de uma
+      transferência entre instituições (automático, ligado à transferência).
+    - ``ajuste_saldo``: depósito não informado, criado quando uma compra/aporte ou uma
+      despesa excede o saldo e o usuário opta por não atualizar os valores.
     """
 
     DEPOSITO = "deposito"
@@ -51,6 +55,10 @@ class TipoMovimento(StrEnum):
     CREDITO_VENDA = "credito_venda"
     CREDITO_PROVENTO = "credito_provento"
     AJUSTE_SALDO = "ajuste_saldo"
+    CREDITO_RECEITA = "credito_receita"
+    DEBITO_DESPESA = "debito_despesa"
+    TRANSFERENCIA_SAIDA = "transferencia_saida"
+    TRANSFERENCIA_ENTRADA = "transferencia_entrada"
 
 
 MOVIMENTOS_MANUAIS = frozenset({TipoMovimento.DEPOSITO, TipoMovimento.SAQUE})
@@ -61,7 +69,18 @@ MOVIMENTOS_DE_TRANSACAO = frozenset(
         TipoMovimento.CREDITO_PROVENTO,
     }
 )
-MOVIMENTOS_DE_SAIDA = frozenset({TipoMovimento.SAQUE, TipoMovimento.DEBITO_COMPRA})
+MOVIMENTOS_DE_LANCAMENTO = frozenset({TipoMovimento.CREDITO_RECEITA, TipoMovimento.DEBITO_DESPESA})
+MOVIMENTOS_DE_TRANSFERENCIA = frozenset(
+    {TipoMovimento.TRANSFERENCIA_SAIDA, TipoMovimento.TRANSFERENCIA_ENTRADA}
+)
+MOVIMENTOS_DE_SAIDA = frozenset(
+    {
+        TipoMovimento.SAQUE,
+        TipoMovimento.DEBITO_COMPRA,
+        TipoMovimento.DEBITO_DESPESA,
+        TipoMovimento.TRANSFERENCIA_SAIDA,
+    }
+)
 
 
 class OrigemPreco(StrEnum):

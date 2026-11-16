@@ -70,3 +70,11 @@ class RepositorioMovimentos(RepositorioBase[MovimentoConta]):
     def da_transacao(self, transacao_id: int) -> Sequence[MovimentoConta]:
         consulta = select(MovimentoConta).where(MovimentoConta.transacao_id == transacao_id)
         return self.sessao.scalars(consulta.order_by(MovimentoConta.id)).all()
+
+    def da_lancamento(self, lancamento_id: int) -> Sequence[MovimentoConta]:
+        consulta = select(MovimentoConta).where(MovimentoConta.lancamento_id == lancamento_id)
+        return self.sessao.scalars(consulta.order_by(MovimentoConta.id)).all()
+
+    def da_transferencia(self, transferencia_id: int) -> Sequence[MovimentoConta]:
+        consulta = select(MovimentoConta).where(MovimentoConta.transferencia_id == transferencia_id)
+        return self.sessao.scalars(consulta.order_by(MovimentoConta.id)).all()

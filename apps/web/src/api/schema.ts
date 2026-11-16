@@ -427,10 +427,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lista lançamentos com filtros (mais recentes primeiro) */
+        /** Lista lançamentos e transferências em BRL (mais recentes primeiro) */
         get: operations["listar_lancamentos"];
         put?: never;
-        /** Registra uma receita ou despesa */
+        /**
+         * Registra uma receita ou despesa (movimenta o caixa da instituição)
+         * @description Despesa que deixaria o caixa negativo responde 409 `saldo_insuficiente` sem gravar; reenvie com `aceitar_ajuste=true` para gravar com um ajuste de saldo.
+         */
         post: operations["criar_lancamento"];
         delete?: never;
         options?: never;
@@ -447,10 +450,16 @@ export interface paths {
         };
         /** Detalha um lançamento */
         get: operations["obter_lancamento"];
-        /** Altera um lançamento */
+        /**
+         * Altera um lançamento
+         * @description Despesa que passa a faltar saldo: 409 (aceite com `aceitar_ajuste=true`). Receita alterada que deixaria o caixa negativo: 422 `saldo_insuficiente`. Tarifas de transferência não podem ser alteradas aqui (422).
+         */
         put: operations["editar_lancamento"];
         post?: never;
-        /** Exclui um lançamento */
+        /**
+         * Exclui um lançamento (e o ajuste de saldo ligado a ele)
+         * @description Recusa com 422 `saldo_insuficiente` se o caixa ficar negativo, e com 422 se for a tarifa de uma transferência.
+         */
         delete: operations["excluir_lancamento"];
         options?: never;
         head?: never;
@@ -718,8 +727,28 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Receitas, despesas, saldo e totais por categoria do mês */
+        /**
+         * Receitas, despesas, saldo e totais por categoria do mês
+         * @description Transferências não entram; a tarifa delas entra como despesa.
+         */
         get: operations["obter_resumo_mensal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/resumo-mensal/instituicoes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Receitas, despesas, transferências (BRL) e saldo do mês por instituição */
+        get: operations["obter_resumo_por_instituicao"];
         put?: never;
         post?: never;
         delete?: never;
@@ -903,6 +932,55 @@ export interface paths {
         post?: never;
         /** Exclui uma transação (recusa se algo ficar inválido) */
         delete: operations["excluir_transacao"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transferencias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista transferências (mais recentes primeiro)
+         * @description `instituicao_id` casa com a origem ou com o destino.
+         */
+        get: operations["listar_transferencias"];
+        put?: never;
+        /**
+         * Registra uma transferência entre instituições
+         * @description Origem sem saldo para valor + tarifa: 422 `saldo_insuficiente`.
+         */
+        post: operations["criar_transferencia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transferencias/{transferencia_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detalha uma transferência */
+        get: operations["obter_transferencia"];
+        /**
+         * Altera uma transferência (movimentos e tarifa são refeitos)
+         * @description Se algum caixa ficaria negativo: 422 `saldo_insuficiente`.
+         */
+        put: operations["editar_transferencia"];
+        post?: never;
+        /**
+         * Exclui uma transferência (com os movimentos e a tarifa)
+         * @description Se o destino (ou outro caixa) ficaria negativo: 422 `saldo_insuficiente`.
+         */
+        delete: operations["excluir_transferencia"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1382,6 +1460,11 @@ export interface components {
         };
         /** LancamentoEntrada */
         LancamentoEntrada: {
+            /**
+             * Aceitar Ajuste
+             * @default false
+             */
+            aceitar_ajuste: boolean;
             /** Categoria Id */
             categoria_id?: number | null;
             /**
@@ -1391,6 +1474,8 @@ export interface components {
             data: string;
             /** Descricao */
             descricao: string;
+            /** Instituicao Id */
+            instituicao_id: number;
             /** Observacao */
             observacao?: string | null;
             tipo: components["schemas"]["TipoLancamento"];
@@ -1400,12 +1485,20 @@ export interface components {
              */
             valor: string;
         };
-        /** LancamentoSaida */
+        /**
+         * LancamentoSaida
+         * @description Linha de Receitas e Despesas: lançamento, tarifa ou ponta de transferência.
+         *
+         *     ``chave`` é única na listagem. Linhas de transferência não têm ``lancamento_id`` e,
+         *     como as tarifas, vêm com ``editavel = false`` (edite em Movimentações → Caixa).
+         */
         LancamentoSaida: {
             /** Categoria Id */
             categoria_id: number | null;
             /** Categoria Nome */
             categoria_nome: string | null;
+            /** Chave */
+            chave: string;
             /**
              * Criado Em
              * Format: date-time
@@ -1418,11 +1511,24 @@ export interface components {
             data: string;
             /** Descricao */
             descricao: string;
-            /** Id */
-            id: number;
+            /** Editavel */
+            editavel: boolean;
+            /** Instituicao Id */
+            instituicao_id: number;
+            /** Instituicao Nome */
+            instituicao_nome: string;
+            /** Lancamento Id */
+            lancamento_id: number | null;
             /** Observacao */
             observacao: string | null;
+            /**
+             * Tag
+             * @enum {string}
+             */
+            tag: "lancamento" | "tarifa" | "transferencia_saida" | "transferencia_entrada";
             tipo: components["schemas"]["TipoLancamento"];
+            /** Transferencia Id */
+            transferencia_id: number | null;
             /**
              * Valor
              * @example 10.50
@@ -1588,10 +1694,15 @@ export interface components {
              */
             valor: string;
         };
-        /** MovimentoSaida */
+        /**
+         * MovimentoSaida
+         * @description Movimento do extrato. ``contraparte`` é a outra instituição de uma transferência.
+         */
         MovimentoSaida: {
             /** Conta Id */
             conta_id: number;
+            /** Contraparte */
+            contraparte: string | null;
             /**
              * Criado Em
              * Format: date-time
@@ -1606,9 +1717,13 @@ export interface components {
             descricao: string | null;
             /** Id */
             id: number;
+            /** Lancamento Id */
+            lancamento_id: number | null;
             tipo: components["schemas"]["TipoMovimento"];
             /** Transacao Id */
             transacao_id: number | null;
+            /** Transferencia Id */
+            transferencia_id: number | null;
             /**
              * Valor
              * @example 10.50
@@ -1655,6 +1770,17 @@ export interface components {
             deslocamento: number;
             /** Itens */
             itens: components["schemas"]["TransacaoSaida"][];
+            /** Limite */
+            limite: number;
+            /** Total */
+            total: number;
+        };
+        /** Pagina[TransferenciaSaida] */
+        Pagina_TransferenciaSaida_: {
+            /** Deslocamento */
+            deslocamento: number;
+            /** Itens */
+            itens: components["schemas"]["TransferenciaSaida"][];
             /** Limite */
             limite: number;
             /** Total */
@@ -1872,6 +1998,38 @@ export interface components {
              */
             patrimonio_brl: string;
         };
+        /** ResumoInstituicaoSaida */
+        ResumoInstituicaoSaida: {
+            /**
+             * Despesas
+             * @example 10.50
+             */
+            despesas: string;
+            /**
+             * Entrou
+             * @example 10.50
+             */
+            entrou: string;
+            /** Instituicao Id */
+            instituicao_id: number;
+            /** Instituicao Nome */
+            instituicao_nome: string;
+            /**
+             * Receitas
+             * @example 10.50
+             */
+            receitas: string;
+            /**
+             * Saiu
+             * @example 10.50
+             */
+            saiu: string;
+            /**
+             * Saldo
+             * @example 10.50
+             */
+            saldo: string;
+        };
         /** ResumoMensalSaida */
         ResumoMensalSaida: {
             /** Ano */
@@ -2048,11 +2206,15 @@ export interface components {
          *     - ``debito_compra``: compra ou aporte (automático, ligado à transação).
          *     - ``credito_venda``: venda ou resgate (automático, ligado à transação).
          *     - ``credito_provento``: provento líquido (automático, ligado à transação).
-         *     - ``ajuste_saldo``: depósito não informado, criado quando uma compra/aporte
-         *       excede o saldo e o usuário opta por não atualizar os valores.
+         *     - ``credito_receita``/``debito_despesa``: receita ou despesa de Receitas e Despesas
+         *       (automático, ligado ao lançamento; sempre na conta em BRL).
+         *     - ``transferencia_saida``/``transferencia_entrada``: as duas pontas de uma
+         *       transferência entre instituições (automático, ligado à transferência).
+         *     - ``ajuste_saldo``: depósito não informado, criado quando uma compra/aporte ou uma
+         *       despesa excede o saldo e o usuário opta por não atualizar os valores.
          * @enum {string}
          */
-        TipoMovimento: "deposito" | "saque" | "debito_compra" | "credito_venda" | "credito_provento" | "ajuste_saldo";
+        TipoMovimento: "deposito" | "saque" | "debito_compra" | "credito_venda" | "credito_provento" | "ajuste_saldo" | "credito_receita" | "debito_despesa" | "transferencia_saida" | "transferencia_entrada";
         /**
          * TipoTransacao
          * @enum {string}
@@ -2226,6 +2388,79 @@ export interface components {
              * @example 10.50
              */
             valor_total_brl: string;
+        };
+        /** TransferenciaEntrada */
+        TransferenciaEntrada: {
+            /** Categoria Tarifa Id */
+            categoria_tarifa_id?: number | null;
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /** Descricao */
+            descricao?: string | null;
+            /** Destino Id */
+            destino_id: number;
+            /**
+             * Moeda
+             * @default BRL
+             */
+            moeda: string;
+            /** Origem Id */
+            origem_id: number;
+            /**
+             * Tarifa
+             * @default 0
+             * @example 10.50
+             */
+            tarifa: string;
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
+        };
+        /** TransferenciaSaida */
+        TransferenciaSaida: {
+            /** Categoria Tarifa Id */
+            categoria_tarifa_id: number | null;
+            /**
+             * Criado Em
+             * Format: date-time
+             */
+            criado_em: string;
+            /**
+             * Data
+             * Format: date
+             */
+            data: string;
+            /** Descricao */
+            descricao: string | null;
+            /** Destino Id */
+            destino_id: number;
+            /** Destino Nome */
+            destino_nome: string;
+            /** Id */
+            id: number;
+            /** Moeda */
+            moeda: string;
+            /** Origem Id */
+            origem_id: number;
+            /** Origem Nome */
+            origem_nome: string;
+            /**
+             * Tarifa
+             * @example 10.50
+             */
+            tarifa: string;
+            /** Tarifa Lancamento Id */
+            tarifa_lancamento_id: number | null;
+            /**
+             * Valor
+             * @example 10.50
+             */
+            valor: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -4027,6 +4262,7 @@ export interface operations {
             query?: {
                 tipo?: components["schemas"]["TipoLancamento"] | null;
                 categoria_id?: number | null;
+                instituicao_id?: number | null;
                 inicio?: string | null;
                 fim?: string | null;
                 /** @description Itens por página (máximo 500). */
@@ -4102,6 +4338,15 @@ export interface operations {
             };
             /** @description Registro não encontrado. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Conflito com os dados atuais. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4211,6 +4456,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErroApi"];
                 };
             };
+            /** @description Conflito com os dados atuais. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
             /** @description Dados inválidos ou regra de negócio violada. */
             422: {
                 headers: {
@@ -4258,13 +4512,13 @@ export interface operations {
                     "application/json": components["schemas"]["ErroApi"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Dados inválidos ou regra de negócio violada. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErroApi"];
                 };
             };
         };
@@ -5020,6 +5274,7 @@ export interface operations {
             query: {
                 ano: number;
                 mes: number;
+                instituicao_id?: number | null;
             };
             header?: never;
             path?: never;
@@ -5034,6 +5289,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResumoMensalSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_resumo_por_instituicao: {
+        parameters: {
+            query: {
+                ano: number;
+                mes: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumoInstituicaoSaida"][];
                 };
             };
             /** @description Token de sessão ausente ou inválido. */
@@ -5601,6 +5897,252 @@ export interface operations {
             header?: never;
             path: {
                 transacao_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    listar_transferencias: {
+        parameters: {
+            query?: {
+                instituicao_id?: number | null;
+                inicio?: string | null;
+                fim?: string | null;
+                /** @description Itens por página (máximo 500). */
+                limite?: number;
+                /** @description Quantos itens pular (paginação). */
+                deslocamento?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pagina_TransferenciaSaida_"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    criar_transferencia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferenciaEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferenciaSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_transferencia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transferencia_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferenciaSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    editar_transferencia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transferencia_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferenciaEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferenciaSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Registro não encontrado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    excluir_transferencia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transferencia_id: number;
             };
             cookie?: never;
         };

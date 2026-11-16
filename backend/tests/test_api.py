@@ -480,6 +480,7 @@ def test_portfolio_geral_e_por_instituicao(api: TestClient) -> None:
 
 
 def test_categorias_lancamentos_e_resumo_mensal(api: TestClient) -> None:
+    banco = criar(api, "/api/instituicoes", {"nome": "Nubank", "tipo": "banco"})
     salario = criar(api, "/api/categorias", {"nome": "Salário", "tipo": "receita"})
     mercado = criar(api, "/api/categorias", {"nome": "Mercado", "tipo": "despesa"})
     assert (
@@ -494,6 +495,7 @@ def test_categorias_lancamentos_e_resumo_mensal(api: TestClient) -> None:
             "data": "2026-10-05",
             "descricao": "Salário",
             "valor": "5000",
+            "instituicao_id": banco["id"],
             "categoria_id": salario["id"],
         },
     )
@@ -505,6 +507,7 @@ def test_categorias_lancamentos_e_resumo_mensal(api: TestClient) -> None:
             "data": "2026-10-10",
             "descricao": "Compras",
             "valor": "750.40",
+            "instituicao_id": banco["id"],
             "categoria_id": mercado["id"],
         },
     )
@@ -515,17 +518,19 @@ def test_categorias_lancamentos_e_resumo_mensal(api: TestClient) -> None:
             "data": "2026-10-10",
             "descricao": "X",
             "valor": "1",
+            "instituicao_id": banco["id"],
             "categoria_id": salario["id"],
         },
     )
     assert errada.status_code == 422
     editado = api.put(
-        f"/api/lancamentos/{compra['id']}",
+        f"/api/lancamentos/{compra['lancamento_id']}",
         json={
             "tipo": "despesa",
             "data": "2026-10-11",
             "descricao": "Feira",
             "valor": "1000",
+            "instituicao_id": banco["id"],
             "categoria_id": mercado["id"],
         },
     )
@@ -547,7 +552,7 @@ def test_categorias_lancamentos_e_resumo_mensal(api: TestClient) -> None:
     pagina = api.get("/api/lancamentos", params={"tipo": "despesa"}).json()
     assert pagina["total"] == 1
     assert api.delete(f"/api/categorias/{mercado['id']}").status_code == 422
-    assert api.delete(f"/api/lancamentos/{compra['id']}").status_code == 204
+    assert api.delete(f"/api/lancamentos/{compra['lancamento_id']}").status_code == 204
     assert api.delete(f"/api/categorias/{mercado['id']}").status_code == 204
     assert [c["nome"] for c in api.get("/api/categorias", params={"tipo": "receita"}).json()] == [
         "Salário"

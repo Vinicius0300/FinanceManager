@@ -15,6 +15,7 @@ from app.api import (
     precos,
     simbolos,
     transacoes,
+    transferencias,
 )
 
 ROTEADORES: tuple[APIRouter, ...] = (
@@ -27,6 +28,7 @@ ROTEADORES: tuple[APIRouter, ...] = (
     indicadores.router,
     portfolio.router,
     financeiro.router,
+    transferencias.router,
     configuracoes.router,
     backup.router,
     eventos.router,

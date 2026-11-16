@@ -274,7 +274,7 @@ def test_editar_e_excluir_instituicao(sessao: Session) -> None:
         is TipoInstituicao.BANCO
     )
     deposito(sessao, rico, "100", date(2026, 1, 2))
-    with pytest.raises(OperacaoNaoPermitidaError, match="depósitos ou saques"):
+    with pytest.raises(OperacaoNaoPermitidaError, match="depósitos, saques ou ajustes"):
         excluir_instituicao(sessao, rico.id)
     ativo = acao_br(sessao)
     compra(sessao, ativo, xp, date(2026, 1, 5), "1", "10")  # com ajuste de saldo

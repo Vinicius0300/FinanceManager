@@ -151,6 +151,12 @@ def test_categorias_e_lancamentos(sessao: Session) -> None:
     assert categorias.por_nome("SALÁRIO", TipoLancamento.RECEITA) is salario  # com acento
     assert categorias.listar() == [mercado, salario]  # ordem do tipo: despesa, receita
 
+    nubank = RepositorioInstituicoes(sessao).adicionar(
+        m.Instituicao(nome="Nubank", tipo=TipoInstituicao.BANCO)
+    )
+    itau = RepositorioInstituicoes(sessao).adicionar(
+        m.Instituicao(nome="Itaú", tipo=TipoInstituicao.BANCO)
+    )
     lancamentos = RepositorioLancamentos(sessao)
     for dia in (date(2025, 1, 31), date(2025, 2, 1), date(2025, 2, 28), date(2025, 3, 1)):
         lancamentos.adicionar(
@@ -159,12 +165,25 @@ def test_categorias_e_lancamentos(sessao: Session) -> None:
                 data=dia,
                 descricao="x",
                 valor=D(1),
+                instituicao_id=nubank.id,
                 categoria_id=mercado.id,
             )
         )
     assert [x.data for x in lancamentos.do_mes(2025, 2)] == [date(2025, 2, 1), date(2025, 2, 28)]
+    assert lancamentos.do_mes(2025, 2, itau.id) == []
+    assert len(lancamentos.do_mes(2025, 2, nubank.id)) == 2
     assert lancamentos.existe_na_categoria(mercado.id)
     assert not lancamentos.existe_na_categoria(salario.id)
+    assert lancamentos.existe_da_instituicao(nubank.id)
+    assert not lancamentos.existe_da_instituicao(itau.id)
+    filtrados = lancamentos.filtrados(
+        tipo=TipoLancamento.DESPESA,
+        categoria_id=None,
+        instituicao_id=nubank.id,
+        inicio=date(2025, 2, 1),
+        fim=date(2025, 2, 28),
+    )
+    assert [x.data for x in filtrados] == [date(2025, 2, 28), date(2025, 2, 1)]  # recente antes
 
 
 def test_configuracoes(sessao: Session) -> None:

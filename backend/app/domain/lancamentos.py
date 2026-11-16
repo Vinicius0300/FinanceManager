@@ -1,6 +1,9 @@
-"""Receitas e despesas: resumo mensal e totais por categoria.
+"""Receitas e despesas: resumo mensal, totais por categoria e resumo por instituição.
 
 Proventos de investimentos **não** entram aqui (ficam na conta corrente da instituição).
+Transferências entre instituições (só em BRL) aparecem apenas no resumo por instituição,
+em colunas próprias; não entram nos totais nem nas categorias. A tarifa de uma
+transferência é uma despesa comum.
 """
 
 from collections import defaultdict
@@ -23,9 +26,34 @@ class Lancamento:
     valor: Decimal
     categoria_id: int | None = None
     categoria_nome: str | None = None
+    instituicao_id: int | None = None
 
     def __post_init__(self) -> None:
         exigir(self.valor > ZERO, "valor", "O valor do lançamento deve ser maior que zero.")
+
+
+@dataclass(frozen=True)
+class TransferenciaMes:
+    """Transferência em BRL (só o valor; a tarifa já é um lançamento de despesa)."""
+
+    data: date
+    origem_id: int
+    destino_id: int
+    valor: Decimal
+
+
+@dataclass(frozen=True)
+class ResumoInstituicao:
+    instituicao_id: int
+    receitas: Decimal
+    despesas: Decimal
+    entrou: Decimal  # transferências recebidas
+    saiu: Decimal  # transferências enviadas
+
+    @property
+    def saldo(self) -> Decimal:
+        """Saldo do mês = receitas − despesas + entrou − saiu (ajustes de saldo não entram)."""
+        return self.receitas - self.despesas + self.entrou - self.saiu
 
 
 @dataclass(frozen=True)
@@ -96,3 +124,39 @@ def totais_por_categoria(
     ]
     ordem_tipo = {TipoLancamento.RECEITA: 0, TipoLancamento.DESPESA: 1}
     return sorted(resultado, key=lambda t: (ordem_tipo[t.tipo], -t.total, t.categoria_nome))
+
+
+def resumo_por_instituicao(
+    lancamentos: Iterable[Lancamento],
+    transferencias: Iterable[TransferenciaMes],
+    ano: int,
+    mes: int,
+) -> list[ResumoInstituicao]:
+    """Receitas, despesas e transferências do mês por instituição (ordem: id).
+
+    Ex.: Nubank com salário de 5.000, aluguel de 2.000, tarifa de 10 e transferência de
+    1.000 para o Itaú → 5.000 − 2.010 + 0 − 1.000 = 1.990.
+    """
+    do_mes = _do_mes(lancamentos, ano, mes)
+    vazio = (ZERO, ZERO, ZERO, ZERO)
+    totais: dict[int, tuple[Decimal, Decimal, Decimal, Decimal]] = defaultdict(lambda: vazio)
+    for lanc in do_mes:
+        if lanc.instituicao_id is None:
+            continue
+        receitas, despesas, entrou, saiu = totais[lanc.instituicao_id]
+        if lanc.tipo is TipoLancamento.RECEITA:
+            receitas += lanc.valor
+        else:
+            despesas += lanc.valor
+        totais[lanc.instituicao_id] = (receitas, despesas, entrou, saiu)
+    for transf in transferencias:
+        if transf.data.year != ano or transf.data.month != mes:
+            continue
+        r, d, e, s = totais[transf.origem_id]
+        totais[transf.origem_id] = (r, d, e, s + transf.valor)
+        r, d, e, s = totais[transf.destino_id]
+        totais[transf.destino_id] = (r, d, e + transf.valor, s)
+    return [
+        ResumoInstituicao(instituicao_id, *valores)
+        for instituicao_id, valores in sorted(totais.items())
+    ]

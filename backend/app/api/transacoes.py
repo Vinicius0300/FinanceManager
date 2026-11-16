@@ -36,6 +36,7 @@ from app.repositories import modelos as m
 from app.services import exportacao, historico
 from app.services import transacoes as servico
 from app.services.cadastros import obter_instituicao
+from app.services.caixa import AvisoSaldoInsuficiente
 
 router = APIRouter(prefix="/api", tags=["transações"], dependencies=PROTEGIDO)
 
@@ -265,25 +266,31 @@ def _nova(dados: TransacaoEntrada) -> servico.NovaTransacao:
     )
 
 
+def erro_saldo_insuficiente(
+    sessao: SessaoDep, aviso: AvisoSaldoInsuficiente
+) -> SaldoInsuficienteApiError:
+    """409 com os detalhes do ajuste (usado também por Receitas e Despesas)."""
+    instituicao = obter_instituicao(sessao, aviso.instituicao_id)
+    falta = arredondar_moeda(aviso.valor_faltante)
+    return SaldoInsuficienteApiError(
+        f"Saldo insuficiente em {instituicao.nome} ({aviso.moeda}) em "
+        f"{formatar_data(aviso.data)}: faltam {formatar_dinheiro(falta)} {aviso.moeda}. "
+        "Confirme para registrar mesmo assim com um ajuste de saldo "
+        "(depósito não informado).",
+        [
+            DetalheCampo("instituicao_id", str(aviso.instituicao_id)),
+            DetalheCampo("instituicao", instituicao.nome),
+            DetalheCampo("moeda", aviso.moeda),
+            DetalheCampo("data", aviso.data.isoformat()),
+            DetalheCampo("valor_faltante", texto_decimal(falta)),
+        ],
+    )
+
+
 def resposta_transacao(sessao: SessaoDep, resultado: servico.ResultadoTransacao) -> TransacaoSaida:
     """Serializa o resultado; aviso de saldo insuficiente vira 409 (a sessão é desfeita)."""
     if resultado.aviso is not None:
-        aviso = resultado.aviso
-        instituicao = obter_instituicao(sessao, aviso.instituicao_id)
-        falta = arredondar_moeda(aviso.valor_faltante)
-        raise SaldoInsuficienteApiError(
-            f"Saldo insuficiente em {instituicao.nome} ({aviso.moeda}) em "
-            f"{formatar_data(aviso.data)}: faltam {formatar_dinheiro(falta)} {aviso.moeda}. "
-            "Confirme para registrar mesmo assim com um ajuste de saldo "
-            "(depósito não informado).",
-            [
-                DetalheCampo("instituicao_id", str(aviso.instituicao_id)),
-                DetalheCampo("instituicao", instituicao.nome),
-                DetalheCampo("moeda", aviso.moeda),
-                DetalheCampo("data", aviso.data.isoformat()),
-                DetalheCampo("valor_faltante", texto_decimal(falta)),
-            ],
-        )
+        raise erro_saldo_insuficiente(sessao, resultado.aviso)
     if resultado.transacao is None:  # pragma: no cover - sem aviso, sempre há transação
         raise AplicacaoError(500, "erro_interno", "Transação não gravada.")
     return _transacao_unica(sessao, resultado.transacao)

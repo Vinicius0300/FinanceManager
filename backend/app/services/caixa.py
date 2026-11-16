@@ -1,7 +1,9 @@
 """Casos de uso da conta corrente de cada instituição (caixa).
 
-Depósito e saque são manuais; os movimentos de compra/venda/provento são criados por
-``services/transacoes.py``. O saldo nunca fica negativo (ver ``domain/conta_corrente.py``).
+Depósito e saque são manuais; os movimentos automáticos são criados por
+``services/transacoes.py`` (compra/venda/provento), ``services/financeiro.py`` (receitas e
+despesas) e ``services/transferencias.py``. O saldo nunca fica negativo, em nenhum dia
+(ver ``domain/conta_corrente.py``).
 """
 
 from collections.abc import Iterable, Sequence
@@ -11,8 +13,19 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.domain.conta_corrente import LancamentoCaixa, deficit, saldo_em, valor_com_sinal
-from app.domain.enums import MOVIMENTOS_MANUAIS, TipoMovimento
+from app.domain.conta_corrente import (
+    LancamentoCaixa,
+    deficit,
+    primeiro_dia_negativo,
+    saldo_em,
+    valor_com_sinal,
+)
+from app.domain.enums import (
+    MOVIMENTOS_DE_LANCAMENTO,
+    MOVIMENTOS_DE_TRANSFERENCIA,
+    MOVIMENTOS_MANUAIS,
+    TipoMovimento,
+)
 from app.domain.erros import (
     NaoEncontradoError,
     OperacaoNaoPermitidaError,
@@ -20,7 +33,7 @@ from app.domain.erros import (
     exigir,
 )
 from app.domain.moedas import validar_moeda
-from app.domain.numeros import CASAS_MOEDA, ZERO, arredondar_moeda, exigir_casas, formatar_numero
+from app.domain.numeros import CASAS_MOEDA, ZERO, exigir_casas, formatar_dinheiro
 from app.domain.tempo import formatar_data
 from app.domain.textos import texto_opcional
 from app.repositories import modelos as m
@@ -30,6 +43,17 @@ from app.services.cadastros import obter_instituicao
 DESCRICAO_AJUSTE = "Ajuste de saldo (depósito não informado)"
 TAMANHO_DESCRICAO = 300
 TIPOS_EDITAVEIS = MOVIMENTOS_MANUAIS | {TipoMovimento.AJUSTE_SALDO}
+
+
+@dataclass(frozen=True)
+class AvisoSaldoInsuficiente:
+    """Operação que pode ser gravada com um ``ajuste_saldo`` se o usuário confirmar (409)."""
+
+    mensagem: str
+    instituicao_id: int
+    moeda: str
+    data: date
+    valor_faltante: Decimal  # valor do ajuste que será criado se o usuário continuar
 
 
 def lancamentos(movimentos: Iterable[m.MovimentoConta]) -> list[LancamentoCaixa]:
@@ -69,15 +93,20 @@ def _nome_conta(conta: m.ContaCorrente) -> str:
     return f"{conta.instituicao.nome} ({conta.moeda})"
 
 
-def _exigir_sem_deficit(
+def exigir_sem_deficit(
     conta: m.ContaCorrente, movimentos: list[LancamentoCaixa], a_partir_de: date, acao: str
 ) -> None:
+    """Recusa citando a conta, o primeiro dia negativo e quanto falta no pior dia.
+
+    Ex.: "Excluir esta receita deixaria a conta Nubank (BRL) negativa a partir de
+    10/11/2026: faltam 2.000,00 BRL."
+    """
     falta = deficit(movimentos, a_partir_de)
     if falta > ZERO:
+        dia = primeiro_dia_negativo(movimentos, a_partir_de) or a_partir_de
         raise SaldoInsuficienteError(
-            f"{acao} deixaria a conta {_nome_conta(conta)} negativa em "
-            f"R$ {formatar_numero(arredondar_moeda(falta))} a partir de "
-            f"{formatar_data(a_partir_de)}."
+            f"{acao} deixaria a conta {_nome_conta(conta)} negativa a partir de "
+            f"{formatar_data(dia)}: faltam {formatar_dinheiro(falta)} {conta.moeda}."
         )
 
 
@@ -102,7 +131,7 @@ def registrar_movimento_manual(sessao: Session, dados: NovoMovimentoManual) -> m
     if dados.tipo is TipoMovimento.SAQUE:
         existentes = lancamentos(movimentos_da_conta(sessao, conta.id))
         novo = LancamentoCaixa(dados.data, -dados.valor)
-        _exigir_sem_deficit(conta, [*existentes, novo], dados.data, "Este saque")
+        exigir_sem_deficit(conta, [*existentes, novo], dados.data, "Este saque")
     return RepositorioMovimentos(sessao).adicionar(
         m.MovimentoConta(
             conta_id=conta.id,
@@ -118,6 +147,14 @@ def _obter_editavel(sessao: Session, movimento_id: int) -> m.MovimentoConta:
     movimento = RepositorioMovimentos(sessao).obter(movimento_id)
     if movimento is None:
         raise NaoEncontradoError(f"Movimento {movimento_id} não encontrado.")
+    if movimento.tipo in MOVIMENTOS_DE_LANCAMENTO:
+        raise OperacaoNaoPermitidaError(
+            "Este movimento foi gerado em Receitas e Despesas: altere ou exclua o lançamento lá."
+        )
+    if movimento.tipo in MOVIMENTOS_DE_TRANSFERENCIA:
+        raise OperacaoNaoPermitidaError(
+            "Este movimento faz parte de uma transferência: altere ou exclua a transferência."
+        )
     if movimento.tipo not in TIPOS_EDITAVEIS:
         raise OperacaoNaoPermitidaError(
             "Este movimento foi gerado por uma transação: altere ou exclua a transação."
@@ -135,7 +172,7 @@ def alterar_valor_movimento(sessao: Session, movimento_id: int, valor: Decimal) 
         *lancamentos(outros),
         LancamentoCaixa(movimento.data, valor_com_sinal(movimento.tipo, valor)),
     ]
-    _exigir_sem_deficit(movimento.conta, simulado, movimento.data, "Este novo valor")
+    exigir_sem_deficit(movimento.conta, simulado, movimento.data, "Este novo valor")
     movimento.valor = valor
     sessao.flush()
     return movimento
@@ -145,7 +182,7 @@ def excluir_movimento(sessao: Session, movimento_id: int) -> None:
     """Exclui depósito, saque ou ajuste de saldo, desde que o saldo continue ≥ 0."""
     movimento = _obter_editavel(sessao, movimento_id)
     outros = [x for x in movimentos_da_conta(sessao, movimento.conta_id) if x.id != movimento.id]
-    _exigir_sem_deficit(
+    exigir_sem_deficit(
         movimento.conta, lancamentos(outros), movimento.data, "Excluir este movimento"
     )
     RepositorioMovimentos(sessao).remover(movimento)

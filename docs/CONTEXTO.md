@@ -34,6 +34,7 @@ Telas: Dashboard, Carteira, Movimentações, Receitas e Despesas, Glossário, Co
 | 5B | Bloco 2 do code review; empacotamento (PyInstaller + NSIS), script único de build, versão 1.0.0 | Bloco 2 **validado**; empacotamento **entregue (aguardando validação)** |
 | 6 | Análises e Proventos: tela Proventos, "Proventos 12 meses", evolução empilhada e modo "%", rentabilidade vs. CDI, comparações em Receitas e Despesas, taxa de poupança, treemap da carteira | A fazer |
 | 7 | Glossário: grafo de termos (estilo Obsidian), conteúdo fixo em Markdown, busca, filtro, verbetes com exemplo. Só frontend | **Validada** (61 termos) |
+| 8 | Receitas e Despesas por instituição (movimentam o caixa), transferências entre instituições com tarifa, filtro e resumo por instituição | **Entregue (aguardando validação)** |
 
 **Versão atual:** 1.0.0 (fonte única: `"version"` do `package.json` da raiz).
 
@@ -157,6 +158,16 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 - `scripts/3_gerar_instalador.bat` roda versão, testes, lints, contrato, Rust, PyInstaller, smoke test e `tauri build`, parando no primeiro erro.
 - Distribuição: o `.exe` gerado e testado localmente é anexado à mão a uma Release do GitHub (tag `vX.Y.Z`); o README aponta para `releases/latest`. Sem build no CI (lançamentos esporádicos). Roteiro no `README.md`.
 
+**Receitas, despesas e transferências** (Parte 8)
+- Todo lançamento tem **instituição obrigatória** e movimenta o caixa **BRL** dela (`credito_receita` / `debito_despesa`, ligados por `lancamento_id`). Instituição com lançamentos ou transferências não pode ser excluída.
+- Caixa **nunca negativo em nenhum dia** (checagem no fim de cada dia, para todos os movimentos). A verificação "só no fim do mês" foi descartada. Orientação ao usuário: lançar primeiro as receitas.
+- Despesa nova, aumentada, antecipada ou levada para outra instituição sem saldo: **409** `saldo_insuficiente` e, se aceita, `ajuste_saldo` **ligado à despesa** (refeito na edição, excluído com ela). Excluir ou reduzir receita (ou outra saída sem ajuste possível): **422** `saldo_insuficiente`, só mensagem.
+- Recusa 422 de saldo cita a conta, o **primeiro dia negativo** e quanto falta no pior dia ("negativa a partir de 10/11/2026: faltam 2.010,00 BRL").
+- **Transferência** (`transferencias`, aba Caixa): mesma moeda nas duas pontas; movimentos gravam só o valor; origem precisa cobrir valor + tarifa (senão 422, sem ajuste); excluir/editar que deixaria o destino negativo é recusado. Tarifa só em BRL, vira despesa da origem ligada à transferência (só leitura em Receitas e Despesas).
+- Em Receitas e Despesas, transferências em BRL aparecem com tag (duas linhas, só leitura) e ficam **fora** dos cartões e da rosca (ponto B1); a tarifa entra como despesa. Transferências em USD só no extrato do Caixa.
+- Filtro por instituição na listagem, no resumo e nos totais; resumo por instituição do mês: receitas − despesas + entrou − saiu (o ajuste de saldo não entra).
+- Receitas aumentam o patrimônio (caixa). A rentabilidade da Parte 6 terá de tratar receitas e despesas como **fluxo externo**, não como ganho ou perda dos investimentos.
+
 **Glossário** (Parte 7)
 - Conteúdo fixo e só leitura: um `.md` por termo em `features/glossario/conteudo/`, sem backend nem contrato. Termo novo pela skill `novo-termo-glossario`.
 - Modelo do verbete com quatro seções fixas; ligações pelos links `[[slug]]`; validação do conteúdo é teste.
@@ -173,7 +184,8 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 - Feriados americanos não entram na agenda (só geram coletas extras sem efeito).
 - Download em andamento pode segurar o encerramento; o Tauri força após 3 s.
 - Glossário: revisar os verbetes de impostos (e `revisado_em`) quando a lei mudar.
+- Parte 8: o ajuste de saldo ligado a uma despesa continua editável no extrato (como o ajuste de transação); editar a despesa o refaz.
 - Parte 6: blocos que exigem cálculo novo (inclui sparklines de Variação do dia, Rentabilidade e Saldo do mês).
 
 ## 8. Evolução futura (fora da 1.0.0)
-Módulo de IA em `analytics/` como extra opcional fora do executável; auto-update pelo plugin updater do Tauri (exige assinar as atualizações; publicaria nas Releases do GitHub); build do instalador no GitHub Actions, se os lançamentos ficarem frequentes; assinatura de código; no glossário, ícones "ⓘ" nas telas e bloco "Na sua carteira".
+Módulo de IA em `analytics/` como extra opcional fora do executável; auto-update pelo plugin updater do Tauri (exige assinar as atualizações; publicaria nas Releases do GitHub); build do instalador no GitHub Actions, se os lançamentos ficarem frequentes; assinatura de código; no glossário, ícones "ⓘ" nas telas e bloco "Na sua carteira"; transferência entre moedas (câmbio, IOF), cartão de crédito como conta com fatura e parcelamento, lançamentos recorrentes, importação de extrato (OFX/CSV) e conciliação, receitas e despesas em outra moeda, saldo negativo, dívidas e empréstimos.

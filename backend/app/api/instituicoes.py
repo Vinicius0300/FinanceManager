@@ -55,9 +55,14 @@ class AlteracaoValor(Modelo):
 
 
 class MovimentoSaida(Modelo):
+    """Movimento do extrato. ``contraparte`` é a outra instituição de uma transferência."""
+
     id: int
     conta_id: int
     transacao_id: int | None
+    lancamento_id: int | None
+    transferencia_id: int | None
+    contraparte: str | None
     tipo: TipoMovimento
     data: date
     valor: Numero
@@ -80,11 +85,23 @@ def _instituicao(instituicao: m.Instituicao) -> InstituicaoSaida:
     )
 
 
+def _contraparte(movimento: m.MovimentoConta) -> str | None:
+    transferencia = movimento.transferencia
+    if transferencia is None:
+        return None
+    if movimento.tipo is TipoMovimento.TRANSFERENCIA_SAIDA:
+        return transferencia.destino.nome
+    return transferencia.origem.nome
+
+
 def _movimento(movimento: m.MovimentoConta) -> MovimentoSaida:
     return MovimentoSaida(
         id=movimento.id,
         conta_id=movimento.conta_id,
         transacao_id=movimento.transacao_id,
+        lancamento_id=movimento.lancamento_id,
+        transferencia_id=movimento.transferencia_id,
+        contraparte=_contraparte(movimento),
         tipo=movimento.tipo,
         data=movimento.data,
         valor=movimento.valor,

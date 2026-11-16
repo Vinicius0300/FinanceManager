@@ -1334,6 +1334,11 @@
       "LancamentoEntrada": {
         "additionalProperties": false,
         "properties": {
+          "aceitar_ajuste": {
+            "default": false,
+            "title": "Aceitar Ajuste",
+            "type": "boolean"
+          },
           "categoria_id": {
             "anyOf": [
               {
@@ -1354,79 +1359,8 @@
             "title": "Descricao",
             "type": "string"
           },
-          "observacao": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Observacao"
-          },
-          "tipo": {
-            "$ref": "#/components/schemas/TipoLancamento"
-          },
-          "valor": {
-            "examples": [
-              "10.50"
-            ],
-            "pattern": "^-?\\d+(\\.\\d+)?$",
-            "title": "Valor",
-            "type": "string"
-          }
-        },
-        "required": [
-          "tipo",
-          "data",
-          "descricao",
-          "valor"
-        ],
-        "title": "LancamentoEntrada",
-        "type": "object"
-      },
-      "LancamentoSaida": {
-        "additionalProperties": false,
-        "properties": {
-          "categoria_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Categoria Id"
-          },
-          "categoria_nome": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Categoria Nome"
-          },
-          "criado_em": {
-            "format": "date-time",
-            "title": "Criado Em",
-            "type": "string"
-          },
-          "data": {
-            "format": "date",
-            "title": "Data",
-            "type": "string"
-          },
-          "descricao": {
-            "title": "Descricao",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
+          "instituicao_id": {
+            "title": "Instituicao Id",
             "type": "integer"
           },
           "observacao": {
@@ -1453,15 +1387,142 @@
           }
         },
         "required": [
-          "id",
           "tipo",
           "data",
           "descricao",
           "valor",
+          "instituicao_id"
+        ],
+        "title": "LancamentoEntrada",
+        "type": "object"
+      },
+      "LancamentoSaida": {
+        "additionalProperties": false,
+        "description": "Linha de Receitas e Despesas: lançamento, tarifa ou ponta de transferência.\n\n``chave`` é única na listagem. Linhas de transferência não têm ``lancamento_id`` e,\ncomo as tarifas, vêm com ``editavel = false`` (edite em Movimentações → Caixa).",
+        "properties": {
+          "categoria_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria Id"
+          },
+          "categoria_nome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria Nome"
+          },
+          "chave": {
+            "title": "Chave",
+            "type": "string"
+          },
+          "criado_em": {
+            "format": "date-time",
+            "title": "Criado Em",
+            "type": "string"
+          },
+          "data": {
+            "format": "date",
+            "title": "Data",
+            "type": "string"
+          },
+          "descricao": {
+            "title": "Descricao",
+            "type": "string"
+          },
+          "editavel": {
+            "title": "Editavel",
+            "type": "boolean"
+          },
+          "instituicao_id": {
+            "title": "Instituicao Id",
+            "type": "integer"
+          },
+          "instituicao_nome": {
+            "title": "Instituicao Nome",
+            "type": "string"
+          },
+          "lancamento_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lancamento Id"
+          },
+          "observacao": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observacao"
+          },
+          "tag": {
+            "enum": [
+              "lancamento",
+              "tarifa",
+              "transferencia_saida",
+              "transferencia_entrada"
+            ],
+            "title": "Tag",
+            "type": "string"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoLancamento"
+          },
+          "transferencia_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transferencia Id"
+          },
+          "valor": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Valor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chave",
+          "tag",
+          "lancamento_id",
+          "transferencia_id",
+          "tipo",
+          "data",
+          "descricao",
+          "valor",
+          "instituicao_id",
+          "instituicao_nome",
           "categoria_id",
           "categoria_nome",
           "observacao",
-          "criado_em"
+          "criado_em",
+          "editavel"
         ],
         "title": "LancamentoSaida",
         "type": "object"
@@ -1932,10 +1993,22 @@
       },
       "MovimentoSaida": {
         "additionalProperties": false,
+        "description": "Movimento do extrato. ``contraparte`` é a outra instituição de uma transferência.",
         "properties": {
           "conta_id": {
             "title": "Conta Id",
             "type": "integer"
+          },
+          "contraparte": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contraparte"
           },
           "criado_em": {
             "format": "date-time",
@@ -1962,6 +2035,17 @@
             "title": "Id",
             "type": "integer"
           },
+          "lancamento_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lancamento Id"
+          },
           "tipo": {
             "$ref": "#/components/schemas/TipoMovimento"
           },
@@ -1976,6 +2060,17 @@
             ],
             "title": "Transacao Id"
           },
+          "transferencia_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transferencia Id"
+          },
           "valor": {
             "examples": [
               "10.50"
@@ -1989,6 +2084,9 @@
           "id",
           "conta_id",
           "transacao_id",
+          "lancamento_id",
+          "transferencia_id",
+          "contraparte",
           "tipo",
           "data",
           "valor",
@@ -2117,6 +2215,37 @@
           "deslocamento"
         ],
         "title": "Pagina[TransacaoSaida]",
+        "type": "object"
+      },
+      "Pagina_TransferenciaSaida_": {
+        "properties": {
+          "deslocamento": {
+            "title": "Deslocamento",
+            "type": "integer"
+          },
+          "itens": {
+            "items": {
+              "$ref": "#/components/schemas/TransferenciaSaida"
+            },
+            "title": "Itens",
+            "type": "array"
+          },
+          "limite": {
+            "title": "Limite",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "itens",
+          "total",
+          "limite",
+          "deslocamento"
+        ],
+        "title": "Pagina[TransferenciaSaida]",
         "type": "object"
       },
       "PontoEvolucao": {
@@ -2782,6 +2911,70 @@
         "title": "ResumoInstituicao",
         "type": "object"
       },
+      "ResumoInstituicaoSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "despesas": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Despesas",
+            "type": "string"
+          },
+          "entrou": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Entrou",
+            "type": "string"
+          },
+          "instituicao_id": {
+            "title": "Instituicao Id",
+            "type": "integer"
+          },
+          "instituicao_nome": {
+            "title": "Instituicao Nome",
+            "type": "string"
+          },
+          "receitas": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Receitas",
+            "type": "string"
+          },
+          "saiu": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Saiu",
+            "type": "string"
+          },
+          "saldo": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Saldo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instituicao_id",
+          "instituicao_nome",
+          "receitas",
+          "despesas",
+          "entrou",
+          "saiu",
+          "saldo"
+        ],
+        "title": "ResumoInstituicaoSaida",
+        "type": "object"
+      },
       "ResumoMensalSaida": {
         "additionalProperties": false,
         "properties": {
@@ -3298,14 +3491,18 @@
         "type": "string"
       },
       "TipoMovimento": {
-        "description": "Movimentos da conta corrente de uma instituição.\n\n- ``deposito``/``saque``: manuais.\n- ``debito_compra``: compra ou aporte (automático, ligado à transação).\n- ``credito_venda``: venda ou resgate (automático, ligado à transação).\n- ``credito_provento``: provento líquido (automático, ligado à transação).\n- ``ajuste_saldo``: depósito não informado, criado quando uma compra/aporte\n  excede o saldo e o usuário opta por não atualizar os valores.",
+        "description": "Movimentos da conta corrente de uma instituição.\n\n- ``deposito``/``saque``: manuais.\n- ``debito_compra``: compra ou aporte (automático, ligado à transação).\n- ``credito_venda``: venda ou resgate (automático, ligado à transação).\n- ``credito_provento``: provento líquido (automático, ligado à transação).\n- ``credito_receita``/``debito_despesa``: receita ou despesa de Receitas e Despesas\n  (automático, ligado ao lançamento; sempre na conta em BRL).\n- ``transferencia_saida``/``transferencia_entrada``: as duas pontas de uma\n  transferência entre instituições (automático, ligado à transferência).\n- ``ajuste_saldo``: depósito não informado, criado quando uma compra/aporte ou uma\n  despesa excede o saldo e o usuário opta por não atualizar os valores.",
         "enum": [
           "deposito",
           "saque",
           "debito_compra",
           "credito_venda",
           "credito_provento",
-          "ajuste_saldo"
+          "ajuste_saldo",
+          "credito_receita",
+          "debito_despesa",
+          "transferencia_saida",
+          "transferencia_entrada"
         ],
         "title": "TipoMovimento",
         "type": "string"
@@ -3796,6 +3993,181 @@
           "situacao"
         ],
         "title": "TransacaoSaida",
+        "type": "object"
+      },
+      "TransferenciaEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "categoria_tarifa_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria Tarifa Id"
+          },
+          "data": {
+            "format": "date",
+            "title": "Data",
+            "type": "string"
+          },
+          "descricao": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao"
+          },
+          "destino_id": {
+            "title": "Destino Id",
+            "type": "integer"
+          },
+          "moeda": {
+            "default": "BRL",
+            "title": "Moeda",
+            "type": "string"
+          },
+          "origem_id": {
+            "title": "Origem Id",
+            "type": "integer"
+          },
+          "tarifa": {
+            "default": "0",
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Tarifa",
+            "type": "string"
+          },
+          "valor": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Valor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "origem_id",
+          "destino_id",
+          "valor"
+        ],
+        "title": "TransferenciaEntrada",
+        "type": "object"
+      },
+      "TransferenciaSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "categoria_tarifa_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria Tarifa Id"
+          },
+          "criado_em": {
+            "format": "date-time",
+            "title": "Criado Em",
+            "type": "string"
+          },
+          "data": {
+            "format": "date",
+            "title": "Data",
+            "type": "string"
+          },
+          "descricao": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao"
+          },
+          "destino_id": {
+            "title": "Destino Id",
+            "type": "integer"
+          },
+          "destino_nome": {
+            "title": "Destino Nome",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "moeda": {
+            "title": "Moeda",
+            "type": "string"
+          },
+          "origem_id": {
+            "title": "Origem Id",
+            "type": "integer"
+          },
+          "origem_nome": {
+            "title": "Origem Nome",
+            "type": "string"
+          },
+          "tarifa": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Tarifa",
+            "type": "string"
+          },
+          "tarifa_lancamento_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tarifa Lancamento Id"
+          },
+          "valor": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Valor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "data",
+          "origem_id",
+          "origem_nome",
+          "destino_id",
+          "destino_nome",
+          "moeda",
+          "valor",
+          "tarifa",
+          "categoria_tarifa_id",
+          "tarifa_lancamento_id",
+          "descricao",
+          "criado_em"
+        ],
+        "title": "TransferenciaSaida",
         "type": "object"
       },
       "ValidationError": {
@@ -6608,6 +6980,22 @@
           },
           {
             "in": "query",
+            "name": "instituicao_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Instituicao Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "inicio",
             "required": false,
             "schema": {
@@ -6705,12 +7093,13 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Lista lançamentos com filtros (mais recentes primeiro)",
+        "summary": "Lista lançamentos e transferências em BRL (mais recentes primeiro)",
         "tags": [
           "receitas e despesas"
         ]
       },
       "post": {
+        "description": "Despesa que deixaria o caixa negativo responde 409 `saldo_insuficiente` sem gravar; reenvie com `aceitar_ajuste=true` para gravar com um ajuste de saldo.",
         "operationId": "criar_lancamento",
         "requestBody": {
           "content": {
@@ -6753,6 +7142,16 @@
             },
             "description": "Registro não encontrado."
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Conflito com os dados atuais."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -6769,7 +7168,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Registra uma receita ou despesa",
+        "summary": "Registra uma receita ou despesa (movimenta o caixa da instituição)",
         "tags": [
           "receitas e despesas"
         ]
@@ -6777,6 +7176,7 @@
     },
     "/api/lancamentos/{lancamento_id}": {
       "delete": {
+        "description": "Recusa com 422 `saldo_insuficiente` se o caixa ficar negativo, e com 422 se for a tarifa de uma transferência.",
         "operationId": "excluir_lancamento",
         "parameters": [
           {
@@ -6817,11 +7217,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErroApi"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Dados inválidos ou regra de negócio violada."
           }
         },
         "security": [
@@ -6829,7 +7229,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Exclui um lançamento",
+        "summary": "Exclui um lançamento (e o ajuste de saldo ligado a ele)",
         "tags": [
           "receitas e despesas"
         ]
@@ -6900,6 +7300,7 @@
         ]
       },
       "put": {
+        "description": "Despesa que passa a faltar saldo: 409 (aceite com `aceitar_ajuste=true`). Receita alterada que deixaria o caixa negativo: 422 `saldo_insuficiente`. Tarifas de transferência não podem ser alteradas aqui (422).",
         "operationId": "editar_lancamento",
         "parameters": [
           {
@@ -6952,6 +7353,16 @@
               }
             },
             "description": "Registro não encontrado."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Conflito com os dados atuais."
           },
           "422": {
             "content": {
@@ -8241,6 +8652,7 @@
     },
     "/api/resumo-mensal": {
       "get": {
+        "description": "Transferências não entram; a tarifa delas entra como despesa.",
         "operationId": "obter_resumo_mensal",
         "parameters": [
           {
@@ -8263,6 +8675,22 @@
               "minimum": 1,
               "title": "Mes",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "instituicao_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Instituicao Id"
             }
           }
         ],
@@ -8304,6 +8732,80 @@
           }
         ],
         "summary": "Receitas, despesas, saldo e totais por categoria do mês",
+        "tags": [
+          "receitas e despesas"
+        ]
+      }
+    },
+    "/api/resumo-mensal/instituicoes": {
+      "get": {
+        "operationId": "obter_resumo_por_instituicao",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ano",
+            "required": true,
+            "schema": {
+              "maximum": 9999,
+              "minimum": 1900,
+              "title": "Ano",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mes",
+            "required": true,
+            "schema": {
+              "maximum": 12,
+              "minimum": 1,
+              "title": "Mes",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ResumoInstituicaoSaida"
+                  },
+                  "title": "Response Obter Resumo Por Instituicao",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Dados inválidos ou regra de negócio violada."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Receitas, despesas, transferências (BRL) e saldo do mês por instituição",
         "tags": [
           "receitas e despesas"
         ]
@@ -9681,6 +10183,399 @@
         "summary": "Substitui uma transação e reprocessa a posição",
         "tags": [
           "transações"
+        ]
+      }
+    },
+    "/api/transferencias": {
+      "get": {
+        "description": "`instituicao_id` casa com a origem ou com o destino.",
+        "operationId": "listar_transferencias",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "instituicao_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Instituicao Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "inicio",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Inicio"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fim",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fim"
+            }
+          },
+          {
+            "description": "Itens por página (máximo 500).",
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Itens por página (máximo 500).",
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Quantos itens pular (paginação).",
+            "in": "query",
+            "name": "deslocamento",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Quantos itens pular (paginação).",
+              "minimum": 0,
+              "title": "Deslocamento",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pagina_TransferenciaSaida_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Lista transferências (mais recentes primeiro)",
+        "tags": [
+          "transferências"
+        ]
+      },
+      "post": {
+        "description": "Origem sem saldo para valor + tarifa: 422 `saldo_insuficiente`.",
+        "operationId": "criar_transferencia",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferenciaEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferenciaSaida"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Registro não encontrado."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Dados inválidos ou regra de negócio violada."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Registra uma transferência entre instituições",
+        "tags": [
+          "transferências"
+        ]
+      }
+    },
+    "/api/transferencias/{transferencia_id}": {
+      "delete": {
+        "description": "Se o destino (ou outro caixa) ficaria negativo: 422 `saldo_insuficiente`.",
+        "operationId": "excluir_transferencia",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transferencia_id",
+            "required": true,
+            "schema": {
+              "title": "Transferencia Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Registro não encontrado."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Dados inválidos ou regra de negócio violada."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Exclui uma transferência (com os movimentos e a tarifa)",
+        "tags": [
+          "transferências"
+        ]
+      },
+      "get": {
+        "operationId": "obter_transferencia",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transferencia_id",
+            "required": true,
+            "schema": {
+              "title": "Transferencia Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferenciaSaida"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Registro não encontrado."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Detalha uma transferência",
+        "tags": [
+          "transferências"
+        ]
+      },
+      "put": {
+        "description": "Se algum caixa ficaria negativo: 422 `saldo_insuficiente`.",
+        "operationId": "editar_transferencia",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transferencia_id",
+            "required": true,
+            "schema": {
+              "title": "Transferencia Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferenciaEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferenciaSaida"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Registro não encontrado."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Dados inválidos ou regra de negócio violada."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Altera uma transferência (movimentos e tarifa são refeitos)",
+        "tags": [
+          "transferências"
         ]
       }
     },

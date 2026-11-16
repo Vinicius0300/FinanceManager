@@ -57,6 +57,7 @@ from app.repositories.transacoes import RepositorioEventos, RepositorioTransacoe
 from app.services.cadastros import handler_do_ativo, obter_ativo, obter_instituicao
 from app.services.caixa import (
     DESCRICAO_AJUSTE,
+    AvisoSaldoInsuficiente,
     lancamentos,
     movimentos_da_conta,
     obter_conta,
@@ -88,15 +89,6 @@ class NovaTransacao:
     subtipo_provento: SubtipoProvento | None = None
     imposto_retido: Decimal = ZERO
     observacao: str | None = None
-
-
-@dataclass(frozen=True)
-class AvisoSaldoInsuficiente:
-    mensagem: str
-    instituicao_id: int
-    moeda: str
-    data: date
-    valor_faltante: Decimal  # valor do ajuste que será criado se o usuário continuar
 
 
 @dataclass(frozen=True)

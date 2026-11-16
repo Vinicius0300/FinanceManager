@@ -7,9 +7,14 @@ export interface SaldoInsuficiente {
   valorFaltante: string;
 }
 
-/** Lê os `detalhes` do 409 `saldo_insuficiente`; `null` para qualquer outro erro. */
+/**
+ * Lê os `detalhes` do 409 `saldo_insuficiente` (aviso com ajuste possível); `null` para
+ * qualquer outro erro, inclusive o 422 `saldo_insuficiente` (recusa, sem ajuste), que é
+ * mostrado só como mensagem.
+ */
 export function lerSaldoInsuficiente(erro: unknown): SaldoInsuficiente | null {
   if (!(erro instanceof FalhaApi) || erro.codigo !== "saldo_insuficiente") return null;
+  if (erro.status !== undefined && erro.status !== 409) return null;
   return {
     instituicao: erro.detalhe("instituicao") ?? "a instituição",
     moeda: erro.detalhe("moeda") ?? "BRL",

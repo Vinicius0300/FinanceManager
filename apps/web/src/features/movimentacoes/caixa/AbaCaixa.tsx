@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeftRight, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -42,14 +42,21 @@ import {
 } from "@/lib/formularios";
 import { formatarData, formatarMoeda, plural } from "@/lib/formatacao";
 import { cn } from "@/lib/utils";
-import { NOMES_MOVIMENTO } from "../historico/rotulos";
+import { NOMES_MOVIMENTO, rotuloMovimento } from "../historico/rotulos";
+import { DialogoTransferencia } from "./DialogoTransferencia";
+import { useExcluirTransferencia } from "./transferencias";
 
 type Conta = components["schemas"]["ContaSaida"];
 type Movimento = components["schemas"]["MovimentoSaida"];
 
 const NOMES_TIPO_INSTITUICAO = { corretora: "Corretora", banco: "Banco", outro: "Outro" } as const;
 const MOVIMENTOS_EDITAVEIS = new Set(["deposito", "saque", "ajuste_saldo"]);
-const MOVIMENTOS_DE_SAIDA = new Set(["saque", "debito_compra"]);
+const MOVIMENTOS_DE_SAIDA = new Set([
+  "saque",
+  "debito_compra",
+  "debito_despesa",
+  "transferencia_saida",
+]);
 const ITENS_EXTRATO = 50;
 
 function useContas() {
@@ -219,7 +226,7 @@ export function AbaCaixa({ agora }: { agora: Date }) {
           if (!aberto) setExcluindo(null);
         }}
         titulo={`Excluir ${excluindo?.nome ?? "instituição"}?`}
-        descricao="Só é possível excluir uma instituição sem transações e sem movimentos de caixa."
+        descricao="Só é possível excluir uma instituição sem transações, receitas ou despesas, transferências e movimentos de caixa."
         ocupado={excluir.isPending}
         erro={excluir.error}
         aoConfirmar={() => {
@@ -251,6 +258,9 @@ function Extrato({
     { tipo: "deposito" | "saque" } | { editar: Movimento } | null
   >(null);
   const [excluindo, setExcluindo] = useState<Movimento | null>(null);
+  const [transferencia, setTransferencia] = useState<{ id?: number } | null>(null);
+  const [excluindoTransferencia, setExcluindoTransferencia] = useState<Movimento | null>(null);
+  const excluirTransferencia = useExcluirTransferencia();
   const { cliente } = useClienteApi();
   const excluir = useGravacao(async (id: number) => {
     exigir(
@@ -283,6 +293,16 @@ function Extrato({
             }}
           >
             Saque
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setTransferencia({});
+            }}
+          >
+            <ArrowLeftRight aria-hidden />
+            Transferência
           </Button>
         </div>
       }
@@ -317,51 +337,84 @@ function Extrato({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {extrato.data.itens.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell className="tabular">{formatarData(m.data)}</TableCell>
-                    <TableCell>
-                      {NOMES_MOVIMENTO[m.tipo] ?? m.tipo}
-                      {m.descricao && (
-                        <span className="block text-xs text-muted-foreground">{m.descricao}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <ValorFinanceiro
-                        valor={MOVIMENTOS_DE_SAIDA.has(m.tipo) ? `-${m.valor}` : m.valor}
-                        moeda={moeda}
-                        seta={false}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                      {MOVIMENTOS_EDITAVEIS.has(m.tipo) && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Alterar valor de ${formatarData(m.data)}`}
-                            onClick={() => {
-                              setMovimento({ editar: m });
-                            }}
-                          >
-                            <Pencil aria-hidden />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Excluir movimento de ${formatarData(m.data)}`}
-                            onClick={() => {
-                              excluir.reset();
-                              setExcluindo(m);
-                            }}
-                          >
-                            <Trash2 aria-hidden />
-                          </Button>
-                        </>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {extrato.data.itens.map((m) => {
+                  const { titulo, detalhe } = rotuloMovimento(m);
+                  return (
+                    <TableRow key={m.id}>
+                      <TableCell className="tabular">{formatarData(m.data)}</TableCell>
+                      <TableCell>
+                        {titulo}
+                        {detalhe && (
+                          <span className="block text-xs text-muted-foreground">{detalhe}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <ValorFinanceiro
+                          valor={MOVIMENTOS_DE_SAIDA.has(m.tipo) ? `-${m.valor}` : m.valor}
+                          moeda={moeda}
+                          seta={false}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        {MOVIMENTOS_EDITAVEIS.has(m.tipo) && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Alterar valor de ${formatarData(m.data)}`}
+                              onClick={() => {
+                                setMovimento({ editar: m });
+                              }}
+                            >
+                              <Pencil aria-hidden />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Excluir movimento de ${formatarData(m.data)}`}
+                              onClick={() => {
+                                excluir.reset();
+                                setExcluindo(m);
+                              }}
+                            >
+                              <Trash2 aria-hidden />
+                            </Button>
+                          </>
+                        )}
+                        {m.transferencia_id !== null && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Editar transferência de ${formatarData(m.data)}`}
+                              onClick={() => {
+                                setTransferencia({ id: m.transferencia_id ?? undefined });
+                              }}
+                            >
+                              <Pencil aria-hidden />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Excluir transferência de ${formatarData(m.data)}`}
+                              onClick={() => {
+                                excluirTransferencia.reset();
+                                setExcluindoTransferencia(m);
+                              }}
+                            >
+                              <Trash2 aria-hidden />
+                            </Button>
+                          </>
+                        )}
+                        {m.lancamento_id !== null && !MOVIMENTOS_EDITAVEIS.has(m.tipo) && (
+                          <span className="text-xs text-muted-foreground">
+                            Edite em Receitas e Despesas
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -420,6 +473,36 @@ function Extrato({
           excluir.mutate(excluindo.id, {
             onSuccess: () => {
               setExcluindo(null);
+            },
+          });
+        }}
+      />
+      {transferencia && (
+        <DialogoTransferencia
+          transferenciaId={transferencia.id}
+          origemPadrao={instituicao.id}
+          moedaPadrao={moeda}
+          hoje={hoje}
+          aoFechar={() => {
+            setTransferencia(null);
+          }}
+        />
+      )}
+      <DialogoConfirmacao
+        aberto={excluindoTransferencia !== null}
+        aoMudar={(aberto) => {
+          if (!aberto) setExcluindoTransferencia(null);
+        }}
+        titulo="Excluir esta transferência?"
+        descricao="Saem a saída da origem, a entrada do destino e a tarifa (se houver). A exclusão é recusada se algum caixa ficar negativo."
+        ocupado={excluirTransferencia.isPending}
+        erro={excluirTransferencia.error}
+        aoConfirmar={() => {
+          const id = excluindoTransferencia?.transferencia_id;
+          if (id === undefined || id === null) return;
+          excluirTransferencia.mutate(id, {
+            onSuccess: () => {
+              setExcluindoTransferencia(null);
             },
           });
         }}

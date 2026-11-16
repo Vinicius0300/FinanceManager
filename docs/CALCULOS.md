@@ -60,9 +60,14 @@ A posição é calculada por **(ativo, instituição)** (`domain/posicao.py`).
 - Movimentos:
   - manuais: depósito e saque;
   - automáticos: compra/aporte debita, venda/resgate credita, provento credita o líquido. Compra e venda são arredondadas a centavos: 3 cotas a R$ 1,234567 (= 3,703701) debitam **R$ 3,70**. Uma compra a preço zero sem taxas não gera movimento;
-  - ajuste de saldo: depósito não informado (ver abaixo).
+  - receitas e despesas (Parte 8): receita credita (`credito_receita`) e despesa debita (`debito_despesa`) a conta **BRL** da instituição do lançamento;
+  - transferências (Parte 8): `transferencia_saida` (valor) na origem e `transferencia_entrada` (valor) no destino, na moeda da transferência; a tarifa é uma despesa separada na origem;
+  - ajuste de saldo: depósito não informado (ver abaixo), ligado à transação ou à despesa que o pediu.
 - **O saldo nunca fica negativo.** A checagem usa o saldo ao **fim de cada dia** (movimentos do mesmo dia se compensam), a partir da data do lançamento, porque um lançamento retroativo afeta os saldos seguintes.
 - Compra ou aporte maior que o saldo: o service devolve o aviso "Você está movimentando mais dinheiro do que o possível dentro desta conta corrente. Atualizar valores?" e não grava nada. Com `aceitar_ajuste=True`, grava a transação e um `ajuste_saldo` pela diferença, que fica visível e editável. Saque maior que o saldo é recusado.
+- Despesa (nova, aumentada, antecipada ou levada para outra instituição) segue a mesma regra do aviso e do ajuste. O ajuste fica ligado à despesa: editar a despesa o refaz, excluir a despesa o remove. Ex.: caixa 1.000, despesa 1.500 → ajuste 500, caixa 0; excluir a despesa → caixa 1.000.
+- Transferência: a origem precisa cobrir **valor + tarifa** (1.000 + 10 com 1.005 no caixa → recusada, faltam 5). Nunca gera ajuste.
+- Vínculo de cada movimento (constraint `vinculo`): compra/venda/provento → só `transacao_id`; receita/despesa → só `lancamento_id`; transferência → só `transferencia_id`; depósito/saque → nenhum; ajuste → `transacao_id`, `lancamento_id` ou nenhum.
 - Excluir um depósito, uma venda etc. que deixaria o saldo negativo também é recusado.
 - O saldo das contas não rende.
 
@@ -133,6 +138,9 @@ A posição é calculada por **(ativo, instituição)** (`domain/posicao.py`).
 - Resumo mensal: total recebido, total gasto e saldo (receitas − despesas).
 - Totais por categoria, com percentual sobre o total do tipo no mês. Lançamentos sem categoria aparecem como "Sem categoria".
 - Proventos **não** entram aqui (ficam na conta corrente da instituição).
+- Todo lançamento pertence a uma instituição (Parte 8). Resumo, totais e listagem aceitam filtro por instituição.
+- Transferências **não** entram nos totais nem na rosca; a tarifa delas entra como despesa. Ex.: salário 5.000, mercado 800 e transferência de 1.000 com tarifa 10 → Recebido 5.000, Gasto 810, Saldo 4.190.
+- Resumo por instituição (só BRL): receitas − despesas (com tarifas) + transferências recebidas − enviadas. Ex.: Nubank 5.000 − 2.010 + 0 − 1.000 = 1.990; Itaú 0 − 3.500 + 1.000 − 0 = −2.500 (o ajuste de saldo não é receita).
 
 ## 12. Histórico de operações (Parte 4)
 Funções puras em `backend/app/domain/historico.py`; consulta em `services/historico.py`.

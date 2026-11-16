@@ -27,6 +27,9 @@ const CAIXA = {
               id: 1,
               conta_id: 1,
               transacao_id: null,
+              lancamento_id: null,
+              transferencia_id: null,
+              contraparte: null,
               tipo: "deposito",
               data: "2026-10-01",
               valor: "10000.00",
@@ -37,6 +40,9 @@ const CAIXA = {
               id: 2,
               conta_id: 1,
               transacao_id: 9,
+              lancamento_id: null,
+              transferencia_id: null,
+              contraparte: null,
               tipo: "debito_compra",
               data: "2026-10-24",
               valor: "7626.00",
@@ -47,6 +53,9 @@ const CAIXA = {
               id: 3,
               conta_id: 1,
               transacao_id: null,
+              lancamento_id: null,
+              transferencia_id: null,
+              contraparte: null,
               tipo: "ajuste_saldo",
               data: "2026-10-24",
               valor: "124.50",
@@ -240,5 +249,127 @@ describe("Aba Eventos corporativos", () => {
     await usuario.selectOptions(within(dialogo).getByLabelText(/^Evento/), "bonificacao");
     expect(within(dialogo).getByLabelText(/^Custo unitário atribuído \(USD\)/)).toBeInTheDocument();
     expect(within(dialogo).getByLabelText(/^Câmbio \(R\$ por USD\)/)).toBeInTheDocument();
+  });
+});
+
+describe("Aba Caixa: receitas, despesas e transferências", () => {
+  const mov = (campos: Record<string, unknown>) => ({
+    conta_id: 1,
+    transacao_id: null,
+    lancamento_id: null,
+    transferencia_id: null,
+    contraparte: null,
+    descricao: null,
+    criado_em: "",
+    ...campos,
+  });
+  const ROTAS = {
+    ...CAIXA,
+    "GET /api/categorias": [
+      { id: 1, nome: "Tarifas", tipo: "despesa" },
+      { id: 2, nome: "Salário", tipo: "receita" },
+    ],
+    "GET /api/instituicoes/{id}/extrato": {
+      instituicao_id: 1,
+      moeda: "BRL",
+      saldo_final: "2990.00",
+      total: 3,
+      limite: 50,
+      deslocamento: 0,
+      itens: [
+        mov({
+          id: 1,
+          tipo: "credito_receita",
+          lancamento_id: 5,
+          data: "2026-10-05",
+          valor: "5000.00",
+          descricao: "Salário",
+        }),
+        mov({
+          id: 2,
+          tipo: "transferencia_saida",
+          transferencia_id: 7,
+          contraparte: "RICO",
+          data: "2026-10-15",
+          valor: "1000.00",
+        }),
+        mov({
+          id: 3,
+          tipo: "debito_despesa",
+          lancamento_id: 8,
+          data: "2026-10-15",
+          valor: "10.00",
+          descricao: "Tarifa da transferência para RICO",
+        }),
+      ],
+    },
+  };
+
+  it("extrato com rótulos novos; lançamentos só leitura; transferência editável", async () => {
+    renderizar(<AbaCaixa agora={AGORA} />, { rotas: ROTAS });
+    const extrato = await screen.findByRole("table", { name: "Extrato" });
+    const linhas = within(extrato).getAllByRole("row");
+    expect(linhas[1]).toHaveTextContent("Receita: Salário");
+    expect(within(linhas[1] as HTMLElement).queryByRole("button")).toBeNull();
+    expect(linhas[1]).toHaveTextContent("Edite em Receitas e Despesas");
+    expect(linhas[2]).toHaveTextContent("Transferência para RICO");
+    expect(limpo(linhas[2]?.textContent ?? "")).toContain("−R$ 1.000,00");
+    expect(
+      within(linhas[2] as HTMLElement).getByRole("button", {
+        name: "Excluir transferência de 15/10/2026",
+      }),
+    ).toBeInTheDocument();
+    expect(linhas[3]).toHaveTextContent("Despesa: Tarifa da transferência para RICO");
+  });
+
+  it("transferência: validação, tarifa desabilitada em USD e corpo da API", async () => {
+    const { usuario, chamadas } = renderizar(<AbaCaixa agora={AGORA} />, {
+      rotas: {
+        ...ROTAS,
+        "POST /api/transferencias": {
+          status: 422,
+          corpo: {
+            codigo: "saldo_insuficiente",
+            mensagem:
+              "Esta transferência deixaria a conta XP (BRL) negativa a partir de 29/10/2026: faltam 5,00 BRL.",
+          },
+        },
+      },
+    });
+    await screen.findByRole("table", { name: "Extrato" });
+    await usuario.click(screen.getByRole("button", { name: "Transferência" }));
+    const dialogo = await screen.findByRole("dialog", { name: "Nova transferência" });
+    expect(within(dialogo).getByLabelText(/^Origem/)).toHaveValue("1");
+    await usuario.selectOptions(within(dialogo).getByLabelText(/^Destino/), "1");
+    await usuario.click(within(dialogo).getByRole("button", { name: "Salvar" }));
+    expect(
+      await within(dialogo).findByText("Escolha um destino diferente da origem."),
+    ).toBeInTheDocument();
+
+    await usuario.selectOptions(within(dialogo).getByLabelText(/^Moeda/), "USD");
+    expect(within(dialogo).getByLabelText(/^Tarifa/)).toBeDisabled();
+    expect(within(dialogo).getByText(/lance a tarifa como saque/)).toBeInTheDocument();
+    await usuario.selectOptions(within(dialogo).getByLabelText(/^Moeda/), "BRL");
+
+    await usuario.selectOptions(within(dialogo).getByLabelText(/^Destino/), "2");
+    await usuario.type(within(dialogo).getByLabelText(/^Valor/), "1000");
+    await usuario.type(within(dialogo).getByLabelText(/^Tarifa/), "10");
+    await usuario.selectOptions(within(dialogo).getByLabelText(/^Categoria da tarifa/), "1");
+    await usuario.click(within(dialogo).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => {
+      expect(chamadas.find((c) => c.metodo === "POST")?.corpo).toEqual({
+        data: "2026-10-29",
+        origem_id: 1,
+        destino_id: 2,
+        moeda: "BRL",
+        valor: "1000",
+        tarifa: "10",
+        categoria_tarifa_id: 1,
+        descricao: null,
+      });
+    });
+    // Recusa (422): só a mensagem, sem aviso de ajuste.
+    expect(await within(dialogo).findByText(/faltam 5,00 BRL/)).toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 });

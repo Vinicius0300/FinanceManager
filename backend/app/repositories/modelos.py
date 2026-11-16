@@ -298,20 +298,70 @@ class EstadoColeta(Base):
     historico_desde: Mapped[date | None]
 
 
+class Transferencia(Base):
+    """Passagem de dinheiro do caixa de uma instituição para outra, na mesma moeda.
+
+    Gera ``transferencia_saida`` na origem e ``transferencia_entrada`` no destino (só o
+    valor) e, com tarifa > 0 (só em BRL), uma despesa ligada na origem.
+    """
+
+    __tablename__ = "transferencias"
+    __table_args__ = (
+        CheckConstraint("origem_id <> destino_id", name="origem_diferente_destino"),
+        CheckConstraint(_positivo("valor"), name="valor"),
+        CheckConstraint(_nao_negativo("tarifa"), name="tarifa"),
+        CheckConstraint("moeda = 'BRL' OR CAST(tarifa AS NUMERIC) = 0", name="tarifa_so_brl"),
+        CheckConstraint(_MOEDA_VALIDA.format(c="moeda"), name="moeda_valida"),
+        Index("ix_transferencias_data", "data"),
+        Index("ix_transferencias_origem", "origem_id"),
+        Index("ix_transferencias_destino", "destino_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    data: Mapped[date]
+    origem_id: Mapped[int] = mapped_column(ForeignKey("instituicoes.id", ondelete="RESTRICT"))
+    destino_id: Mapped[int] = mapped_column(ForeignKey("instituicoes.id", ondelete="RESTRICT"))
+    moeda: Mapped[str] = mapped_column(String(3))
+    valor: Mapped[Decimal]
+    tarifa: Mapped[Decimal] = mapped_column(default=Decimal(0))
+    descricao: Mapped[str | None] = mapped_column(String(300))
+    criado_em: Mapped[datetime] = mapped_column(default=agora_utc)
+
+    origem: Mapped[Instituicao] = relationship(foreign_keys=[origem_id])
+    destino: Mapped[Instituicao] = relationship(foreign_keys=[destino_id])
+    movimentos: Mapped[list["MovimentoConta"]] = relationship(
+        back_populates="transferencia", cascade="all, delete-orphan", passive_deletes=True
+    )
+    tarifa_lancamento: Mapped["Lancamento | None"] = relationship(
+        back_populates="transferencia", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+# Cada tipo de movimento tem exatamente o vínculo certo (no máximo um por movimento).
+VINCULO_MOVIMENTO = (
+    "(tipo IN ('debito_compra', 'credito_venda', 'credito_provento') "
+    "AND transacao_id IS NOT NULL AND lancamento_id IS NULL AND transferencia_id IS NULL) OR "
+    "(tipo IN ('credito_receita', 'debito_despesa') "
+    "AND lancamento_id IS NOT NULL AND transacao_id IS NULL AND transferencia_id IS NULL) OR "
+    "(tipo IN ('transferencia_saida', 'transferencia_entrada') "
+    "AND transferencia_id IS NOT NULL AND transacao_id IS NULL AND lancamento_id IS NULL) OR "
+    "(tipo IN ('deposito', 'saque') "
+    "AND transacao_id IS NULL AND lancamento_id IS NULL AND transferencia_id IS NULL) OR "
+    "(tipo = 'ajuste_saldo' AND transferencia_id IS NULL "
+    "AND (transacao_id IS NULL OR lancamento_id IS NULL))"
+)
+
+
 class MovimentoConta(Base):
     """Movimento da conta corrente; valor sempre positivo, o sinal vem do tipo."""
 
     __tablename__ = "movimentos_conta"
     __table_args__ = (
         UniqueConstraint("transacao_id", "tipo"),
+        UniqueConstraint("lancamento_id", "tipo"),
+        UniqueConstraint("transferencia_id", "tipo"),
         CheckConstraint(_positivo("valor"), name="valor"),
-        CheckConstraint(
-            "(tipo IN ('debito_compra', 'credito_venda', 'credito_provento') "
-            "AND transacao_id IS NOT NULL) OR "
-            "(tipo IN ('deposito', 'saque') AND transacao_id IS NULL) OR "
-            "tipo = 'ajuste_saldo'",
-            name="vinculo_transacao",
-        ),
+        CheckConstraint(VINCULO_MOVIMENTO, name="vinculo"),
         Index("ix_movimentos_conta_conta_data", "conta_id", "data"),
     )
 
@@ -319,6 +369,12 @@ class MovimentoConta(Base):
     conta_id: Mapped[int] = mapped_column(ForeignKey("contas_correntes.id", ondelete="RESTRICT"))
     transacao_id: Mapped[int | None] = mapped_column(
         ForeignKey("transacoes.id", ondelete="CASCADE")
+    )
+    lancamento_id: Mapped[int | None] = mapped_column(
+        ForeignKey("lancamentos.id", ondelete="CASCADE")
+    )
+    transferencia_id: Mapped[int | None] = mapped_column(
+        ForeignKey("transferencias.id", ondelete="CASCADE")
     )
     tipo: Mapped[TipoMovimento] = mapped_column(enum_texto(TipoMovimento, "tipo_movimento"))
     data: Mapped[date]
@@ -328,6 +384,8 @@ class MovimentoConta(Base):
 
     conta: Mapped[ContaCorrente] = relationship()
     transacao: Mapped[Transacao | None] = relationship(back_populates="movimentos")
+    lancamento: Mapped["Lancamento | None"] = relationship(back_populates="movimentos")
+    transferencia: Mapped[Transferencia | None] = relationship(back_populates="movimentos")
 
 
 class Categoria(Base):
@@ -343,14 +401,20 @@ class Categoria(Base):
 
 
 class Lancamento(Base):
-    """Receita ou despesa do orçamento pessoal (não inclui proventos)."""
+    """Receita ou despesa do orçamento pessoal (não inclui proventos).
+
+    Pertence a uma instituição e movimenta a conta em BRL dela. ``transferencia_id``
+    preenchido = tarifa de uma transferência (gravada e excluída junto com ela).
+    """
 
     __tablename__ = "lancamentos"
     __table_args__ = (
         CheckConstraint(_positivo("valor"), name="valor"),
         CheckConstraint("length(trim(descricao)) > 0", name="descricao_preenchida"),
+        UniqueConstraint("transferencia_id"),
         Index("ix_lancamentos_data", "data"),
         Index("ix_lancamentos_categoria", "categoria_id"),
+        Index("ix_lancamentos_instituicao_data", "instituicao_id", "data"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -358,13 +422,22 @@ class Lancamento(Base):
     data: Mapped[date]
     descricao: Mapped[str] = mapped_column(String(200))
     valor: Mapped[Decimal]
+    instituicao_id: Mapped[int] = mapped_column(ForeignKey("instituicoes.id", ondelete="RESTRICT"))
     categoria_id: Mapped[int | None] = mapped_column(
         ForeignKey("categorias.id", ondelete="RESTRICT")
+    )
+    transferencia_id: Mapped[int | None] = mapped_column(
+        ForeignKey("transferencias.id", ondelete="CASCADE")
     )
     observacao: Mapped[str | None] = mapped_column(String(500))
     criado_em: Mapped[datetime] = mapped_column(default=agora_utc)
 
+    instituicao: Mapped[Instituicao] = relationship()
     categoria: Mapped[Categoria | None] = relationship()
+    transferencia: Mapped[Transferencia | None] = relationship(back_populates="tarifa_lancamento")
+    movimentos: Mapped[list[MovimentoConta]] = relationship(
+        back_populates="lancamento", cascade="all, delete-orphan", passive_deletes=True
+    )
 
 
 class Configuracao(Base):

@@ -1,11 +1,22 @@
-"""Receitas e despesas: categorias, lançamentos e resumo mensal (proventos não entram)."""
+"""Receitas e despesas: categorias, lançamentos e resumos do mês (proventos não entram).
+
+Todo lançamento pertence a uma instituição e movimenta o caixa em BRL dela.
+**Saldo:** despesa que deixaria o caixa negativo responde **409** ``saldo_insuficiente``
+(reenvie com ``aceitar_ajuste=true`` para gravar com um ajuste de saldo); excluir ou
+alterar uma receita que deixaria o caixa negativo responde **422** ``saldo_insuficiente``
+(recusa, sem ajuste). A listagem traz também as transferências em BRL (``tag``), que não
+entram nos totais.
+"""
 
 from datetime import date, datetime
+from typing import Literal, cast
 
 from fastapi import APIRouter, Query, status
 
 from app.api.dependencias import PROTEGIDO, Deslocamento, Limite, SessaoDep, respostas
 from app.api.schemas import Modelo, Numero, Pagina
+from app.api.transacoes import erro_saldo_insuficiente
+from app.core.errors import AplicacaoError
 from app.domain.enums import TipoLancamento
 from app.domain.numeros import arredondar, arredondar_moeda
 from app.repositories import modelos as m
@@ -14,6 +25,8 @@ from app.services import financeiro
 router = APIRouter(prefix="/api", tags=["receitas e despesas"], dependencies=PROTEGIDO)
 
 CASAS_PERCENTUAL_SAIDA = 8
+
+TagLancamento = Literal["lancamento", "tarifa", "transferencia_saida", "transferencia_entrada"]
 
 
 class CategoriaEntrada(Modelo):
@@ -36,20 +49,34 @@ class LancamentoEntrada(Modelo):
     data: date
     descricao: str
     valor: Numero
+    instituicao_id: int
     categoria_id: int | None = None
     observacao: str | None = None
+    aceitar_ajuste: bool = False
 
 
 class LancamentoSaida(Modelo):
-    id: int
+    """Linha de Receitas e Despesas: lançamento, tarifa ou ponta de transferência.
+
+    ``chave`` é única na listagem. Linhas de transferência não têm ``lancamento_id`` e,
+    como as tarifas, vêm com ``editavel = false`` (edite em Movimentações → Caixa).
+    """
+
+    chave: str
+    tag: TagLancamento
+    lancamento_id: int | None
+    transferencia_id: int | None
     tipo: TipoLancamento
     data: date
     descricao: str
     valor: Numero
+    instituicao_id: int
+    instituicao_nome: str
     categoria_id: int | None
     categoria_nome: str | None
     observacao: str | None
     criado_em: datetime
+    editavel: bool
 
 
 class TotalCategoriaSaida(Modelo):
@@ -69,22 +96,51 @@ class ResumoMensalSaida(Modelo):
     por_categoria: list[TotalCategoriaSaida]
 
 
+class ResumoInstituicaoSaida(Modelo):
+    instituicao_id: int
+    instituicao_nome: str
+    receitas: Numero
+    despesas: Numero  # inclui tarifas de transferência
+    entrou: Numero  # transferências recebidas (BRL)
+    saiu: Numero  # transferências enviadas (BRL)
+    saldo: Numero  # receitas − despesas + entrou − saiu
+
+
 def _categoria(categoria: m.Categoria) -> CategoriaSaida:
     return CategoriaSaida(id=categoria.id, nome=categoria.nome, tipo=categoria.tipo)
 
 
-def _lancamento(lancamento: m.Lancamento) -> LancamentoSaida:
+def _linha(linha: financeiro.LinhaLancamento) -> LancamentoSaida:
     return LancamentoSaida(
-        id=lancamento.id,
-        tipo=lancamento.tipo,
-        data=lancamento.data,
-        descricao=lancamento.descricao,
-        valor=lancamento.valor,
-        categoria_id=lancamento.categoria_id,
-        categoria_nome=lancamento.categoria.nome if lancamento.categoria else None,
-        observacao=lancamento.observacao,
-        criado_em=lancamento.criado_em,
+        chave=linha.chave,
+        tag=cast(TagLancamento, linha.tag),
+        lancamento_id=linha.lancamento_id,
+        transferencia_id=linha.transferencia_id,
+        tipo=linha.tipo,
+        data=linha.data,
+        descricao=linha.descricao,
+        valor=linha.valor,
+        instituicao_id=linha.instituicao_id,
+        instituicao_nome=linha.instituicao_nome,
+        categoria_id=linha.categoria_id,
+        categoria_nome=linha.categoria_nome,
+        observacao=linha.observacao,
+        criado_em=linha.criado_em,
+        editavel=linha.editavel,
     )
+
+
+def _lancamento(lancamento: m.Lancamento) -> LancamentoSaida:
+    return _linha(financeiro.linha_do_lancamento(lancamento))
+
+
+def _resultado(sessao: SessaoDep, resultado: financeiro.ResultadoLancamento) -> LancamentoSaida:
+    """Aviso de saldo insuficiente vira 409 (a sessão é desfeita)."""
+    if resultado.aviso is not None:
+        raise erro_saldo_insuficiente(sessao, resultado.aviso)
+    if resultado.lancamento is None:  # pragma: no cover - sem aviso, sempre há lançamento
+        raise AplicacaoError(500, "erro_interno", "Lançamento não gravado.")
+    return _lancamento(resultado.lancamento)
 
 
 def _novo(dados: LancamentoEntrada) -> financeiro.NovoLancamento:
@@ -93,6 +149,7 @@ def _novo(dados: LancamentoEntrada) -> financeiro.NovoLancamento:
         data=dados.data,
         descricao=dados.descricao,
         valor=dados.valor,
+        instituicao_id=dados.instituicao_id,
         categoria_id=dados.categoria_id,
         observacao=dados.observacao,
     )
@@ -146,13 +203,14 @@ def excluir_categoria(categoria_id: int, sessao: SessaoDep) -> None:
 @router.get(
     "/lancamentos",
     response_model=Pagina[LancamentoSaida],
-    summary="Lista lançamentos com filtros (mais recentes primeiro)",
+    summary="Lista lançamentos e transferências em BRL (mais recentes primeiro)",
     responses=respostas(),
 )
 def listar_lancamentos(
     sessao: SessaoDep,
     tipo: TipoLancamento | None = None,
     categoria_id: int | None = None,
+    instituicao_id: int | None = None,
     inicio: date | None = None,
     fim: date | None = None,
     limite: Limite = 50,
@@ -162,13 +220,14 @@ def listar_lancamentos(
         sessao,
         tipo=tipo,
         categoria_id=categoria_id,
+        instituicao_id=instituicao_id,
         inicio=inicio,
         fim=fim,
         limite=limite,
         deslocamento=deslocamento,
     )
     return Pagina[LancamentoSaida](
-        itens=[_lancamento(x) for x in pagina.itens],
+        itens=[_linha(x) for x in pagina.itens],
         total=pagina.total,
         limite=limite,
         deslocamento=deslocamento,
@@ -179,11 +238,18 @@ def listar_lancamentos(
     "/lancamentos",
     response_model=LancamentoSaida,
     status_code=status.HTTP_201_CREATED,
-    summary="Registra uma receita ou despesa",
-    responses=respostas(404, 422),
+    summary="Registra uma receita ou despesa (movimenta o caixa da instituição)",
+    description=(
+        "Despesa que deixaria o caixa negativo responde 409 `saldo_insuficiente` sem gravar; "
+        "reenvie com `aceitar_ajuste=true` para gravar com um ajuste de saldo."
+    ),
+    responses=respostas(404, 409, 422),
 )
 def criar_lancamento(dados: LancamentoEntrada, sessao: SessaoDep) -> LancamentoSaida:
-    return _lancamento(financeiro.registrar_lancamento(sessao, _novo(dados)))
+    resultado = financeiro.registrar_lancamento(
+        sessao, _novo(dados), aceitar_ajuste=dados.aceitar_ajuste
+    )
+    return _resultado(sessao, resultado)
 
 
 @router.get(
@@ -200,19 +266,31 @@ def obter_lancamento(lancamento_id: int, sessao: SessaoDep) -> LancamentoSaida:
     "/lancamentos/{lancamento_id}",
     response_model=LancamentoSaida,
     summary="Altera um lançamento",
-    responses=respostas(404, 422),
+    description=(
+        "Despesa que passa a faltar saldo: 409 (aceite com `aceitar_ajuste=true`). Receita "
+        "alterada que deixaria o caixa negativo: 422 `saldo_insuficiente`. Tarifas de "
+        "transferência não podem ser alteradas aqui (422)."
+    ),
+    responses=respostas(404, 409, 422),
 )
 def editar_lancamento(
     lancamento_id: int, dados: LancamentoEntrada, sessao: SessaoDep
 ) -> LancamentoSaida:
-    return _lancamento(financeiro.editar_lancamento(sessao, lancamento_id, _novo(dados)))
+    resultado = financeiro.editar_lancamento(
+        sessao, lancamento_id, _novo(dados), aceitar_ajuste=dados.aceitar_ajuste
+    )
+    return _resultado(sessao, resultado)
 
 
 @router.delete(
     "/lancamentos/{lancamento_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Exclui um lançamento",
-    responses=respostas(404),
+    summary="Exclui um lançamento (e o ajuste de saldo ligado a ele)",
+    description=(
+        "Recusa com 422 `saldo_insuficiente` se o caixa ficar negativo, e com 422 se for a "
+        "tarifa de uma transferência."
+    ),
+    responses=respostas(404, 422),
 )
 def excluir_lancamento(lancamento_id: int, sessao: SessaoDep) -> None:
     financeiro.excluir_lancamento(sessao, lancamento_id)
@@ -222,15 +300,17 @@ def excluir_lancamento(lancamento_id: int, sessao: SessaoDep) -> None:
     "/resumo-mensal",
     response_model=ResumoMensalSaida,
     summary="Receitas, despesas, saldo e totais por categoria do mês",
+    description="Transferências não entram; a tarifa delas entra como despesa.",
     responses=respostas(422),
 )
 def obter_resumo_mensal(
     sessao: SessaoDep,
     ano: int = Query(ge=1900, le=9999),
     mes: int = Query(ge=1, le=12),
+    instituicao_id: int | None = None,
 ) -> ResumoMensalSaida:
-    resumo = financeiro.obter_resumo_mensal(sessao, ano, mes)
-    totais = financeiro.obter_totais_por_categoria(sessao, ano, mes)
+    resumo = financeiro.obter_resumo_mensal(sessao, ano, mes, instituicao_id)
+    totais = financeiro.obter_totais_por_categoria(sessao, ano, mes, instituicao_id)
     return ResumoMensalSaida(
         ano=resumo.ano,
         mes=resumo.mes,
@@ -248,3 +328,28 @@ def obter_resumo_mensal(
             for t in totais
         ],
     )
+
+
+@router.get(
+    "/resumo-mensal/instituicoes",
+    response_model=list[ResumoInstituicaoSaida],
+    summary="Receitas, despesas, transferências (BRL) e saldo do mês por instituição",
+    responses=respostas(422),
+)
+def obter_resumo_por_instituicao(
+    sessao: SessaoDep,
+    ano: int = Query(ge=1900, le=9999),
+    mes: int = Query(ge=1, le=12),
+) -> list[ResumoInstituicaoSaida]:
+    return [
+        ResumoInstituicaoSaida(
+            instituicao_id=item.instituicao.id,
+            instituicao_nome=item.instituicao.nome,
+            receitas=arredondar_moeda(item.resumo.receitas),
+            despesas=arredondar_moeda(item.resumo.despesas),
+            entrou=arredondar_moeda(item.resumo.entrou),
+            saiu=arredondar_moeda(item.resumo.saiu),
+            saldo=arredondar_moeda(item.resumo.saldo),
+        )
+        for item in financeiro.obter_resumo_por_instituicao(sessao, ano, mes)
+    ]

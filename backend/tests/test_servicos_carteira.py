@@ -296,22 +296,40 @@ def test_serie_valor_aplicado_considera_resgates(sessao: Session) -> None:
 
 
 def test_resumo_mensal_pelo_service(sessao: Session) -> None:
+    banco = instituicao(sessao)
     salario = criar_categoria(sessao, "Salário", TipoLancamento.RECEITA)
     mercado = criar_categoria(sessao, " Mercado ", TipoLancamento.DESPESA)
     assert mercado.nome == "Mercado"
     marco = date(2025, 3, 5)
     registrar_lancamento(
-        sessao, NovoLancamento(TipoLancamento.RECEITA, marco, "Salário", D(5000), salario.id)
-    )
-    registrar_lancamento(
-        sessao, NovoLancamento(TipoLancamento.DESPESA, marco, "Feira", D("349.90"), mercado.id)
-    )
-    registrar_lancamento(
-        sessao, NovoLancamento(TipoLancamento.DESPESA, marco, "Padaria", D("80.10"))
+        sessao,
+        NovoLancamento(
+            TipoLancamento.RECEITA, marco, "Salário", D(5000), salario.id, instituicao_id=banco.id
+        ),
     )
     registrar_lancamento(
         sessao,
-        NovoLancamento(TipoLancamento.DESPESA, date(2025, 4, 1), "Abril", D(999), mercado.id),
+        NovoLancamento(
+            TipoLancamento.DESPESA, marco, "Feira", D("349.90"), mercado.id, instituicao_id=banco.id
+        ),
+    )
+    registrar_lancamento(
+        sessao,
+        NovoLancamento(
+            TipoLancamento.DESPESA, marco, "Padaria", D("80.10"), instituicao_id=banco.id
+        ),
+    )
+    registrar_lancamento(
+        sessao,
+        NovoLancamento(
+            TipoLancamento.DESPESA,
+            date(2025, 4, 1),
+            "Abril",
+            D(999),
+            mercado.id,
+            instituicao_id=banco.id,
+        ),
+        aceitar_ajuste=True,
     )
     # Março: receitas 5.000; despesas 349,90 + 80,10 = 430; saldo 4.570.
     resumo = obter_resumo_mensal(sessao, 2025, 3)
@@ -329,6 +347,7 @@ def test_resumo_mensal_pelo_service(sessao: Session) -> None:
 
 
 def test_validacoes_do_financeiro(sessao: Session) -> None:
+    banco = instituicao(sessao).id
     mercado = criar_categoria(sessao, "Mercado", TipoLancamento.DESPESA)
     with pytest.raises(ConflitoError):
         criar_categoria(sessao, "MERCADO", TipoLancamento.DESPESA)
@@ -340,34 +359,71 @@ def test_validacoes_do_financeiro(sessao: Session) -> None:
     dia = date(2025, 3, 1)
     with pytest.raises(ValidacaoError, match="é de despesa, não de receita"):
         registrar_lancamento(
-            sessao, NovoLancamento(TipoLancamento.RECEITA, dia, "x", D(1), mercado.id)
+            sessao,
+            NovoLancamento(
+                TipoLancamento.RECEITA, dia, "x", D(1), mercado.id, instituicao_id=banco
+            ),
         )
     with pytest.raises(NaoEncontradoError):
-        registrar_lancamento(sessao, NovoLancamento(TipoLancamento.DESPESA, dia, "x", D(1), 999))
+        registrar_lancamento(
+            sessao,
+            NovoLancamento(TipoLancamento.DESPESA, dia, "x", D(1), 999, instituicao_id=banco),
+        )
     with pytest.raises(ValidacaoError, match="descrição"):
-        registrar_lancamento(sessao, NovoLancamento(TipoLancamento.DESPESA, dia, "  ", D(1)))
+        registrar_lancamento(
+            sessao, NovoLancamento(TipoLancamento.DESPESA, dia, "  ", D(1), instituicao_id=banco)
+        )
     with pytest.raises(ValidacaoError, match="no máximo 200"):
-        registrar_lancamento(sessao, NovoLancamento(TipoLancamento.DESPESA, dia, "x" * 201, D(1)))
+        registrar_lancamento(
+            sessao,
+            NovoLancamento(TipoLancamento.DESPESA, dia, "x" * 201, D(1), instituicao_id=banco),
+        )
     with pytest.raises(ValidacaoError, match="maior que zero"):
-        registrar_lancamento(sessao, NovoLancamento(TipoLancamento.DESPESA, dia, "x", ZERO))
+        registrar_lancamento(
+            sessao, NovoLancamento(TipoLancamento.DESPESA, dia, "x", ZERO, instituicao_id=banco)
+        )
     with pytest.raises(ValidacaoError, match="no máximo 2 casas decimais"):
-        registrar_lancamento(sessao, NovoLancamento(TipoLancamento.DESPESA, dia, "x", D("1.005")))
+        registrar_lancamento(
+            sessao,
+            NovoLancamento(TipoLancamento.DESPESA, dia, "x", D("1.005"), instituicao_id=banco),
+        )
     with pytest.raises(ValidacaoError, match="no máximo 500"):
         registrar_lancamento(
-            sessao, NovoLancamento(TipoLancamento.DESPESA, dia, "x", D(1), observacao="x" * 501)
+            sessao,
+            NovoLancamento(
+                TipoLancamento.DESPESA,
+                dia,
+                "x",
+                D(1),
+                observacao="x" * 501,
+                instituicao_id=banco,
+            ),
+        )
+    with pytest.raises(NaoEncontradoError, match="Instituição 999"):
+        registrar_lancamento(
+            sessao, NovoLancamento(TipoLancamento.DESPESA, dia, "x", D(1), instituicao_id=999)
         )
     with pytest.raises(ValidacaoError, match="mês"):
         obter_resumo_mensal(sessao, 2025, 0)
 
 
 def test_exclusoes_do_financeiro(sessao: Session) -> None:
+    banco = instituicao(sessao)
     mercado = criar_categoria(sessao, "Mercado", TipoLancamento.DESPESA)
     lancamento = registrar_lancamento(
         sessao,
         NovoLancamento(
-            TipoLancamento.DESPESA, date(2025, 3, 1), "Feira", D(10), mercado.id, " obs "
+            TipoLancamento.DESPESA,
+            date(2025, 3, 1),
+            "Feira",
+            D(10),
+            mercado.id,
+            " obs ",
+            instituicao_id=banco.id,
         ),
-    )
+        aceitar_ajuste=True,
+    ).lancamento
+    assert lancamento is not None
     assert lancamento.observacao == "obs"
     with pytest.raises(OperacaoNaoPermitidaError, match="tem lançamentos"):
         excluir_categoria(sessao, mercado.id)

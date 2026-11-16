@@ -76,6 +76,10 @@ A atualização automática de cotações começa ao abrir; para depurar sem ace
 - Forçar agora: botão **Atualizar cotações** no topo do app (em qualquer tela) ou `POST /api/cotacoes/atualizar`. Status por ativo: `GET /api/cotacoes/status` (resumido no chip "N em dia · N defasadas · N com erro" do topo). Eventos em tempo real: `GET /api/eventos` (SSE).
 - Na primeira vez são baixados os fechamentos de até 1 ano (fundos: até 12 arquivos de ~12 MB da CVM, processados e descartados).
 
+### Receitas, despesas e transferências
+- Todo lançamento de **Receitas e Despesas** pertence a uma instituição e movimenta o caixa dela. Lance primeiro as receitas do mês e depois as despesas: o caixa nunca fica negativo, e uma despesa sem saldo pede um ajuste de saldo.
+- **Salário é receita; dinheiro passado entre bancos é transferência** (Movimentações → Caixa → Transferência). Depósito e saque ficam para o saldo inicial e acertos com o extrato. Cartão de crédito: lance a despesa na data da cobrança, na instituição que pagou.
+
 ### Glossário
 - Aba **Glossário** no menu: grafo de termos de finanças e investimentos. Clique numa bolinha, busque pelo nome ou use a lista para abrir a explicação, com exemplo numérico e termos relacionados.
 - O conteúdo é fixo e vem dentro do app (um arquivo por termo em `apps/web/src/features/glossario/conteudo/*.md`); não é editável pela tela. Para acrescentar um termo, crie o `.md` no modelo dos outros, ligue com `[[slug]]` e rode `npm test` (a validação aponta link quebrado, seção faltando ou tamanho fora do modelo). Detalhes em `docs/HISTORICO.md` (Parte 7).

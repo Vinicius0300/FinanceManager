@@ -51,6 +51,7 @@ TABELAS = {
     "precos",
     "simbolos_listados",
     "transacoes",
+    "transferencias",
 }
 
 
@@ -77,7 +78,7 @@ def test_migra_banco_novo_ate_a_head_sem_backup(banco: Path, pasta_backups: Path
     banco.parent.mkdir(parents=True)
     resultado = migrar_banco(banco, pasta_backups)
     assert resultado.revisao_anterior is None
-    assert resultado.revisao_atual == "0004_listas_simbolos"
+    assert resultado.revisao_atual == "0005_lancamentos_instituicao_transferencias"
     assert resultado.migrou
     assert resultado.backup is None
     assert tabelas(banco) == TABELAS
