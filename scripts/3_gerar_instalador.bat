@@ -74,6 +74,19 @@ echo === [7/8] Smoke test do executável do backend ===
 
 echo.
 echo === [8/8] Instalador (tauri build) ===
+rem O build do Tauri copia o backend (843 arquivos, 85 MB) para <target>\release\financas-backend.
+rem Com o projeto dentro de uma pasta sincronizada (OneDrive), a sincronização segura esses
+rem arquivos logo depois do PyInstaller e a cópia falha com "Acesso negado (os error 5)".
+rem Por isso o build final usa uma pasta de target fora do projeto (respeita CARGO_TARGET_DIR,
+rem se já definido) e, no fim, o instalador é copiado para o caminho de sempre.
+if not defined CARGO_TARGET_DIR set "CARGO_TARGET_DIR=%LOCALAPPDATA%\FinancasBuild\target"
+echo Pasta de build do Rust: %CARGO_TARGET_DIR%
+if exist "%CARGO_TARGET_DIR%\release\financas-backend" rmdir /s /q "%CARGO_TARGET_DIR%\release\financas-backend"
+if exist "%CARGO_TARGET_DIR%\release\financas-backend" (
+  echo [ERRO] Não foi possível apagar %CARGO_TARGET_DIR%\release\financas-backend.
+  echo        Feche o Finanças e qualquer financas-backend.exe aberto e rode de novo.
+  goto :falha
+)
 call npm run tauri -- build --config src-tauri/tauri.instalador.conf.json || goto :falha
 
 set "VERSAO="
@@ -82,9 +95,16 @@ if not defined VERSAO (
   echo [ERRO] Não foi possível ler a versão do package.json.
   goto :falha
 )
-set "INSTALADOR=apps\desktop\src-tauri\target\release\bundle\nsis\Financas_%VERSAO%_x64-setup.exe"
-if not exist "%INSTALADOR%" (
-  echo [ERRO] Instalador não encontrado em %INSTALADOR%.
+set "GERADO=%CARGO_TARGET_DIR%\release\bundle\nsis\Financas_%VERSAO%_x64-setup.exe"
+if not exist "%GERADO%" (
+  echo [ERRO] Instalador não encontrado em %GERADO%.
+  goto :falha
+)
+set "PASTA_INSTALADOR=apps\desktop\src-tauri\target\release\bundle\nsis"
+set "INSTALADOR=%PASTA_INSTALADOR%\Financas_%VERSAO%_x64-setup.exe"
+if not exist "%PASTA_INSTALADOR%" mkdir "%PASTA_INSTALADOR%"
+copy /y "%GERADO%" "%INSTALADOR%" >nul || (
+  echo [ERRO] Não foi possível copiar o instalador para %INSTALADOR%.
   goto :falha
 )
 for %%f in ("%INSTALADOR%") do set "TAMANHO=%%~zf"

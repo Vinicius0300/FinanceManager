@@ -204,6 +204,12 @@ Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 6.md`). 
 - **Pré-requisitos conferidos:** repositório público (download sem conta no GitHub); CLI `gh` não instalado, por isso o roteiro usa o site.
 - **Limitações que continuam:** instalador sem assinatura (SmartScreen e aviso do navegador de "arquivo pouco baixado"), falso positivo possível de antivírus no PyInstaller, atualização manual (baixar e instalar por cima).
 
+## Build do instalador fora do OneDrive (16/11/2026)
+- **Sintoma:** `npm run instalador` parava na etapa 8 com `Acesso negado. (os error 5)` no build script do Tauri, que copia `binaries\financas-backend` (843 arquivos, 85 MB) para `target\release\financas-backend`.
+- **Causa:** o projeto fica em `OneDrive\Documentos`. Logo depois de o PyInstaller gravar o backend, a sincronização segura parte dos arquivos do `target` (sempre os mesmos ~12 `.txt`/`.zip` dos `dist-info`), e nem `fs::copy` nem `rmdir` conseguem sobrescrever ou apagar. Minutos depois, fora do build, os mesmos arquivos são apagados normalmente. Apagar a pasta antes, com 10 tentativas a cada 3 s, não resolveu.
+- **Decisão:** a etapa 8 do `3_gerar_instalador.bat` define `CARGO_TARGET_DIR=%LOCALAPPDATA%\FinancasBuild\target` (não `%LOCALAPPDATA%\Financas`, que é a pasta de instalação), limpa ali a cópia antiga do backend e, no fim, copia o instalador para o caminho de sempre (`apps\desktop\src-tauri\target\release\bundle\nsis\`), o que mantém README e `INSTALACAO.md` válidos. `cargo check`/`cargo test` (etapa 5) continuam no `target` do projeto. A primeira execução recompila o Rust em release (~3 min); as seguintes usam o cache.
+- **Validação:** `npm run instalador` completo sem erro, gerando `Financas_1.0.0_x64-setup.exe` (38,5 MB).
+
 ## Modo privacidade (ocultar valores)
 - **Botão de olho** no topo, entre "Atualizar cotações" e o switch de tema (`BotaoOcultarValores` em `app/BarraSuperior.tsx`, `aria-pressed`, rótulo "Ocultar valores"/"Mostrar valores"). Vale para todas as telas e fica salvo no `localStorage` (`financas-valores-ocultos`, Zustand persist em `lib/valores-ocultos.ts`), como o tema: o app reabre do jeito que foi deixado.
 - **O que some:** todo valor em dinheiro (`formatarMoeda`/`formatarMoedaComSinal` viram "R$ •••••", sem sinal: saldos, patrimônio, posições, aportes, compras, vendas, proventos, receitas, despesas, eixos e legendas dos gráficos) e as quantidades do usuário (`formatarQuantidade`: coluna Quantidade da carteira, histórico, detalhe da operação e "Disponível" no formulário de venda).

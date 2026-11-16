@@ -156,6 +156,7 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 - **Desinstalar nunca apaga `%APPDATA%\Financas`.** A caixa "apagar dados" só remove estado da janela e cache do WebView2.
 - Versão com fonte única: `scripts/versao.py` propaga o número; `--verificar` falha se divergir. Release nova: mudar o `package.json` da raiz e rodar `npm run instalador`.
 - `scripts/3_gerar_instalador.bat` roda versão, testes, lints, contrato, Rust, PyInstaller, smoke test e `tauri build`, parando no primeiro erro.
+- O `tauri build` do instalador usa `CARGO_TARGET_DIR=%LOCALAPPDATA%\FinancasBuild\target` (fora do OneDrive; respeita a variável se já definida) e copia o `.exe` para `apps\desktop\src-tauri\target\release\bundle\nsis\`.
 - Distribuição: o `.exe` gerado e testado localmente é anexado à mão a uma Release do GitHub (tag `vX.Y.Z`); o README aponta para `releases/latest`. Sem build no CI (lançamentos esporádicos). Roteiro no `README.md`.
 
 **Receitas, despesas e transferências** (Parte 8)
