@@ -17,9 +17,12 @@ import {
   useInstituicoes,
   useTiposAtivo,
 } from "@/lib/consultas-comuns";
-import { formatarMoeda } from "@/lib/formatacao";
-import type { GrupoAtivo, Totais } from "./consultas";
+import { formatarMoeda, plural } from "@/lib/formatacao";
+import type { GrupoAtivo, Operacao, Totais } from "./consultas";
+import type { ConsultaHistorico } from "./filtros";
+import { OperacoesDaInstituicao } from "./OperacoesDaInstituicao";
 
+const COLUNAS_TABELA = 9;
 const NOMES_SITUACAO = { aberta: "Na carteira", encerrada: "Encerrada" } as const;
 
 function Situacao({ situacao }: { situacao: "aberta" | "encerrada" }) {
@@ -48,19 +51,40 @@ function CelulasTotais({ totais }: { totais: Totais }) {
   );
 }
 
+function Seta({ aberto }: { aberto: boolean }) {
+  return aberto ? (
+    <ChevronDown aria-hidden className="size-4 shrink-0" />
+  ) : (
+    <ChevronRight aria-hidden className="size-4 shrink-0" />
+  );
+}
+
 /**
  * Visão "Por ativo" (decisão do dono): uma linha por ativo com os totais do filtro somando
  * todas as instituições, que se abre nas linhas de cada instituição. Com filtro de
  * instituição, a linha do ativo tem só aquela instituição (e a situação daquela posição).
+ * Parte 9: a linha da instituição também se abre, no painel das operações do ativo ali.
+ * `grupos` já chega só com os ativos da página.
  */
-export function VisaoPorAtivo({ grupos }: { grupos: GrupoAtivo[] }) {
+export function VisaoPorAtivo({
+  grupos,
+  consulta,
+  aoAbrir,
+  aoVerEmOperacoes,
+}: {
+  grupos: GrupoAtivo[];
+  consulta: ConsultaHistorico;
+  aoAbrir: (operacao: Operacao) => void;
+  aoVerEmOperacoes: (ativoId: number, instituicaoId: number) => void;
+}) {
   const ativos = indexarPorId(useAtivos().data);
   const instituicoes = indexarPorId(useInstituicoes().data);
   const tipos = useTiposAtivo().data;
   const [abertos, setAbertos] = useState<ReadonlySet<number>>(new Set());
+  const [instAbertas, setInstAbertas] = useState<ReadonlySet<string>>(new Set());
 
-  const alternar = (id: number) => {
-    setAbertos((atual) => {
+  const alternar = <T,>(id: T, mudar: (f: (atual: ReadonlySet<T>) => ReadonlySet<T>) => void) => {
+    mudar((atual) => {
       const novo = new Set(atual);
       if (novo.has(id)) novo.delete(id);
       else novo.add(id);
@@ -98,14 +122,10 @@ export function VisaoPorAtivo({ grupos }: { grupos: GrupoAtivo[] }) {
                     aria-label={`${aberto ? "Recolher" : "Ver por instituição"}: ${rotulo}`}
                     className="inline-flex items-center gap-1 text-left"
                     onClick={() => {
-                      alternar(grupo.ativo_id);
+                      alternar(grupo.ativo_id, setAbertos);
                     }}
                   >
-                    {aberto ? (
-                      <ChevronDown aria-hidden className="size-4" />
-                    ) : (
-                      <ChevronRight aria-hidden className="size-4" />
-                    )}
+                    <Seta aberto={aberto} />
                     <span>
                       <span className="font-semibold">{rotulo}</span>
                       {ativo && (
@@ -123,17 +143,58 @@ export function VisaoPorAtivo({ grupos }: { grupos: GrupoAtivo[] }) {
                 <CelulasTotais totais={grupo.totais} />
               </TableRow>
               {aberto &&
-                grupo.instituicoes.map((inst) => (
-                  <TableRow key={inst.instituicao_id} className="bg-muted/40">
-                    <TableCell className="pl-10 text-sm">
-                      {instituicoes.get(inst.instituicao_id)?.nome ?? `#${inst.instituicao_id}`}
-                    </TableCell>
-                    <TableCell>
-                      <Situacao situacao={inst.situacao} />
-                    </TableCell>
-                    <CelulasTotais totais={inst.totais} />
-                  </TableRow>
-                ))}
+                grupo.instituicoes.map((inst) => {
+                  const chave = `${grupo.ativo_id}-${inst.instituicao_id}`;
+                  const instAberta = instAbertas.has(chave);
+                  const nome =
+                    instituicoes.get(inst.instituicao_id)?.nome ?? `#${inst.instituicao_id}`;
+                  const descricao = `${rotulo} em ${nome}`;
+                  return (
+                    <Fragment key={inst.instituicao_id}>
+                      <TableRow className="bg-muted/40">
+                        <TableCell className="pl-8 text-sm">
+                          <button
+                            type="button"
+                            aria-expanded={instAberta}
+                            aria-label={`${instAberta ? "Recolher" : "Ver operações"}: ${descricao}`}
+                            className="inline-flex items-center gap-1 text-left"
+                            onClick={() => {
+                              alternar(chave, setInstAbertas);
+                            }}
+                          >
+                            <Seta aberto={instAberta} />
+                            <span>
+                              {nome}
+                              <span className="block text-xs text-muted-foreground">
+                                {plural(inst.totais.operacoes, "operação", "operações")}
+                              </span>
+                            </span>
+                          </button>
+                        </TableCell>
+                        <TableCell>
+                          <Situacao situacao={inst.situacao} />
+                        </TableCell>
+                        <CelulasTotais totais={inst.totais} />
+                      </TableRow>
+                      {instAberta && (
+                        <TableRow className="bg-muted/60 hover:bg-muted/60">
+                          <TableCell colSpan={COLUNAS_TABELA} className="p-0 whitespace-normal">
+                            <OperacoesDaInstituicao
+                              ativoId={grupo.ativo_id}
+                              instituicaoId={inst.instituicao_id}
+                              rotulo={descricao}
+                              consulta={consulta}
+                              aoAbrir={aoAbrir}
+                              aoVerEmOperacoes={() => {
+                                aoVerEmOperacoes(grupo.ativo_id, inst.instituicao_id);
+                              }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })}
             </Fragment>
           );
         })}

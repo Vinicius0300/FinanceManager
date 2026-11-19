@@ -39,8 +39,19 @@ export type CampoOrdem =
 export type Direcao = "asc" | "desc";
 export type Visao = "operacoes" | "ativos";
 
+/** Quantos itens por página (Parte 9): operações na visão Operações, ativos em Por ativo. */
+export const TAMANHOS_PAGINA = [10, 25, 50, 100] as const;
+export type TamanhoPagina = (typeof TAMANHOS_PAGINA)[number];
+export const TAMANHO_PAGINA_PADRAO: TamanhoPagina = 10;
+
+/** Quantas páginas cabem em `total` itens (no mínimo 1). */
+export function totalDePaginas(total: number, tamanho: number): number {
+  return Math.max(1, Math.ceil(total / tamanho));
+}
+
 export interface FiltrosHistorico {
   busca: string;
+  ativoId: number | null; // ativo exato (link "Ver em Operações com este filtro")
   tipoAtivo: string;
   instituicaoId: number | null;
   operacoes: Operacao[];
@@ -57,12 +68,16 @@ export interface EstadoHistorico {
   filtros: FiltrosHistorico;
   ordem: CampoOrdem;
   direcao: Direcao;
-  pagina: number;
+  pagina: number; // visão Operações
+  tamanho: TamanhoPagina;
+  paginaAtivos: number; // visão Por ativo
+  tamanhoAtivos: TamanhoPagina;
   visao: Visao;
 }
 
 export const FILTROS_PADRAO: FiltrosHistorico = {
   busca: "",
+  ativoId: null,
   tipoAtivo: "",
   instituicaoId: null,
   operacoes: [...OPERACOES],
@@ -90,6 +105,7 @@ const CAMPOS_ORDEM: readonly CampoOrdem[] = [
 /** Parâmetros da URL que pertencem ao histórico (o resto, como `aba`, é preservado). */
 const PARAMETROS = [
   "busca",
+  "ativo",
   "tipo_ativo",
   "instituicao",
   "ops",
@@ -103,8 +119,21 @@ const PARAMETROS = [
   "ordem",
   "direcao",
   "pagina",
+  "itens",
+  "pagina_ativos",
+  "itens_ativos",
   "visao",
 ] as const;
+
+const idValido = (bruto: string | null): number | null => {
+  const n = Number(bruto);
+  return Number.isInteger(n) && n > 0 ? n : null;
+};
+const paginaValida = (bruto: string | null): number => idValido(bruto) ?? 1;
+const tamanhoValido = (bruto: string | null): TamanhoPagina => {
+  const n = Number(bruto);
+  return TAMANHOS_PAGINA.find((t) => t === n) ?? TAMANHO_PAGINA_PADRAO;
+};
 
 export function lerEstado(params: URLSearchParams): EstadoHistorico {
   const ops = params.get("ops");
@@ -114,17 +143,16 @@ export function lerEstado(params: URLSearchParams): EstadoHistorico {
   const periodo = PERIODOS.some((p) => p.valor === periodoBruto)
     ? (periodoBruto as Periodo)
     : PERIODO_PADRAO;
-  const instituicao = Number(params.get("instituicao"));
   const situacao = params.get("situacao");
   const ordem = params.get("ordem") as CampoOrdem | null;
-  const pagina = Number(params.get("pagina"));
   const inicio = params.get("inicio");
   const fim = params.get("fim");
   return {
     filtros: {
       busca: params.get("busca") ?? "",
+      ativoId: idValido(params.get("ativo")),
       tipoAtivo: params.get("tipo_ativo") ?? "",
-      instituicaoId: Number.isInteger(instituicao) && instituicao > 0 ? instituicao : null,
+      instituicaoId: idValido(params.get("instituicao")),
       operacoes,
       periodo,
       inicio: periodo === "personalizado" && isoValida(inicio) ? inicio : null,
@@ -136,7 +164,10 @@ export function lerEstado(params: URLSearchParams): EstadoHistorico {
     },
     ordem: ordem && CAMPOS_ORDEM.includes(ordem) ? ordem : "data",
     direcao: params.get("direcao") === "asc" ? "asc" : "desc",
-    pagina: Number.isInteger(pagina) && pagina > 0 ? pagina : 1,
+    pagina: paginaValida(params.get("pagina")),
+    tamanho: tamanhoValido(params.get("itens")),
+    paginaAtivos: paginaValida(params.get("pagina_ativos")),
+    tamanhoAtivos: tamanhoValido(params.get("itens_ativos")),
     visao: params.get("visao") === "ativos" ? "ativos" : "operacoes",
   };
 }
@@ -147,6 +178,7 @@ export function gravarEstado(estado: EstadoHistorico, base: URLSearchParams): UR
   for (const nome of PARAMETROS) params.delete(nome);
   const { filtros: f } = estado;
   if (f.busca.trim()) params.set("busca", f.busca.trim());
+  if (f.ativoId !== null) params.set("ativo", String(f.ativoId));
   if (f.tipoAtivo) params.set("tipo_ativo", f.tipoAtivo);
   if (f.instituicaoId !== null) params.set("instituicao", String(f.instituicaoId));
   if (f.operacoes.length !== OPERACOES.length) params.set("ops", f.operacoes.join(","));
@@ -162,12 +194,18 @@ export function gravarEstado(estado: EstadoHistorico, base: URLSearchParams): UR
   if (estado.ordem !== "data") params.set("ordem", estado.ordem);
   if (estado.direcao !== "desc") params.set("direcao", estado.direcao);
   if (estado.pagina > 1) params.set("pagina", String(estado.pagina));
+  if (estado.tamanho !== TAMANHO_PAGINA_PADRAO) params.set("itens", String(estado.tamanho));
+  if (estado.paginaAtivos > 1) params.set("pagina_ativos", String(estado.paginaAtivos));
+  if (estado.tamanhoAtivos !== TAMANHO_PAGINA_PADRAO) {
+    params.set("itens_ativos", String(estado.tamanhoAtivos));
+  }
   if (estado.visao !== "operacoes") params.set("visao", estado.visao);
   return params;
 }
 
 export interface ConsultaHistorico {
   busca?: string;
+  ativo_id?: number;
   tipo_ativo?: string;
   instituicao_id?: number;
   tipos?: Operacao[];
@@ -188,6 +226,7 @@ export function consultaDaApi(filtros: FiltrosHistorico, agora: Date): ConsultaH
   const { inicio, fim } = intervaloDoPeriodo(filtros.periodo, agora, filtros);
   const consulta: ConsultaHistorico = {};
   if (filtros.busca.trim()) consulta.busca = filtros.busca.trim();
+  if (filtros.ativoId !== null) consulta.ativo_id = filtros.ativoId;
   if (filtros.tipoAtivo) consulta.tipo_ativo = filtros.tipoAtivo;
   if (filtros.instituicaoId !== null) consulta.instituicao_id = filtros.instituicaoId;
   if (filtros.operacoes.length !== OPERACOES.length) consulta.tipos = filtros.operacoes;
@@ -209,9 +248,20 @@ export interface Etiqueta {
 /** Etiquetas removíveis ("×") dos filtros diferentes do padrão. */
 export function etiquetasDosFiltros(
   f: FiltrosHistorico,
-  nomes: { tipoAtivo: (slug: string) => string; instituicao: (id: number) => string },
+  nomes: {
+    tipoAtivo: (slug: string) => string;
+    instituicao: (id: number) => string;
+    ativo: (id: number) => string;
+  },
 ): Etiqueta[] {
   const etiquetas: Etiqueta[] = [];
+  if (f.ativoId !== null) {
+    etiquetas.push({
+      chave: "ativo",
+      texto: `Ativo: ${nomes.ativo(f.ativoId)}`,
+      remover: (x) => ({ ...x, ativoId: null }),
+    });
+  }
   if (f.busca.trim()) {
     etiquetas.push({
       chave: "busca",

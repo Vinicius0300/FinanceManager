@@ -1,6 +1,5 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Fragment } from "react";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -27,7 +26,7 @@ import {
   plural,
 } from "@/lib/formatacao";
 import { cn } from "@/lib/utils";
-import { ITENS_POR_PAGINA, type Operacao } from "./consultas";
+import type { Operacao } from "./consultas";
 import { agruparPorMes, NOMES_SUBTIPO } from "./rotulos";
 import { SeloOperacao } from "./SeloOperacao";
 import type { CampoOrdem, Direcao } from "./filtros";
@@ -52,37 +51,68 @@ const COLUNAS: ColunaOrdenavel[] = [
 ];
 
 /**
+ * Colunas de valores de uma operação (Qtd., Preço unit., Taxas, Imposto, Valor total e
+ * Resultado), iguais na tabela do histórico e no painel da instituição (visão Por ativo).
+ */
+export function CelulasValores({ operacao }: { operacao: Operacao }) {
+  const tem = operacao.quantidade !== null;
+  return (
+    <>
+      <TableCell className="tabular text-right">
+        {tem ? formatarQuantidade(operacao.quantidade) : "—"}
+      </TableCell>
+      <TableCell className="tabular text-right">
+        {tem ? formatarPreco(operacao.preco_unitario, operacao.moeda) : "—"}
+      </TableCell>
+      <TableCell className="tabular text-right">
+        {ehZero(operacao.taxas) ? "—" : formatarMoeda(operacao.taxas, operacao.moeda)}
+      </TableCell>
+      <TableCell className="tabular text-right">
+        {operacao.tipo === "provento" && !ehZero(operacao.imposto_retido_brl)
+          ? formatarMoeda(operacao.imposto_retido_brl)
+          : "—"}
+      </TableCell>
+      <TableCell className="tabular text-right">
+        {formatarMoeda(operacao.valor_total_brl)}
+      </TableCell>
+      <TableCell className="text-right">
+        {operacao.tipo === "provento" ? (
+          <ValorFinanceiro valor={operacao.valor_total_brl} seta={false} />
+        ) : operacao.resultado_brl !== null ? (
+          <ValorFinanceiro valor={operacao.resultado_brl} seta={false} />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+    </>
+  );
+}
+
+/**
  * Tabela do histórico: ordenação por coluna **na API** (consistente com a paginação),
- * agrupamento por mês quando a ordem é por data, paginação por `limite`/`deslocamento`.
+ * agrupamento por mês quando a ordem é por data. A paginação fica no rodapé da seção
+ * (`Paginacao`), comum às duas visões.
  */
 export function TabelaHistorico({
   operacoes,
-  total,
-  pagina,
   ordem,
   direcao,
   aoOrdenar,
-  aoPaginar,
   aoAbrir,
 }: {
   operacoes: Operacao[];
-  total: number;
-  pagina: number;
   ordem: CampoOrdem;
   direcao: Direcao;
   aoOrdenar: (campo: CampoOrdem, direcao: Direcao) => void;
-  aoPaginar: (pagina: number) => void;
   aoAbrir: (operacao: Operacao) => void;
 }) {
   const ativos = indexarPorId(useAtivos().data);
   const instituicoes = indexarPorId(useInstituicoes().data);
   const tipos = useTiposAtivo().data;
-  const paginas = Math.max(1, Math.ceil(total / ITENS_POR_PAGINA));
   const grupos = ordem === "data" ? agruparPorMes(operacoes) : [{ mes: "", itens: operacoes }];
 
   const linha = (op: Operacao) => {
     const ativo = ativos.get(op.ativo_id);
-    const temQuantidade = op.quantidade !== null;
     const detalheAtivo = [
       ativo?.simbolo ? ativo.nome : null,
       op.subtipo_provento ? NOMES_SUBTIPO[op.subtipo_provento] : null,
@@ -113,30 +143,7 @@ export function TabelaHistorico({
           )}
         </TableCell>
         <TableCell>{instituicoes.get(op.instituicao_id)?.nome ?? "—"}</TableCell>
-        <TableCell className="tabular text-right">
-          {temQuantidade ? formatarQuantidade(op.quantidade) : "—"}
-        </TableCell>
-        <TableCell className="tabular text-right">
-          {temQuantidade ? formatarPreco(op.preco_unitario, op.moeda) : "—"}
-        </TableCell>
-        <TableCell className="tabular text-right">
-          {ehZero(op.taxas) ? "—" : formatarMoeda(op.taxas, op.moeda)}
-        </TableCell>
-        <TableCell className="tabular text-right">
-          {op.tipo === "provento" && !ehZero(op.imposto_retido_brl)
-            ? formatarMoeda(op.imposto_retido_brl)
-            : "—"}
-        </TableCell>
-        <TableCell className="tabular text-right">{formatarMoeda(op.valor_total_brl)}</TableCell>
-        <TableCell className="text-right">
-          {op.tipo === "provento" ? (
-            <ValorFinanceiro valor={op.valor_total_brl} seta={false} />
-          ) : op.resultado_brl !== null ? (
-            <ValorFinanceiro valor={op.resultado_brl} seta={false} />
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          )}
-        </TableCell>
+        <CelulasValores operacao={op} />
       </TableRow>
     );
   };
@@ -202,43 +209,11 @@ export function TabelaHistorico({
           ))}
         </TableBody>
       </Table>
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>
-          Mostrando {plural(operacoes.length, "operação", "operações")} de{" "}
-          {total.toLocaleString("pt-BR")}
-          {ordem === "data" &&
-            ` · ordenado por data (${direcao === "desc" ? "mais recentes" : "mais antigas"} primeiro)`}
-        </span>
-        {paginas > 1 && (
-          <nav aria-label="Paginação" className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pagina <= 1}
-              onClick={() => {
-                aoPaginar(pagina - 1);
-              }}
-            >
-              <ChevronLeft aria-hidden />
-              Anterior
-            </Button>
-            <span>
-              Página {pagina} de {paginas}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pagina >= paginas}
-              onClick={() => {
-                aoPaginar(pagina + 1);
-              }}
-            >
-              Próxima
-              <ChevronRight aria-hidden />
-            </Button>
-          </nav>
-        )}
-      </div>
+      {ordem === "data" && (
+        <p className="text-xs text-muted-foreground">
+          Ordenado por data ({direcao === "desc" ? "mais recentes" : "mais antigas"} primeiro)
+        </p>
+      )}
     </div>
   );
 }

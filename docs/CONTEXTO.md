@@ -35,6 +35,7 @@ Telas: Dashboard, Carteira, Movimentações, Receitas e Despesas, Glossário, Co
 | 6 | Análises e Proventos: tela Proventos, "Proventos 12 meses", evolução empilhada e modo "%", rentabilidade vs. CDI, comparações em Receitas e Despesas, taxa de poupança, treemap da carteira | A fazer |
 | 7 | Glossário: grafo de termos (estilo Obsidian), conteúdo fixo em Markdown, busca, filtro, verbetes com exemplo. Só frontend | **Validada** (61 termos) |
 | 8 | Receitas e Despesas por instituição (movimentam o caixa), transferências entre instituições com tarifa, filtro e resumo por instituição | **Entregue (aguardando validação)** |
+| 9 | Histórico de operações: operações de cada ativo por instituição (visão Por ativo), quantidade por página (10/25/50/100) nas duas visões e filtro por ativo exato. Só frontend | **Entregue (aguardando validação)** |
 
 **Versão atual:** 1.0.0 (fonte única: `"version"` do `package.json` da raiz).
 
@@ -169,6 +170,12 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 - Em Receitas e Despesas, transferências em BRL aparecem com tag (duas linhas, só leitura) e ficam **fora** dos cartões e da rosca (ponto B1); a tarifa entra como despesa. Transferências em USD só no extrato do Caixa.
 - Filtro por instituição na listagem, no resumo e nos totais; resumo por instituição do mês: receitas − despesas + entrou − saiu (o ajuste de saldo não entra).
 - Receitas aumentam o patrimônio (caixa). A rentabilidade da Parte 6 terá de tratar receitas e despesas como **fluxo externo**, não como ganho ou perda dos investimentos.
+
+**Histórico de operações** (Parte 9)
+- Por ativo: a linha da instituição se abre num painel com a posição de hoje (quantidade, preço médio, custo; "Posição encerrada" se não está aberta), primeira e última operação e a lista das operações do ativo ali, **com os filtros do topo**, em ordem crescente, 100 por vez; só consulta quando aberto.
+- Filtros continuam só no painel do topo (vale para cartões, gráfico e as duas visões). Filtros dentro da tabela e rodapé de totais foram descartados.
+- Quantidade por página 10/25/50/100, **padrão 10**, separada por visão e guardada na URL (`itens`, `pagina`, `itens_ativos`, `pagina_ativos`); mudar filtro, ordem ou tamanho volta à página 1. Em Por ativo a página conta ativos.
+- Filtro por ativo exato (`ativo=<id>` na URL, etiqueta "Ativo: PETR4"), usado pelo link "Ver em Operações com este filtro".
 
 **Glossário** (Parte 7)
 - Conteúdo fixo e só leitura: um `.md` por termo em `features/glossario/conteudo/`, sem backend nem contrato. Termo novo pela skill `novo-termo-glossario`.

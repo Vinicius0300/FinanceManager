@@ -17,9 +17,16 @@ const PADRAO: EstadoHistorico = {
   ordem: "data",
   direcao: "desc",
   pagina: 1,
+  tamanho: 10,
+  paginaAtivos: 1,
+  tamanhoAtivos: 10,
   visao: "operacoes",
 };
-const NOMES = { tipoAtivo: (s: string) => `T:${s}`, instituicao: (i: number) => `I:${i}` };
+const NOMES = {
+  tipoAtivo: (s: string) => `T:${s}`,
+  instituicao: (i: number) => `I:${i}`,
+  ativo: (i: number) => `A:${i}`,
+};
 
 describe("filtros do histórico na URL", () => {
   it("URL vazia = padrão (todas as operações, últimos 12 meses, data desc)", () => {
@@ -35,6 +42,7 @@ describe("filtros do histórico na URL", () => {
     const estado: EstadoHistorico = {
       filtros: {
         busca: "petr",
+        ativoId: 10,
         tipoAtivo: "acao_br",
         instituicaoId: 1,
         operacoes: ["venda", "resgate"],
@@ -49,10 +57,17 @@ describe("filtros do histórico na URL", () => {
       ordem: "resultado",
       direcao: "asc",
       pagina: 3,
+      tamanho: 25,
+      paginaAtivos: 2,
+      tamanhoAtivos: 100,
       visao: "ativos",
     };
     const params = gravarEstado(estado, new URLSearchParams());
     expect(params.get("ops")).toBe("venda,resgate");
+    expect(params.get("ativo")).toBe("10");
+    expect(params.get("itens")).toBe("25");
+    expect(params.get("pagina_ativos")).toBe("2");
+    expect(params.get("itens_ativos")).toBe("100");
     expect(lerEstado(params)).toEqual(estado);
   });
 
@@ -69,6 +84,17 @@ describe("filtros do histórico na URL", () => {
     expect(estado.filtros.inicio).toBeNull(); // só vale no período personalizado
     expect(estado.ordem).toBe("data");
     expect(estado.pagina).toBe(1);
+  });
+
+  it("tamanho de página fora de 10/25/50/100 e ativo inválido voltam ao padrão", () => {
+    const estado = lerEstado(
+      new URLSearchParams("itens=30&itens_ativos=abc&pagina_ativos=0&ativo=-4"),
+    );
+    expect(estado.tamanho).toBe(10);
+    expect(estado.tamanhoAtivos).toBe(10);
+    expect(estado.paginaAtivos).toBe(1);
+    expect(estado.filtros.ativoId).toBeNull();
+    expect(lerEstado(new URLSearchParams("itens=50&itens_ativos=25")).tamanho).toBe(50);
   });
 
   it("nenhuma operação marcada fica registrada na URL (ops vazio)", () => {
@@ -93,6 +119,7 @@ describe("consulta da API", () => {
         {
           ...FILTROS_PADRAO,
           busca: "  wege ",
+          ativoId: 7,
           tipoAtivo: "acao_br",
           instituicaoId: 2,
           operacoes: ["compra", "aporte"],
@@ -106,6 +133,7 @@ describe("consulta da API", () => {
       ),
     ).toEqual({
       busca: "wege",
+      ativo_id: 7,
       tipo_ativo: "acao_br",
       instituicao_id: 2,
       tipos: ["compra", "aporte"],
@@ -126,6 +154,7 @@ describe("etiquetas removíveis", () => {
     expect(etiquetasDosFiltros(FILTROS_PADRAO, NOMES)).toEqual([]);
     const filtros = {
       ...FILTROS_PADRAO,
+      ativoId: 10,
       tipoAtivo: "acao_br",
       instituicaoId: 1,
       operacoes: OPERACOES.filter((o) => o !== "provento"),
@@ -133,6 +162,7 @@ describe("etiquetas removíveis", () => {
     };
     const etiquetas = etiquetasDosFiltros(filtros, NOMES);
     expect(etiquetas.map((e) => e.texto)).toEqual([
+      "Ativo: A:10",
       "Tipo: T:acao_br",
       "Instituição: I:1",
       "Operações: Compra, Aporte, Venda, Resgate",

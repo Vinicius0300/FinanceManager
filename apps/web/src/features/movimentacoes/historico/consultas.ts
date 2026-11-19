@@ -9,8 +9,10 @@ export type Operacao = components["schemas"]["TransacaoSaida"];
 export type ResumoHistorico = components["schemas"]["ResumoHistoricoSaida"];
 export type GrupoAtivo = components["schemas"]["GrupoAtivoSaida"];
 export type Totais = components["schemas"]["TotaisHistoricoSaida"];
+export type Posicao = components["schemas"]["PosicaoSaida"];
 
-export const ITENS_POR_PAGINA = 50;
+/** Operações por vez no painel de uma instituição (visão Por ativo). */
+export const ITENS_PAINEL = 100;
 
 /** Página do histórico; `consulta === null` = nenhuma operação marcada (resultado vazio). */
 export function useHistorico(
@@ -18,10 +20,11 @@ export function useHistorico(
   ordem: CampoOrdem,
   direcao: Direcao,
   pagina: number,
+  tamanho: number,
 ) {
   const { cliente } = useClienteApi();
   return useQuery({
-    queryKey: ["historico", "lista", consulta, ordem, direcao, pagina],
+    queryKey: ["historico", "lista", consulta, ordem, direcao, pagina, tamanho],
     enabled: consulta !== null,
     placeholderData: keepPreviousData,
     queryFn: async ({ signal }) =>
@@ -32,10 +35,92 @@ export function useHistorico(
               ...consulta,
               ordem,
               direcao,
-              limite: ITENS_POR_PAGINA,
-              deslocamento: (pagina - 1) * ITENS_POR_PAGINA,
+              limite: tamanho,
+              deslocamento: (pagina - 1) * tamanho,
             },
           },
+          signal,
+        }),
+      ),
+  });
+}
+
+/**
+ * Operações de um ativo numa instituição, com os filtros do topo, da mais antiga para a
+ * mais recente (painel da visão Por ativo). Só consulta com o painel aberto.
+ */
+export function useOperacoesDaInstituicao(
+  consulta: ConsultaHistorico,
+  ativoId: number,
+  instituicaoId: number,
+  pagina: number,
+) {
+  const { cliente } = useClienteApi();
+  return useQuery({
+    queryKey: ["historico", "instituicao", consulta, ativoId, instituicaoId, pagina],
+    placeholderData: keepPreviousData,
+    queryFn: async ({ signal }) =>
+      exigir(
+        await cliente.GET("/api/transacoes", {
+          params: {
+            query: {
+              ...consulta,
+              ativo_id: ativoId,
+              instituicao_id: instituicaoId,
+              ordem: "data",
+              direcao: "asc",
+              limite: ITENS_PAINEL,
+              deslocamento: (pagina - 1) * ITENS_PAINEL,
+            },
+          },
+          signal,
+        }),
+      ),
+  });
+}
+
+/**
+ * Data da última operação do painel quando ela não está na página aberta (mais de
+ * `ITENS_PAINEL` operações): uma consulta de 1 item em ordem decrescente.
+ */
+export function useUltimaOperacao(
+  consulta: ConsultaHistorico,
+  ativoId: number,
+  instituicaoId: number,
+  habilitada: boolean,
+) {
+  const { cliente } = useClienteApi();
+  return useQuery({
+    queryKey: ["historico", "instituicao-ultima", consulta, ativoId, instituicaoId],
+    enabled: habilitada,
+    queryFn: async ({ signal }) =>
+      exigir(
+        await cliente.GET("/api/transacoes", {
+          params: {
+            query: {
+              ...consulta,
+              ativo_id: ativoId,
+              instituicao_id: instituicaoId,
+              ordem: "data",
+              direcao: "desc",
+              limite: 1,
+            },
+          },
+          signal,
+        }),
+      ),
+  });
+}
+
+/** Posições abertas de hoje numa instituição (mesma chave da Carteira: o cache é dividido). */
+export function usePosicoesDaInstituicao(instituicaoId: number) {
+  const { cliente } = useClienteApi();
+  return useQuery({
+    queryKey: ["portfolio", "posicoes", instituicaoId],
+    queryFn: async ({ signal }) =>
+      exigir(
+        await cliente.GET("/api/portfolio/posicoes", {
+          params: { query: { instituicao_id: instituicaoId } },
           signal,
         }),
       ),

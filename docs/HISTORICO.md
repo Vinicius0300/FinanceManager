@@ -281,6 +281,18 @@ Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 6.md`). 
 - **Testes:** `backend/tests/test_receitas_transferencias.py` (39 casos, inclui o roteiro de validação: Nubank 2.990/Itaú 0, cartões 5.000/5.510, resumo 1.990/−2.500, exclusão do salário recusada com 2.010,00), migração com lançamentos e upgrade/downgrade com movimentos; front com filtro, tags, 409 e 422 em Receitas e Despesas e o formulário de transferência.
 - **Fora do escopo (evolução futura):** itens da Parte 6, transferência entre moedas, cartão de crédito como conta, recorrência, importação de extrato, receitas e despesas em outra moeda, saldo negativo e dívidas.
 
+## Parte 9: histórico de operações por instituição e paginação (19/11/2026)
+- **Pedido:** na visão Por ativo, ver todas as operações de um ativo dentro de cada instituição; escolher quantas operações/ativos aparecem por vez (10, 25, 50, 100; padrão 10); filtrar por ativo. Mock aprovado antes do código.
+- **Dúvidas resolvidas com o dono (revisão do Prompt 9):**
+  - Filtros novos dentro da tabela (barra de Ativo/Instituição/Tipo em seleção múltipla) **descartados**: o painel do topo já filtra as duas visões, os cartões e o gráfico. O "filtro por ativo" de Por ativo já é atendido por ele.
+  - Rodapé com totais na visão Operações **descartado**: os cartões do topo já mostram os totais do filtro.
+  - O painel da instituição **respeita os filtros do topo** (coerente com os totais da linha); a posição mostrada é sempre a de hoje. Ex.: PETR4 na XP com compras em 2024 e 2025 e venda em 2025, período "2025" → o painel lista só as duas de 2025.
+- **Implementação (só frontend, sem mudança de API ou banco):**
+  - `OperacoesDaInstituicao.tsx`: `GET /api/transacoes` com a consulta do topo + `ativo_id` + `instituicao_id`, `ordem=data&direcao=asc`, 100 por vez com paginação própria; a última data vem de uma consulta `direcao=desc&limite=1` só quando há mais de 100. Posição por `GET /api/portfolio/posicoes?instituicao_id=` (mesma chave de cache da Carteira).
+  - `Paginacao.tsx` no rodapé da seção, comum às duas visões; `TabelaHistorico` perdeu a paginação própria (50 fixos) e passou a dividir as células de valores (`CelulasValores`) com o painel.
+  - Estado na URL (`filtros.ts`): `ativo`, `itens`, `pagina_ativos`, `itens_ativos`; valores inválidos voltam ao padrão; página além da última vai para a última.
+- **Testes:** `AbaHistorico.test.tsx` (painel: consulta só ao abrir e com os filtros, posição aberta/encerrada/sem quantidade, primeira e última data, erro com Tentar novamente, mais de 100 operações, abrir detalhe, "Ver em Operações"; paginação: padrão 10, troca para 25, pontas, valor inválido, página além da última, filtro volta à página 1, 12 ativos = 10 + 2, tamanho separado por visão) e `filtros.test.ts` (ida e volta na URL e etiqueta "Ativo").
+
 ## Tesouro Direto: valor investido e símbolo na fonte (18/11/2026)
 - **Pedido:** poder registrar o título pelo valor investido em vez do valor unitário, e entender o campo "Símbolo na fonte de cotação".
 - **Decisão do dono:** quantidade + valor investido, com o preço calculado. Exemplo comparado: 0,07 título por R$ 1.066,42 grava preço 15.234,57142857 e mantém a quantidade do extrato. A alternativa valor + preço unitário foi descartada porque calcularia 0,07000005 título e deixaria sobra de 0,00000005 ao vender 0,07.

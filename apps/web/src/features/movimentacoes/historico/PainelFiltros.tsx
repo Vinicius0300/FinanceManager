@@ -2,7 +2,13 @@ import { X } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Input, Select } from "@/components/ui/input";
-import { nomeDoTipo, useInstituicoes, useTiposAtivo } from "@/lib/consultas-comuns";
+import {
+  nomeDoTipo,
+  rotuloAtivo,
+  useAtivos,
+  useInstituicoes,
+  useTiposAtivo,
+} from "@/lib/consultas-comuns";
 import { PERIODOS, type Periodo } from "@/lib/datas";
 import { plural } from "@/lib/formatacao";
 import { cn } from "@/lib/utils";
@@ -31,6 +37,7 @@ export function PainelFiltros({
 }) {
   const tipos = useTiposAtivo();
   const instituicoes = useInstituicoes();
+  const ativos = useAtivos();
   const id = useId();
   const [busca, setBusca] = useState(filtros.busca);
   const [buscaDaUrl, setBuscaDaUrl] = useState(filtros.busca);
@@ -54,6 +61,10 @@ export function PainelFiltros({
   const etiquetas = etiquetasDosFiltros(filtros, {
     tipoAtivo: (slug) => nomeDoTipo(tipos.data, slug),
     instituicao: (i) => instituicoes.data?.find((x) => x.id === i)?.nome ?? `#${i}`,
+    ativo: (i) => {
+      const ativo = ativos.data?.find((x) => x.id === i);
+      return ativo ? rotuloAtivo(ativo) : `#${i}`;
+    },
   });
   const mudar = <K extends keyof FiltrosHistorico>(campo: K, valor: FiltrosHistorico[K]) => {
     aoMudar({ ...filtros, [campo]: valor });
