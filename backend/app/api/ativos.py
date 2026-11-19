@@ -44,6 +44,8 @@ class TipoAtivoSaida(Modelo):
     provider: str | None
     tipos_transacao: list[str]
     aceita_taxas: bool
+    aceita_valor_total: bool  # compra/venda podem ser informadas pelo valor total
+    usa_simbolo_externo: bool  # a fonte de cotação usa o "símbolo na fonte"
     busca_por_ticker: bool  # o cadastro procura o ativo pelo ticker (lista/pesquisa)
     lista_simbolos: str | None  # lista oficial de tickers (B3, EUA) ou null
     campos: list[CampoTipo]

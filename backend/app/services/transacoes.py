@@ -13,13 +13,13 @@ inválido (ex.: excluir uma compra que sustentava uma venda posterior).
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.asset_types.base import HandlerCotado, HandlerMontante
+from app.asset_types.base import HandlerCotado, HandlerMontante, HandlerTipoAtivo
 from app.asset_types.catalogo import REGISTRO_PADRAO
 from app.asset_types.registry import RegistroTiposAtivo
 from app.domain.conta_corrente import (
@@ -27,6 +27,7 @@ from app.domain.conta_corrente import (
     LancamentoCaixa,
     deficit,
     movimento_da_transacao,
+    preco_pelo_valor_total,
     valor_com_sinal,
 )
 from app.domain.enums import SubtipoProvento, TipoEvento, TipoMovimento, TipoTransacao
@@ -89,6 +90,7 @@ class NovaTransacao:
     subtipo_provento: SubtipoProvento | None = None
     imposto_retido: Decimal = ZERO
     observacao: str | None = None
+    valor_total: Decimal | None = None  # compra/venda: alternativa ao preço unitário
 
 
 @dataclass(frozen=True)
@@ -100,6 +102,32 @@ class ResultadoTransacao:
     @property
     def gravada(self) -> bool:
         return self.transacao is not None
+
+
+def _com_preco_calculado(dados: NovaTransacao, handler: HandlerTipoAtivo) -> NovaTransacao:
+    """Troca o valor total informado pelo preço unitário equivalente (só ele é gravado)."""
+    if dados.valor_total is None:
+        return dados
+    exigir(
+        handler.aceita_valor_total,
+        "valor_total",
+        f"{handler.nome} não aceita informar o valor total.",
+    )
+    exigir(
+        dados.tipo in (TipoTransacao.COMPRA, TipoTransacao.VENDA),
+        "valor_total",
+        "O valor total só se aplica a compra e venda.",
+    )
+    exigir(
+        dados.preco_unitario is None,
+        "preco_unitario",
+        "Informe o preço unitário ou o valor total, não os dois.",
+    )
+    exigir_casas(dados.quantidade, CASAS_QUANTIDADE, "quantidade")
+    exigir_casas(dados.valor_total, CASAS_MOEDA, "valor_total")
+    # Sem quantidade, o cálculo recusa com a mensagem de quantidade maior que zero.
+    preco = preco_pelo_valor_total(dados.valor_total, dados.quantidade or ZERO)
+    return replace(dados, preco_unitario=preco, valor_total=None)
 
 
 def _validar_campos(dados: NovaTransacao) -> None:
@@ -170,6 +198,7 @@ def _simular(
     obter_instituicao(sessao, dados.instituicao_id)
     handler = handler_do_ativo(ativo, registro)
     handler.validar_transacao(ativo.metadados, dados.tipo, dados.data)
+    dados = _com_preco_calculado(dados, handler)
     _validar_campos(dados)
     exigir(
         handler.aceita_taxas or dados.taxas == ZERO, "taxas", f"{handler.nome} não aceita taxas."

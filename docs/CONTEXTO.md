@@ -134,6 +134,7 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 - Deduplicação no handler (`mesma_identidade`/`semelhante`); renda fixa igual a uma existente → 409 `ativo_semelhante` (somar ou criar separado).
 - O ativo nasce na própria movimentação (`POST /api/movimentacoes`, atômica): só compra e aporte criam ativo.
 - Vencimento pelo handler (`vencimento(metadados)`), usado em "Próximos vencimentos".
+- Tesouro Direto: compra e venda informadas por quantidade + preço unitário **ou** quantidade + valor total (`aceita_valor_total`; o backend calcula o preço com 8 casas); sem "símbolo na fonte" (`usa_simbolo_externo = False`).
 
 **Cotações e coleta** (Partes 3 e 4.1)
 - Fontes: Yahoo (chamada direta, sem `yfinance`; desfaz o ajuste de splits), CoinGecko (id automático em `simbolo_externo`), SGS do Banco Central (CDI 4389, Selic 432, IPCA 433, PTAX 1), Tesouro Transparente (PU venda manhã), CVM (ZIP mensal em streaming; subclasse exige `ID_SUBCLASSE`).

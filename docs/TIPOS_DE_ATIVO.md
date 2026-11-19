@@ -25,6 +25,8 @@ Cada handler declara:
 - `tolerancia_defasagem` (cotados): idade máxima do preço antes de marcá-lo como defasado;
 - `agenda`: quando a coleta automática busca a cotação. Padrão `AGENDA_DIARIA`; ações usam `AGENDA_B3`/`AGENDA_EUA` (intervalo configurável, só até o fechamento fora do pregão) e cripto `AGENDA_CONTINUA` (24 h). Ver `domain/agenda.py`;
 - `aceita_taxas`: `False` recusa taxas em compra/venda (Tesouro Direto);
+- `aceita_valor_total`: `True` permite informar compra/venda pelo valor total, com o preço calculado no backend (Tesouro Direto);
+- `usa_simbolo_externo`: `False` esconde o "Símbolo na fonte de cotação" e o ignora ao comparar ativos, quando a fonte identifica o ativo só pelos metadados (Tesouro Direto);
 - `campos_identificacao`: campos que identificam o ativo **na fonte** (CNPJ do fundo; título e vencimento do Tesouro). Mudá-los na edição apaga os preços automáticos e baixa o histórico de novo.
 - `lista_simbolos` (Parte 4.1): lista oficial de tickers usada na busca do cadastro (`"B3"` ou `"EUA"`); `busca_por_ticker` liga a busca por ticker sem lista (cripto, pela pesquisa da CoinGecko);
 - `sufixo_simbolo_externo` / `separador_classe`: formato do ticker na fonte (`.SA` dos papéis da B3; `BRK.B` = `BRK-B` nos EUA). `normalizar_simbolo` grava o ticker sem o sufixo e `simbolo_externo_padrao` preenche o símbolo na fonte quando o usuário não informa;

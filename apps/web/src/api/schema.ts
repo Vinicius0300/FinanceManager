@@ -1647,6 +1647,8 @@ export interface components {
             usar_ativo_id?: number | null;
             /** Valor */
             valor?: string | null;
+            /** Valor Total */
+            valor_total?: string | null;
         };
         /** MovimentacaoSaida */
         MovimentacaoSaida: {
@@ -2152,6 +2154,8 @@ export interface components {
         TipoAtivoSaida: {
             /** Aceita Taxas */
             aceita_taxas: boolean;
+            /** Aceita Valor Total */
+            aceita_valor_total: boolean;
             /** Busca Por Ticker */
             busca_por_ticker: boolean;
             /** Campos */
@@ -2174,6 +2178,8 @@ export interface components {
             slug: string;
             /** Tipos Transacao */
             tipos_transacao: string[];
+            /** Usa Simbolo Externo */
+            usa_simbolo_externo: boolean;
         };
         /**
          * TipoEvento
@@ -2315,6 +2321,8 @@ export interface components {
             tipo: components["schemas"]["TipoTransacao"];
             /** Valor */
             valor?: string | null;
+            /** Valor Total */
+            valor_total?: string | null;
         };
         /** TransacaoSaida */
         TransacaoSaida: {

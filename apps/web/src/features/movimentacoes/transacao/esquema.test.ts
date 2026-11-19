@@ -63,6 +63,38 @@ describe("esquema da movimentação", () => {
     expect(r.data).not.toHaveProperty("cambio"); // ativo em BRL não manda câmbio
   });
 
+  it("Tesouro pelo valor investido: envia o valor total e não o preço", () => {
+    const r = validar({
+      tipo_ativo: "tesouro_direto",
+      quantidade: "0,07",
+      forma_preco: "total",
+      valor_total: "1.066,42",
+    });
+    expect(r.success).toBe(true);
+    expect(r.data).toMatchObject({ quantidade: "0.07", valor_total: "1066.42" });
+    expect(r.data).not.toHaveProperty("preco_unitario");
+  });
+
+  it("valor investido: obrigatório e com no máximo 2 casas", () => {
+    const tesouro = {
+      tipo_ativo: "tesouro_direto",
+      quantidade: "1",
+      forma_preco: "total",
+    } as const;
+    expect(errosPorCampo({ ...tesouro, valor_total: "" })).toEqual({
+      valor_total: "Campo obrigatório.",
+    });
+    expect(errosPorCampo({ ...tesouro, valor_total: "10,123" })).toEqual({
+      valor_total: "Use no máximo 2 casas decimais.",
+    });
+  });
+
+  it("tipo sem a opção ignora a forma guardada e exige o preço", () => {
+    expect(errosPorCampo({ quantidade: "1", forma_preco: "total", valor_total: "10" })).toEqual({
+      preco_unitario: "Campo obrigatório.",
+    });
+  });
+
   it("tudo vazio: tipo, ativo e instituição apontados de uma vez", () => {
     expect(
       errosPorCampo({ tipo_ativo: "", modo_ativo: "", ativo_id: "", instituicao_id: "" }),

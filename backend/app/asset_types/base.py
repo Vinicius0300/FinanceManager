@@ -185,6 +185,10 @@ class HandlerTipoAtivo(ABC):
     tipos_transacao: ClassVar[frozenset[TipoTransacao]]
     aceita_taxas: ClassVar[bool] = True
     """``False``: compra/venda deste tipo não aceitam taxas (ex.: Tesouro Direto)."""
+    aceita_valor_total: ClassVar[bool] = False
+    """``True``: compra/venda podem trazer o valor total no lugar do preço unitário."""
+    usa_simbolo_externo: ClassVar[bool] = True
+    """``False``: a fonte identifica o ativo só pelos metadados (ex.: Tesouro Direto)."""
     agenda: ClassVar[Agenda] = AGENDA_DIARIA
     """Quando a atualização automática coleta a cotação (ver ``domain/agenda.py``)."""
     campos_identificacao: ClassVar[frozenset[str]] = frozenset()
@@ -232,7 +236,8 @@ class HandlerTipoAtivo(ABC):
         if self.modo is ModoPosicao.MONTANTE:
             return False
         if self.campos_identificacao:
-            return _externo(a) == _externo(b) and all(
+            mesmo_externo = not self.usa_simbolo_externo or _externo(a) == _externo(b)
+            return mesmo_externo and all(
                 a.metadados.get(campo) == b.metadados.get(campo)
                 for campo in self.campos_identificacao
             )
@@ -317,6 +322,8 @@ class HandlerTipoAtivo(ABC):
             "provider": self.provider,
             "tipos_transacao": sorted(t.value for t in self.tipos_transacao),
             "aceita_taxas": self.aceita_taxas,
+            "aceita_valor_total": self.aceita_valor_total,
+            "usa_simbolo_externo": self.usa_simbolo_externo,
             "busca_por_ticker": self.busca_por_ticker or self.lista_simbolos is not None,
             "lista_simbolos": self.lista_simbolos,
             "campos": [campo.para_schema() for campo in self.campos],

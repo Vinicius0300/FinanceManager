@@ -34,6 +34,8 @@ export const criaAtivo = (tipo: Operacao) => OPERACOES_QUE_CRIAM.includes(tipo);
 export const usaQuantidade = (tipo: Operacao) => tipo === "compra" || tipo === "venda";
 
 export type ModoAtivo = "" | "existente" | "novo";
+/** Como a compra/venda informa o preço (`total`: só nos tipos com `aceita_valor_total`). */
+export type FormaPreco = "unitario" | "total";
 
 export interface ValoresTransacao {
   tipo_ativo: string;
@@ -44,7 +46,9 @@ export interface ValoresTransacao {
   instituicao_id: string;
   data: string;
   quantidade: string;
+  forma_preco: FormaPreco;
   preco_unitario: string;
+  valor_total: string;
   valor: string;
   taxas: string;
   cambio: string;
@@ -81,8 +85,9 @@ export function operacaoAceita(tipo: TipoAtivo | undefined, atual: Operacao): Op
  * ativo e da operação:
  * - ativo: um cadastrado (`ativo_id`) ou um novo (`novo_ativo`, validado pelo schema do
  *   tipo, como no cadastro; ticker obrigatório nos tipos com busca por ticker);
- * - compra/venda: quantidade (até 8 casas) e preço (até 8); aporte/resgate/provento: valor
- *   (2 casas); câmbio (até 6) só fora do real; provento: tipo e imposto retido.
+ * - compra/venda: quantidade (até 8 casas) e preço (até 8) ou, nos tipos que aceitam, valor
+ *   total (2 casas; o backend calcula o preço); aporte/resgate/provento: valor (2 casas);
+ *   câmbio (até 6) só fora do real; provento: tipo e imposto retido.
  * Todos os erros aparecem de uma vez (validação no `transform`).
  */
 export function criarEsquemaTransacao(contexto: ContextoEsquema) {
@@ -102,7 +107,9 @@ export function criarEsquemaTransacao(contexto: ContextoEsquema) {
       instituicao_id: z.string(),
       data: z.string(),
       quantidade: z.string(),
+      forma_preco: z.enum(["unitario", "total"]),
       preco_unitario: z.string(),
+      valor_total: z.string(),
       valor: z.string(),
       taxas: z.string(),
       cambio: z.string(),
@@ -181,11 +188,19 @@ export function criarEsquemaTransacao(contexto: ContextoEsquema) {
           sinal: "positivo",
           obrigatorio: true,
         });
-        entrada.preco_unitario = lerDecimal(ctx, "preco_unitario", v.preco_unitario, {
-          casas: CASAS.preco,
-          sinal: "naoNegativo",
-          obrigatorio: true,
-        });
+        if (tipoAtivo?.aceita_valor_total && v.forma_preco === "total") {
+          entrada.valor_total = lerDecimal(ctx, "valor_total", v.valor_total, {
+            casas: CASAS.moeda,
+            sinal: "positivo",
+            obrigatorio: true,
+          });
+        } else {
+          entrada.preco_unitario = lerDecimal(ctx, "preco_unitario", v.preco_unitario, {
+            casas: CASAS.preco,
+            sinal: "naoNegativo",
+            obrigatorio: true,
+          });
+        }
         if (tipoAtivo?.aceita_taxas !== false) {
           entrada.taxas =
             lerDecimal(ctx, "taxas", v.taxas, { casas: CASAS.moeda, sinal: "naoNegativo" }) ?? "0";
@@ -229,6 +244,7 @@ export function paraTransacaoEntrada(
     data: movimentacao.data,
     quantidade: movimentacao.quantidade ?? null,
     preco_unitario: movimentacao.preco_unitario ?? null,
+    valor_total: movimentacao.valor_total ?? null,
     valor: movimentacao.valor ?? null,
     taxas: movimentacao.taxas,
     cambio: movimentacao.cambio ?? null,
@@ -254,7 +270,9 @@ export function valoresIniciais(
       instituicao_id: "",
       data: hoje,
       quantidade: "",
+      forma_preco: "unitario",
       preco_unitario: "",
+      valor_total: "",
       valor: "",
       taxas: "",
       cambio: "",
@@ -273,7 +291,10 @@ export function valoresIniciais(
     instituicao_id: String(transacao.instituicao_id),
     data: transacao.data,
     quantidade: paraCampo(transacao.quantidade),
+    forma_preco: "unitario",
     preco_unitario: paraCampo(transacao.preco_unitario),
+    // Já preenchido caso a edição troque para o valor total (a API devolve em centavos).
+    valor_total: tipoDoAtivo?.aceita_valor_total ? paraCampo(transacao.valor_total) : "",
     valor: paraCampo(transacao.valor),
     taxas: ehZero(transacao.taxas) ? "" : paraCampo(transacao.taxas),
     cambio: moedaEstrangeira ? paraCampo(transacao.cambio) : "",

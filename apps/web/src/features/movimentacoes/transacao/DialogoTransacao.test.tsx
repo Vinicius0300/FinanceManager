@@ -207,6 +207,41 @@ describe("DialogoTransacao (formulário único)", () => {
     expect(screen.queryByLabelText(/^Taxas/)).not.toBeInTheDocument();
   });
 
+  it("Tesouro: sem símbolo na fonte e compra pelo valor investido", async () => {
+    const aoMudar = vi.fn();
+    const { usuario, chamadas } = renderizar(
+      <DialogoTransacao aberto aoMudar={aoMudar} agora={AGORA} />,
+      { rotas: { "POST /api/movimentacoes": movimentacaoGravada({}) } },
+    );
+    await escolherTipo(usuario, "tesouro_direto");
+    await usuario.selectOptions(screen.getByLabelText(/^Instituição/), "1");
+    await usuario.selectOptions(screen.getByLabelText(/^Ativo/), "novo");
+    expect(screen.queryByLabelText(/^Símbolo na fonte/)).not.toBeInTheDocument();
+    await usuario.type(screen.getByLabelText(/^Nome/), "Tesouro IPCA+ 2035");
+    await usuario.selectOptions(screen.getByLabelText(/^Título/), "ipca");
+    await usuario.type(screen.getByLabelText(/^Vencimento/), "2035-05-15");
+    await usuario.type(screen.getByLabelText(/^Quantidade/), "0,07");
+    expect(screen.getByLabelText(/^Preço unitário/)).toBeInTheDocument();
+
+    await usuario.selectOptions(screen.getByLabelText(/^Informar por/), "total");
+    expect(screen.queryByLabelText(/^Preço unitário/)).not.toBeInTheDocument();
+    await usuario.type(screen.getByLabelText(/^Valor investido/), "1.066,42");
+    await usuario.click(screen.getByRole("button", { name: "Registrar" }));
+    await waitFor(() => {
+      expect(aoMudar).toHaveBeenCalledWith(false);
+    });
+    const corpo = posts(chamadas)[0]?.corpo;
+    expect(corpo).toMatchObject({ quantidade: "0.07", valor_total: "1066.42" });
+    expect(corpo).not.toHaveProperty("preco_unitario");
+  });
+
+  it("tipo sem a opção não mostra a escolha do preço", async () => {
+    const { usuario } = renderizar(<DialogoTransacao aberto aoMudar={vi.fn()} agora={AGORA} />);
+    await escolherTipo(usuario, "acao_br");
+    expect(screen.queryByLabelText(/^Informar por/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^Preço unitário/)).toBeInTheDocument();
+  });
+
   it("compra de ativo da carteira pela busca", async () => {
     const aoMudar = vi.fn();
     const { usuario, chamadas } = renderizar(

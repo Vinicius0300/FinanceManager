@@ -9,6 +9,8 @@
     "provider": "yfinance",
     "tipos_transacao": ["compra", "provento", "venda"],
     "aceita_taxas": true,
+    "aceita_valor_total": false,
+    "usa_simbolo_externo": true,
     "busca_por_ticker": true,
     "lista_simbolos": "B3",
     "campos": [
@@ -63,6 +65,8 @@
     "provider": "yfinance",
     "tipos_transacao": ["compra", "provento", "venda"],
     "aceita_taxas": true,
+    "aceita_valor_total": false,
+    "usa_simbolo_externo": true,
     "busca_por_ticker": true,
     "lista_simbolos": "EUA",
     "campos": [
@@ -106,6 +110,8 @@
     "provider": "coingecko",
     "tipos_transacao": ["compra", "venda"],
     "aceita_taxas": true,
+    "aceita_valor_total": false,
+    "usa_simbolo_externo": true,
     "busca_por_ticker": true,
     "lista_simbolos": null,
     "campos": []
@@ -120,6 +126,8 @@
     "provider": "yfinance",
     "tipos_transacao": ["compra", "provento", "venda"],
     "aceita_taxas": true,
+    "aceita_valor_total": false,
+    "usa_simbolo_externo": true,
     "busca_por_ticker": true,
     "lista_simbolos": "B3",
     "campos": []
@@ -134,6 +142,8 @@
     "provider": "yfinance",
     "tipos_transacao": ["compra", "provento", "venda"],
     "aceita_taxas": true,
+    "aceita_valor_total": false,
+    "usa_simbolo_externo": true,
     "busca_por_ticker": true,
     "lista_simbolos": "EUA",
     "campos": [
@@ -177,6 +187,8 @@
     "provider": "cvm",
     "tipos_transacao": ["compra", "provento", "venda"],
     "aceita_taxas": true,
+    "aceita_valor_total": false,
+    "usa_simbolo_externo": true,
     "busca_por_ticker": false,
     "lista_simbolos": null,
     "campos": [
@@ -235,6 +247,8 @@
     "provider": "yfinance",
     "tipos_transacao": ["compra", "provento", "venda"],
     "aceita_taxas": true,
+    "aceita_valor_total": false,
+    "usa_simbolo_externo": true,
     "busca_por_ticker": true,
     "lista_simbolos": "B3",
     "campos": []
@@ -249,6 +263,8 @@
     "provider": null,
     "tipos_transacao": ["aporte", "resgate"],
     "aceita_taxas": true,
+    "aceita_valor_total": false,
+    "usa_simbolo_externo": true,
     "busca_por_ticker": false,
     "lista_simbolos": null,
     "campos": []
@@ -263,6 +279,8 @@
     "provider": null,
     "tipos_transacao": ["aporte", "resgate"],
     "aceita_taxas": true,
+    "aceita_valor_total": false,
+    "usa_simbolo_externo": true,
     "busca_por_ticker": false,
     "lista_simbolos": null,
     "campos": [
@@ -366,6 +384,8 @@
     "provider": "tesouro",
     "tipos_transacao": ["compra", "provento", "venda"],
     "aceita_taxas": false,
+    "aceita_valor_total": true,
+    "usa_simbolo_externo": false,
     "busca_por_ticker": false,
     "lista_simbolos": null,
     "campos": [

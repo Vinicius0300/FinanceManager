@@ -20,14 +20,18 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from app.domain.enums import MOVIMENTOS_DE_SAIDA, TipoLancamento, TipoMovimento, TipoTransacao
-from app.domain.numeros import ZERO, arredondar_moeda
+from app.domain.erros import DetalheCampo, ValidacaoError, exigir
+from app.domain.numeros import CASAS_PRECO, ZERO, arredondar, arredondar_moeda, dividir
 
 MENSAGEM_SALDO_INSUFICIENTE = (
     "Você está movimentando mais dinheiro do que o possível dentro desta conta corrente. "
     "Atualizar valores?"
+)
+MENSAGEM_VALOR_TOTAL_INVIAVEL = (
+    "Não há preço unitário que reproduza este valor com esta quantidade: confira os dois campos."
 )
 
 
@@ -72,6 +76,30 @@ def movimento_da_transacao(
     if tipo is TipoTransacao.RESGATE:
         return TipoMovimento.CREDITO_VENDA, valor
     return TipoMovimento.CREDITO_PROVENTO, valor
+
+
+def preco_pelo_valor_total(valor_total: Decimal, quantidade: Decimal) -> Decimal:
+    """Preço unitário (8 casas) de uma compra/venda informada pelo valor total, sem taxas.
+
+    Garante que o movimento de caixa (quantidade × preço, em centavos) seja exatamente o
+    valor informado. Ex.: R$ 1.066,42 por 0,07 título = 15.234,57142857, que debita
+    R$ 1.066,42. Recusa a combinação quando isso é impossível.
+    """
+    exigir(quantidade > ZERO, "quantidade", "A quantidade deve ser maior que zero.")
+    exigir(valor_total > ZERO, "valor_total", "O valor deve ser maior que zero.")
+    try:
+        preco = arredondar(dividir(valor_total, quantidade), CASAS_PRECO)
+    except InvalidOperation as erro:  # resultado grande demais para 8 casas
+        raise ValidacaoError(
+            MENSAGEM_VALOR_TOTAL_INVIAVEL,
+            [DetalheCampo("valor_total", MENSAGEM_VALOR_TOTAL_INVIAVEL)],
+        ) from erro
+    exigir(
+        arredondar_moeda(quantidade * preco) == valor_total,
+        "valor_total",
+        MENSAGEM_VALOR_TOTAL_INVIAVEL,
+    )
+    return preco
 
 
 def movimento_do_lancamento(tipo: TipoLancamento) -> TipoMovimento:

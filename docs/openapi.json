@@ -1877,6 +1877,21 @@
               }
             ],
             "title": "Valor"
+          },
+          "valor_total": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Total"
           }
         },
         "required": [
@@ -3366,6 +3381,10 @@
             "title": "Aceita Taxas",
             "type": "boolean"
           },
+          "aceita_valor_total": {
+            "title": "Aceita Valor Total",
+            "type": "boolean"
+          },
           "busca_por_ticker": {
             "title": "Busca Por Ticker",
             "type": "boolean"
@@ -3432,6 +3451,10 @@
             },
             "title": "Tipos Transacao",
             "type": "array"
+          },
+          "usa_simbolo_externo": {
+            "title": "Usa Simbolo Externo",
+            "type": "boolean"
           }
         },
         "required": [
@@ -3444,6 +3467,8 @@
           "provider",
           "tipos_transacao",
           "aceita_taxas",
+          "aceita_valor_total",
+          "usa_simbolo_externo",
           "busca_por_ticker",
           "lista_simbolos",
           "campos"
@@ -3761,6 +3786,21 @@
               }
             ],
             "title": "Valor"
+          },
+          "valor_total": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Total"
           }
         },
         "required": [

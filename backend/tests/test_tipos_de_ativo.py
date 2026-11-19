@@ -76,6 +76,8 @@ def test_schemas_sao_serializaveis_e_completos() -> None:
             "provider",
             "tipos_transacao",
             "aceita_taxas",
+            "aceita_valor_total",
+            "usa_simbolo_externo",
             "busca_por_ticker",
             "lista_simbolos",
             "campos",
@@ -445,6 +447,8 @@ def test_tesouro_direto_e_cotado_sem_taxas_e_diario() -> None:
     schema = handler.schema()
     assert schema["modo"] == "cotas"
     assert schema["aceita_taxas"] is False
+    assert schema["aceita_valor_total"] is True
+    assert schema["usa_simbolo_externo"] is False
     assert schema["tipos_transacao"] == ["compra", "provento", "venda"]
     assert [c["nome"] for c in schema["campos"]] == ["titulo", "vencimento"]
     titulo = schema["campos"][0]

@@ -34,6 +34,7 @@ class MovimentacaoEntrada(Modelo):
     data: date
     quantidade: Numero | None = None
     preco_unitario: Numero | None = None
+    valor_total: Numero | None = None  # alternativa ao preço, nos tipos que aceitam
     valor: Numero | None = None
     taxas: Numero = Decimal(0)
     cambio: Numero | None = None
@@ -65,6 +66,7 @@ def _nova(dados: MovimentacaoEntrada) -> servico.NovaMovimentacao:
             subtipo_provento=dados.subtipo_provento,
             imposto_retido=dados.imposto_retido,
             observacao=dados.observacao,
+            valor_total=dados.valor_total,
         ),
         ativo_id=dados.ativo_id,
         novo_ativo=None

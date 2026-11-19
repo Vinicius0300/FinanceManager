@@ -40,6 +40,8 @@ class TesouroDireto(HandlerCotado):
     moedas_aceitas = ("BRL",)
     provider = "tesouro"
     aceita_taxas: ClassVar[bool] = False
+    aceita_valor_total: ClassVar[bool] = True
+    usa_simbolo_externo: ClassVar[bool] = False
     campos_identificacao: ClassVar[frozenset[str]] = frozenset({"titulo", "vencimento"})
     campos = (
         CampoEspecifico(nome="titulo", rotulo="Título", tipo=TipoCampo.ESCOLHA, opcoes=TITULOS),

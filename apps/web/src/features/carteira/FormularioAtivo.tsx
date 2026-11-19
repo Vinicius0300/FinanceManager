@@ -122,7 +122,7 @@ export function FormularioAtivo({
             ))}
           </Select>
         </Campo>
-        {tipo.provider && (
+        {tipo.provider && tipo.usa_simbolo_externo && (
           <Campo
             rotulo="Símbolo na fonte de cotação"
             erro={erros.simbolo_externo?.message}

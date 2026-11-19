@@ -68,6 +68,7 @@ const CAMPOS_TRANSACAO = [
   "data",
   "quantidade",
   "preco_unitario",
+  "valor_total",
   "valor",
   "taxas",
   "cambio",
@@ -728,7 +729,7 @@ function CamposNovoAtivo({
           </Select>
         </Campo>
       )}
-      {tipo.provider && !tipo.busca_por_ticker && (
+      {tipo.provider && tipo.usa_simbolo_externo && !tipo.busca_por_ticker && (
         <Campo
           rotulo="Símbolo na fonte de cotação"
           erro={erros?.simbolo_externo?.message}
@@ -791,6 +792,9 @@ function CamposDaOperacao({
   const operacao = useWatch({ control: form.control, name: "tipo" });
   const quantidade = useWatch({ control: form.control, name: "quantidade" });
   const valor = useWatch({ control: form.control, name: "valor" });
+  const formaPreco = useWatch({ control: form.control, name: "forma_preco" });
+  const porValorTotal = tipo.aceita_valor_total && formaPreco === "total";
+  const rotuloValorTotal = operacao === "venda" ? "Valor recebido" : "Valor investido";
   const disponivel = usaQuantidade(operacao) ? posicao?.quantidade : posicao?.valor;
   const digitado = normalizarDecimal(usaQuantidade(operacao) ? quantidade : valor);
   const acima =
@@ -819,13 +823,34 @@ function CamposDaOperacao({
           <Campo rotulo="Quantidade" obrigatorio erro={erros.quantidade?.message} ajuda={ajuda}>
             <Input inputMode="decimal" {...form.register("quantidade")} />
           </Campo>
-          <Campo
-            rotulo={`Preço unitário (${moeda})`}
-            obrigatorio
-            erro={erros.preco_unitario?.message}
-          >
-            <Input inputMode="decimal" {...form.register("preco_unitario")} />
-          </Campo>
+          {tipo.aceita_valor_total && (
+            <Campo rotulo="Informar por">
+              <Select {...form.register("forma_preco")}>
+                <option value="unitario">Preço unitário</option>
+                <option value="total">{rotuloValorTotal}</option>
+              </Select>
+            </Campo>
+          )}
+          {porValorTotal ? (
+            <Campo
+              key="valor_total"
+              rotulo={`${rotuloValorTotal} (${moeda})`}
+              obrigatorio
+              erro={erros.valor_total?.message}
+              ajuda="O preço unitário é calculado: valor ÷ quantidade."
+            >
+              <Input inputMode="decimal" {...form.register("valor_total")} />
+            </Campo>
+          ) : (
+            <Campo
+              key="preco_unitario"
+              rotulo={`Preço unitário (${moeda})`}
+              obrigatorio
+              erro={erros.preco_unitario?.message}
+            >
+              <Input inputMode="decimal" {...form.register("preco_unitario")} />
+            </Campo>
+          )}
           {tipo.aceita_taxas && (
             <Campo rotulo={`Taxas (${moeda})`} erro={erros.taxas?.message}>
               <Input inputMode="decimal" placeholder="0,00" {...form.register("taxas")} />
