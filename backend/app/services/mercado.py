@@ -27,11 +27,18 @@ from app.asset_types.catalogo import REGISTRO_PADRAO
 from app.asset_types.registry import RegistroTiposAtivo
 from app.domain.enums import OrigemPreco, TipoIndicador
 from app.domain.erros import ConflitoError, NaoEncontradoError, OperacaoNaoPermitidaError, exigir
-from app.domain.indicadores import NOMES_INDICADORES, Indicadores, PontoIndicador, SerieIndicador
+from app.domain.indicadores import (
+    MESES_ACUMULADO_IPCA,
+    NOMES_INDICADORES,
+    Indicadores,
+    PontoIndicador,
+    SerieIndicador,
+)
+from app.domain.indicadores import ipca_acumulado_12_meses as calcular_ipca_acumulado
 from app.domain.moedas import MOEDA_BASE, validar_moeda
 from app.domain.numeros import CASAS_CAMBIO, CASAS_PRECO, ZERO, exigir_casas
 from app.domain.precos import PontoPreco, SeriePrecos, instante_fechamento
-from app.domain.tempo import data_local, formatar_data
+from app.domain.tempo import data_local, formatar_data, primeiro_dia_do_mes, somar_meses
 from app.repositories.mercado import RepositorioIndicadores, RepositorioPrecos
 from app.repositories.modelos import Ativo, Indicador, Preco
 from app.services.cadastros import handler_do_ativo, obter_ativo
@@ -276,6 +283,17 @@ def listar_indicadores(
 ) -> Sequence[Indicador]:
     moeda_limpa = validar_moeda(moeda) if moeda else None
     return RepositorioIndicadores(sessao).filtrar(tipo, moeda_limpa, inicio, fim)
+
+
+def ipca_acumulado_12_meses(sessao: Session, mes_final: date) -> Decimal | None:
+    """IPCA acumulado nos 12 meses até ``mes_final`` com os valores gravados (manual incluso)."""
+    fim = primeiro_dia_do_mes(mes_final)
+    inicio = somar_meses(fim, -(MESES_ACUMULADO_IPCA - 1))
+    pontos = [
+        PontoIndicador(i.data, i.valor)
+        for i in RepositorioIndicadores(sessao).filtrar(TipoIndicador.IPCA, MOEDA_BASE, inicio, fim)
+    ]
+    return calcular_ipca_acumulado(pontos, fim)
 
 
 def eh_fonte_automatica(fonte: str | None) -> bool:

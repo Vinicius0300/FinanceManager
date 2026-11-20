@@ -29,6 +29,10 @@ const ROTAS = {
   "GET /api/configuracoes": { intervalo_atualizacao_min: 5 },
   "PUT /api/configuracoes": (c: Chamada) => c.corpo,
   "GET /api/indicadores": (c: Chamada) => INDICADORES[c.query.get("tipo") ?? ""] ?? [],
+  "GET /api/indicadores/ipca-acumulado": (c: Chamada) => ({
+    mes_final: c.query.get("mes"),
+    acumulado_12_meses: "4.63",
+  }),
   "GET /api/backups": [
     {
       nome: "financas-20261029-120000-manual.db",
@@ -113,6 +117,59 @@ describe("Configurações", () => {
     expect(
       await within(screen.getByRole("region", { name: "IPCA" })).findByText(/Sem valor/),
     ).toBeInTheDocument();
+  });
+
+  it("IPCA: acumulado em 12 meses em destaque e o mês embaixo", async () => {
+    const ipcaOutubro = {
+      id: 4,
+      tipo: "ipca",
+      moeda: "BRL",
+      data: "2026-10-01",
+      valor: "0.14",
+      fonte: "bcb_sgs",
+    };
+    const { chamadas } = renderizar(<TelaConfiguracoes agora={AGORA} />, {
+      rotas: {
+        ...ROTAS,
+        "GET /api/indicadores": (c: Chamada) =>
+          c.query.get("tipo") === "ipca" ? [ipcaOutubro] : [],
+      },
+    });
+    const ipca = await screen.findByRole("region", { name: "IPCA" });
+    expect(await within(ipca).findByText("4,63% em 12 meses")).toBeInTheDocument();
+    expect(within(ipca).getByText("outubro de 2026: 0,14% no mês")).toBeInTheDocument();
+    expect(ipca).toHaveTextContent("01/10/2026 · Banco Central (SGS)");
+    expect(
+      chamadas.find((c) => c.caminho === "/api/indicadores/ipca-acumulado")?.query.get("mes"),
+    ).toBe("2026-10-01");
+  });
+
+  it("IPCA sem os 12 meses: mostra o mês e avisa que falta o acumulado", async () => {
+    renderizar(<TelaConfiguracoes agora={AGORA} />, {
+      rotas: {
+        ...ROTAS,
+        "GET /api/indicadores": (c: Chamada) =>
+          c.query.get("tipo") === "ipca"
+            ? [
+                {
+                  id: 4,
+                  tipo: "ipca",
+                  moeda: "BRL",
+                  data: "2026-10-01",
+                  valor: "0.14",
+                  fonte: "manual",
+                },
+              ]
+            : [],
+        "GET /api/indicadores/ipca-acumulado": {
+          mes_final: "2026-10-01",
+          acumulado_12_meses: null,
+        },
+      },
+    });
+    const ipca = await screen.findByRole("region", { name: "IPCA" });
+    expect(await within(ipca).findByText(/falta o IPCA de algum mês/)).toBeInTheDocument();
+    expect(within(ipca).getByText("0,14% no mês")).toBeInTheDocument();
   });
 
   it("lançamento manual de indicador (IPCA no dia 1º) e edição do último valor", async () => {

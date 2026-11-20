@@ -132,6 +132,7 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 **Tipos de ativo** (Partes 2, 3 e 4.1)
 - Tipo é texto validado pelo registry (sem CHECK); registro único em `asset_types/catalogo.py`. 10 tipos hoje, incluindo `tesouro_direto`, `fundo_listado` (FII, Fiagro, FI-Infra), `etf_br`, `etf_us`.
 - Tipo identificado pela **lista oficial** (B3 `InstrumentsConsolidatedFile`, NASDAQ), nunca pelo texto do ticker; categoria não mapeada fica fora e vai para o log.
+- Lista da B3: HTTP 400 ou 404 no pedido do token = "sem arquivo no dia"; volta até 21 dias corridos procurando o mais recente (a B3 já ficou 8 dias sem publicar).
 - Deduplicação no handler (`mesma_identidade`/`semelhante`); renda fixa igual a uma existente → 409 `ativo_semelhante` (somar ou criar separado).
 - O ativo nasce na própria movimentação (`POST /api/movimentacoes`, atômica): só compra e aporte criam ativo.
 - Vencimento pelo handler (`vencimento(metadados)`), usado em "Próximos vencimentos".
@@ -143,6 +144,8 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 - Um preço por dia por ativo; manual vence automático; indicador manual nunca é sobrescrito; PTAX vence Yahoo.
 - Agenda pura em `domain/agenda.py`: ações e cripto a cada 1–15 min (padrão 5); fora do pregão só até pegar o fechamento (+30 min); diárias uma vez por dia.
 - Histórico inicial de até 1 ano; depois só completa lacunas.
+- Indicadores do painel (Selic, CDI, IPCA, dólar PTAX) são coletados sempre, nos últimos 120 dias (IPCA: 14 meses), mesmo sem ativo que os use; a carteira pode pedir histórico mais antigo.
+- IPCA continua gravado e usado como % no mês; o painel mostra em destaque o acumulado em 12 meses (composto, 2 casas, `GET /api/indicadores/ipca-acumulado`) e, menor, a variação do último mês.
 - Ciclo: rede sem sessão aberta, gravação por alvo; um `asyncio.Lock` único para coleta, listas e restauração (atualização simultânea → 409). `FINANCAS_SEM_ATUALIZACAO=1` desliga a automática.
 - Tempo real por SSE em `GET /api/eventos` lido com `fetch` (o token não vai na URL).
 - **Situação da cotação** (chip e painel da barra superior): calculada no backend (`domain/situacao_cotacao.py`), prioridade com erro > manual > defasado > em dia; **manual** = ativo cotado sem fonte automática (não conta como defasado nem entra nos botões).
@@ -187,7 +190,6 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 - Validação em máquina limpa (Windows 10 e 11, uma sem WebView2) e backup/restauração entre duas instalações: checklist em `HISTORICO.md` (Parte 5B), a fazer pelo dono.
 - Tempo de abertura com cache frio (logo após reiniciar o Windows) não medido.
 - Backups deixam `-shm`/`-wal` vazios ao lado do `.db` (não afeta a restauração).
-- Lista da B3 respondeu erro 400 em 04/11/2026 (a dos EUA funcionou); conferir se é temporário ou mudança na API.
 - Papéis da B3 `CPA`/`TPR` ficam fora da lista (só cadastro manual).
 - Lista de lançamentos mostra até 500 por mês (máximo por página).
 - Feriados americanos não entram na agenda (só geram coletas extras sem efeito).

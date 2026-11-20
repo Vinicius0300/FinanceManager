@@ -395,6 +395,34 @@ def test_indicadores(api: TestClient) -> None:
     assert len(api.get("/api/indicadores").json()) == 1
 
 
+IPCA_12_MESES = [  # nov/2025 a out/2026 (SGS 433); oficial em 12 meses: 4,63%
+    ("2025-11-01", "0.18"),
+    ("2025-12-01", "0.33"),
+    ("2026-01-01", "0.33"),
+    ("2026-02-01", "0.70"),
+    ("2026-03-01", "0.88"),
+    ("2026-04-01", "0.67"),
+    ("2026-05-01", "0.58"),
+    ("2026-06-01", "0.16"),
+    ("2026-07-01", "0.07"),
+    ("2026-08-01", "-0.32"),
+    ("2026-09-01", "0.82"),
+    ("2026-10-01", "0.14"),
+]
+
+
+def test_ipca_acumulado_em_12_meses(api: TestClient) -> None:
+    for dia, valor in IPCA_12_MESES:
+        criar(api, "/api/indicadores", {"tipo": "ipca", "data": dia, "valor": valor})
+    resposta = api.get("/api/indicadores/ipca-acumulado", params={"mes": "2026-10-15"})
+    assert resposta.status_code == 200
+    assert resposta.json() == {"mes_final": "2026-10-01", "acumulado_12_meses": "4.63"}
+    # Novembro/2026 ainda não existe: sem os 12 meses, não estima.
+    novembro = api.get("/api/indicadores/ipca-acumulado", params={"mes": "2026-11-01"}).json()
+    assert novembro == {"mes_final": "2026-11-01", "acumulado_12_meses": None}
+    assert api.get("/api/indicadores/ipca-acumulado").status_code == 422
+
+
 # ---------------------------------------------------------------- portfólio
 
 

@@ -38,6 +38,12 @@ class IndicadorSaida(Modelo):
     fonte: str | None
 
 
+class IpcaAcumuladoSaida(Modelo):
+    mes_final: date
+    acumulado_12_meses: Numero | None
+    """% acumulado nos 12 meses até ``mes_final``; ``None`` se faltar algum mês."""
+
+
 def _indicador(indicador: m.Indicador) -> IndicadorSaida:
     return IndicadorSaida(
         id=indicador.id,
@@ -63,6 +69,19 @@ def listar_indicadores(
     fim: date | None = None,
 ) -> list[IndicadorSaida]:
     return [_indicador(i) for i in mercado.listar_indicadores(sessao, tipo, moeda, inicio, fim)]
+
+
+@router.get(
+    "/indicadores/ipca-acumulado",
+    response_model=IpcaAcumuladoSaida,
+    summary="IPCA acumulado em 12 meses até o mês informado",
+    responses=respostas(422),
+)
+def ipca_acumulado(sessao: SessaoDep, mes: date) -> IpcaAcumuladoSaida:
+    return IpcaAcumuladoSaida(
+        mes_final=mes.replace(day=1),
+        acumulado_12_meses=mercado.ipca_acumulado_12_meses(sessao, mes),
+    )
 
 
 @router.post(

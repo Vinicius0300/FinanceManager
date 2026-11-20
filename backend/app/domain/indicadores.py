@@ -28,8 +28,8 @@ from itertools import pairwise
 from app.domain.enums import TipoIndicador
 from app.domain.erros import CambioAusenteError, IndicadorAusenteError
 from app.domain.moedas import MOEDA_BASE
-from app.domain.numeros import UM
-from app.domain.tempo import formatar_data
+from app.domain.numeros import CEM, UM, arredondar
+from app.domain.tempo import formatar_data, primeiro_dia_do_mes, somar_meses
 
 NOMES_INDICADORES = {
     TipoIndicador.SELIC: "Selic",
@@ -171,3 +171,29 @@ def aviso_indicador_defasado(serie: SerieIndicador, data_ref: date) -> str | Non
         f"{serie.nome} defasado: último registro em {formatar_data(ponto.data)}; "
         "o valor usa o último indicador conhecido."
     )
+
+
+MESES_ACUMULADO_IPCA = 12
+CASAS_ACUMULADO_IPCA = 2
+"""Mesmas casas do número oficial do IBGE (ex.: 4,63% em 12 meses)."""
+
+
+def ipca_acumulado_12_meses(pontos: Iterable[PontoIndicador], mes_final: date) -> Decimal | None:
+    """IPCA acumulado nos 12 meses terminados em ``mes_final`` (inclusive), em %.
+
+    Composição das variações mensais: ``(∏ (1 + v/100) − 1) × 100``, arredondado a
+    :data:`CASAS_ACUMULADO_IPCA` casas (``ROUND_HALF_EVEN``) só no fim. Ex.: nov/2025 a
+    out/2026 (0,18; 0,33; 0,33; 0,70; 0,88; 0,67; 0,58; 0,16; 0,07; −0,32; 0,82; 0,14)
+    → 4,62836...% → **4,63%**, igual à série 13522 do Banco Central.
+
+    Falta de qualquer um dos 12 meses → ``None`` (não estima o mês ausente).
+    """
+    por_mes = {primeiro_dia_do_mes(p.data): p.valor for p in pontos}
+    fim = primeiro_dia_do_mes(mes_final)
+    fator = UM
+    for deslocamento in range(MESES_ACUMULADO_IPCA):
+        valor = por_mes.get(somar_meses(fim, -deslocamento))
+        if valor is None:
+            return None
+        fator *= UM + valor / CEM
+    return arredondar((fator - UM) * CEM, CASAS_ACUMULADO_IPCA)

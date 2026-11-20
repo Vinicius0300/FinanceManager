@@ -27,7 +27,7 @@ import {
   decimalObrigatorio,
   paraCampo,
 } from "@/lib/formularios";
-import { formatarData, formatarMoeda, formatarNumero } from "@/lib/formatacao";
+import { formatarData, formatarMesAno, formatarMoeda, formatarNumero } from "@/lib/formatacao";
 import { INDICADORES, type DefinicaoIndicador } from "./definicoes";
 import { subDays } from "date-fns";
 
@@ -56,6 +56,21 @@ function useUltimoIndicador(def: DefinicaoIndicador, agora: Date) {
       );
       return [...lista].sort((a, b) => a.data.localeCompare(b.data)).at(-1) ?? null;
     },
+  });
+}
+
+/** Acumulado em 12 meses até o mês do último IPCA (calculado no backend, com Decimal). */
+function useIpcaAcumulado(mes: string) {
+  const { cliente } = useClienteApi();
+  return useQuery({
+    queryKey: ["indicadores", "ipca-acumulado", mes],
+    queryFn: async ({ signal }) =>
+      exigir(
+        await cliente.GET("/api/indicadores/ipca-acumulado", {
+          params: { query: { mes } },
+          signal,
+        }),
+      ),
   });
 }
 
@@ -94,9 +109,13 @@ function CartaoIndicador({ def, agora }: { def: DefinicaoIndicador; agora: Date 
         <EstadoErro erro={ultimo.error} className="py-2" />
       ) : ultimo.data ? (
         <>
-          <p className="tabular text-lg font-semibold">
-            {formatarIndicador(def, ultimo.data.valor)}
-          </p>
+          {def.tipo === "ipca" ? (
+            <ValorIpca def={def} ultimo={ultimo.data} />
+          ) : (
+            <p className="tabular text-lg font-semibold">
+              {formatarIndicador(def, ultimo.data.valor)}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
             {formatarData(ultimo.data.data)} ·{" "}
             {FONTES[ultimo.data.fonte ?? ""] ?? ultimo.data.fonte ?? "fonte desconhecida"}
@@ -140,6 +159,37 @@ function CartaoIndicador({ def, agora }: { def: DefinicaoIndicador; agora: Date 
         />
       )}
     </section>
+  );
+}
+
+/**
+ * IPCA em destaque no acumulado em 12 meses (comparável à Selic e ao CDI, em % a.a.) e,
+ * menor, a variação do último mês. Faltando algum dos 12 meses, o mês fica em destaque.
+ */
+function ValorIpca({ def, ultimo }: { def: DefinicaoIndicador; ultimo: Indicador }) {
+  const acumulado = useIpcaAcumulado(ultimo.data);
+  const mes = `${formatarMesAno(ultimo.data)}: ${formatarIndicador(def, ultimo.valor)}`;
+  if (acumulado.isPending) return <Carregando className="py-2" />;
+  const valor = acumulado.data?.acumulado_12_meses;
+  if (valor === null || valor === undefined) {
+    return (
+      <>
+        <p className="tabular text-lg font-semibold">{formatarIndicador(def, ultimo.valor)}</p>
+        <p className="text-xs text-aviso-texto">
+          {acumulado.isError
+            ? "Não foi possível calcular o acumulado em 12 meses."
+            : "Acumulado em 12 meses indisponível: falta o IPCA de algum mês."}
+        </p>
+      </>
+    );
+  }
+  return (
+    <>
+      <p className="tabular text-lg font-semibold">
+        {formatarNumero(valor, { minimo: 2, maximo: 2 })}% em 12 meses
+      </p>
+      <p className="tabular text-xs text-muted-foreground">{mes}</p>
+    </>
   );
 }
 

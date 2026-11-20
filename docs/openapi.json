@@ -1244,6 +1244,37 @@
         "title": "InstituicaoSaida",
         "type": "object"
       },
+      "IpcaAcumuladoSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "acumulado_12_meses": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acumulado 12 Meses"
+          },
+          "mes_final": {
+            "format": "date",
+            "title": "Mes Final",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mes_final",
+          "acumulado_12_meses"
+        ],
+        "title": "IpcaAcumuladoSaida",
+        "type": "object"
+      },
       "ItemBuscaSaida": {
         "additionalProperties": false,
         "properties": {
@@ -6390,6 +6421,64 @@
           }
         ],
         "summary": "Lança um indicador manualmente",
+        "tags": [
+          "indicadores"
+        ]
+      }
+    },
+    "/api/indicadores/ipca-acumulado": {
+      "get": {
+        "operationId": "ipca_acumulado",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "mes",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Mes",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IpcaAcumuladoSaida"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Dados inválidos ou regra de negócio violada."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "IPCA acumulado em 12 meses até o mês informado",
         "tags": [
           "indicadores"
         ]

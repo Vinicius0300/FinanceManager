@@ -33,8 +33,8 @@ const ROTAS = {
       nome: "Petrobras PN",
       simbolo: "PETR4",
       tipo: "acao_br",
-      quantidade: "200",
-      preco_medio: "38.12",
+      quantidade: "200.12345678",
+      preco_medio: "38.12916259",
       preco_atual: "50",
       valor_brl: "10000.00",
       variacao_dia: {
@@ -139,6 +139,11 @@ describe("Carteira", () => {
     expect(linhas[2]).toHaveTextContent("AAPL");
     expect(limpo(linhas[1]?.textContent ?? "")).toContain("R$ 10.000,00");
     expect(limpo(linhas[1]?.textContent ?? "")).toContain("+2,04%");
+    // Quantidade arredondada a 3 casas e preço médio a 2 casas.
+    expect(limpo(linhas[1]?.textContent ?? "")).toContain("200,123");
+    expect(limpo(linhas[1]?.textContent ?? "")).not.toContain("200,1234");
+    expect(limpo(linhas[1]?.textContent ?? "")).toContain("R$ 38,13");
+    expect(limpo(linhas[1]?.textContent ?? "")).not.toContain("38,129");
     expect(limpo(linhas[2]?.textContent ?? "")).toContain("US$ 229,10");
     expect(within(linhas[2] as HTMLElement).getByText("Defasado")).toBeInTheDocument();
     expect(

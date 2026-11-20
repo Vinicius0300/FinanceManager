@@ -125,10 +125,17 @@ export function formatarQuantidade(
   return valoresOcultos() ? MASCARA_VALOR : formatarNumero(valor, opcoes);
 }
 
-/** Preço unitário na moeda do ativo, com até 8 casas e no mínimo 2. */
-export function formatarPreco(valor: string | null | undefined, moeda = "BRL"): string {
+/**
+ * Preço unitário na moeda do ativo, com no mínimo 2 casas e até `maximo` (padrão 8).
+ * Casas além do máximo são arredondadas (meio para longe do zero, padrão do Intl).
+ */
+export function formatarPreco(
+  valor: string | null | undefined,
+  moeda = "BRL",
+  opcoes: { maximo?: number } = {},
+): string {
   if (valor === null || valor === undefined || !ehDecimal(valor)) return TRACO;
-  const numero = formatarNumero(valor, { minimo: 2, maximo: 8 });
+  const numero = formatarNumero(valor, { minimo: 2, maximo: opcoes.maximo ?? 8 });
   const simbolo = SIMBOLOS_MOEDA[moeda] ?? moeda;
   return numero.startsWith(SINAL_NEGATIVO)
     ? `${SINAL_NEGATIVO}${simbolo} ${numero.slice(1)}`

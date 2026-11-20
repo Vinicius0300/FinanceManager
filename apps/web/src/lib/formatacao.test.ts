@@ -58,6 +58,8 @@ describe("números, preços e percentuais", () => {
     expect(limpo(formatarPreco("38.12"))).toBe("R$ 38,12");
     expect(limpo(formatarPreco("61400", "USD"))).toBe("US$ 61.400,00");
     expect(limpo(formatarPreco("1.23456789"))).toBe("R$ 1,23456789");
+    expect(limpo(formatarPreco("17423.15916259", "BRL", { maximo: 2 }))).toBe("R$ 17.423,16");
+    expect(limpo(formatarPreco("3062.45", "BRL", { maximo: 2 }))).toBe("R$ 3.062,45");
   });
 
   it("razão da API como percentual", () => {

@@ -7,7 +7,10 @@ Download em dois passos (dados públicos da B3, sem chave):
 A primeira linha é ``Status do Arquivo: ...`` (ex.: "Parcial" na versão da manhã, que já
 traz o mercado à vista completo); o cabeçalho vem na segunda. O arquivo vai para um
 temporário e é lido em streaming; só as linhas classificadas ficam na memória. Sem arquivo
-na data (fim de semana, feriado, ainda não publicado), tenta os dias anteriores.
+na data (fim de semana, feriado, ainda não publicado), tenta os dias anteriores. A B3
+responde 404 **ou 400** ("Bad Request") para data sem arquivo; os dois contam como "sem
+arquivo". A publicação às vezes atrasa mais de uma semana (nov/2026: 8 dias sem arquivo),
+por isso a janela de busca é de ``DIAS_PARA_TRAS`` dias corridos.
 """
 
 import csv
@@ -32,7 +35,7 @@ URL_TOKEN = "https://arquivos.b3.com.br/api/download/requestname"  # noqa: S105 
 URL_DOWNLOAD = "https://arquivos.b3.com.br/api/download/"
 NOME_ARQUIVO = "InstrumentsConsolidated"
 ROTULO = "B3 (cadastro de instrumentos)"
-DIAS_PARA_TRAS = 7
+DIAS_PARA_TRAS = 21
 PREFIXO_STATUS = "Status do Arquivo:"
 
 
@@ -72,7 +75,10 @@ class FonteListaB3:
 
     def _token(self, dia: date) -> str | None:
         dados = self._http.get_json(
-            URL_TOKEN, {"fileName": NOME_ARQUIVO, "date": dia.isoformat()}, aceitar_404=True
+            URL_TOKEN,
+            {"fileName": NOME_ARQUIVO, "date": dia.isoformat()},
+            aceitar_404=True,
+            aceitar_400=True,
         )
         token = dados.get("token") if isinstance(dados, dict) else None
         return token if isinstance(token, str) and token else None

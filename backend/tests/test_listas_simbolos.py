@@ -300,6 +300,8 @@ def test_fonte_b3_baixa_em_dois_passos_e_volta_dias_sem_arquivo() -> None:
             assert pedido.url.params["fileName"] == "InstrumentsConsolidated"
             if dia == "2026-11-01":  # domingo: sem arquivo
                 return httpx2.Response(404)
+            if dia >= "2026-11-02":  # B3 atrasada: responde 400 para datas sem arquivo
+                return httpx2.Response(400, json={"title": "Bad Request", "status": 400})
             if dia == "2026-10-31":  # sábado: token, mas o arquivo vem vazio
                 return httpx2.Response(200, json={"token": "SAB"})
             return httpx2.Response(200, json={"redirectUrl": "~/download?token=T", "token": "T"})
@@ -308,7 +310,8 @@ def test_fonte_b3_baixa_em_dois_passos_e_volta_dias_sem_arquivo() -> None:
             return httpx2.Response(200, content=b"")
         return httpx2.Response(200, content=csv_b3(LINHAS_REAIS))
 
-    lista = FonteListaB3(cliente(responder)).baixar(date(2026, 11, 1))
+    # Hoje = 12/11: dez dias seguidos sem arquivo (400) antes de achar o de 30/10.
+    lista = FonteListaB3(cliente(responder)).baixar(date(2026, 11, 12))
     assert lista.bolsa == "B3"
     assert lista.data_arquivo == date(2026, 10, 30)
     assert lista.status_arquivo == "Parcial"

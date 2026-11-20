@@ -35,10 +35,10 @@ from app.core.banco import sessao_transacional
 from app.domain.agenda import AGENDA_CONTINUA, AGENDA_DIARIA, precisa_coletar
 from app.domain.enums import OrigemPreco, TipoIndicador, TipoTransacao
 from app.domain.erros import DominioError
-from app.domain.indicadores import NOMES_INDICADORES, PontoIndicador
+from app.domain.indicadores import MESES_ACUMULADO_IPCA, NOMES_INDICADORES, PontoIndicador
 from app.domain.moedas import MOEDA_BASE
 from app.domain.numeros import texto_decimal
-from app.domain.tempo import agora_utc, data_local, primeiro_dia_do_mes
+from app.domain.tempo import agora_utc, data_local, primeiro_dia_do_mes, somar_meses
 from app.providers.base import (
     AlvoCotacao,
     PedidoHistorico,
@@ -71,6 +71,18 @@ MESES_MARGEM_IPCA = 2
 RECOLETA_INDICADOR = timedelta(days=10)
 """Coletas seguintes repetem os últimos dias (valores publicados com atraso)."""
 RECOLETA_IPCA = timedelta(days=100)
+INDICADORES_DO_PAINEL: tuple[tuple[TipoIndicador, str], ...] = (
+    (TipoIndicador.SELIC, MOEDA_BASE),
+    (TipoIndicador.CDI, MOEDA_BASE),
+    (TipoIndicador.IPCA, MOEDA_BASE),
+    (TipoIndicador.CAMBIO, "USD"),
+)
+"""Indicadores exibidos em Configurações: coletados sempre, mesmo sem ativo que os use."""
+JANELA_PAINEL = timedelta(days=120)
+"""Mesma janela que o painel consulta para achar o último valor."""
+MESES_PAINEL_IPCA = MESES_ACUMULADO_IPCA + 2
+"""IPCA do painel: 12 meses do acumulado + 2 de atraso de publicação (o de outubro sai em
+novembro; antes do dia ~10, o último é o de setembro)."""
 DIAS_CAMBIO_INTRADIARIO = 4
 TAMANHO_ERRO = 500
 
@@ -236,6 +248,25 @@ def indicadores_necessarios(
     return necessidades
 
 
+def indicadores_a_coletar(
+    sessao: Session, hoje: date, registro: RegistroTiposAtivo = REGISTRO_PADRAO
+) -> dict[tuple[TipoIndicador, str], date]:
+    """Ciclo completo: os da carteira mais os do painel (últimos :data:`JANELA_PAINEL`;
+    IPCA desde :data:`MESES_PAINEL_IPCA` meses atrás, para o acumulado em 12 meses).
+
+    Quando a carteira já precisa de um histórico mais longo, vale a data mais antiga.
+    """
+    necessidades = indicadores_necessarios(sessao, hoje, registro)
+    for tipo, moeda in INDICADORES_DO_PAINEL:
+        inicio = (
+            somar_meses(primeiro_dia_do_mes(hoje), -MESES_PAINEL_IPCA)
+            if tipo is TipoIndicador.IPCA
+            else hoje - JANELA_PAINEL
+        )
+        _juntar_inicio(necessidades, (tipo, moeda), inicio)
+    return necessidades
+
+
 def montar_plano(
     sessao: Session,
     providers: RegistroProviders,
@@ -291,7 +322,11 @@ def montar_plano(
         return plano  # ativo recém-cadastrado: só ele, sem indicadores
 
     # Forçada só para alguns ativos (painel de status): também os indicadores deles.
-    necessarios = indicadores_necessarios(sessao, hoje, registro, ativo_ids=filtro)
+    necessarios = (
+        indicadores_a_coletar(sessao, hoje, registro)
+        if filtro is None
+        else indicadores_necessarios(sessao, hoje, registro, ativo_ids=filtro)
+    )
     indicadores = RepositorioIndicadores(sessao)
     for (tipo, moeda), inicio in sorted(necessarios.items()):
         estado = estados.obter(chave_indicador(tipo, moeda))

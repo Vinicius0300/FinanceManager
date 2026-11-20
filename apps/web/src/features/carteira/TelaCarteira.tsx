@@ -164,13 +164,15 @@ function Posicoes({
         header: "Qtd.",
         sortingFn: ordenarDecimal,
         meta: { numerica: true },
-        cell: ({ getValue }) => formatarQuantidade(getValue()),
+        // Exibição arredondada a até 3 casas (o cálculo usa o valor exato do backend).
+        cell: ({ getValue }) => formatarQuantidade(getValue(), { maximo: 3 }),
       }),
       coluna.accessor("preco_medio", {
         header: "Preço médio",
         sortingFn: ordenarDecimal,
         meta: { numerica: true },
-        cell: ({ getValue, row }) => formatarPreco(getValue(), row.original.moeda),
+        // Exibição arredondada a 2 casas (o cálculo usa o valor exato do backend).
+        cell: ({ getValue, row }) => formatarPreco(getValue(), row.original.moeda, { maximo: 2 }),
       }),
       coluna.accessor("preco_atual", {
         header: "Preço atual",

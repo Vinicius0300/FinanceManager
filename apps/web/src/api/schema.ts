@@ -348,6 +348,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/indicadores/ipca-acumulado": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** IPCA acumulado em 12 meses até o mês informado */
+        get: operations["ipca_acumulado"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/indicadores/{indicador_id}": {
         parameters: {
             query?: never;
@@ -1436,6 +1453,16 @@ export interface components {
             /** Nome */
             nome: string;
             tipo: components["schemas"]["TipoInstituicao"];
+        };
+        /** IpcaAcumuladoSaida */
+        IpcaAcumuladoSaida: {
+            /** Acumulado 12 Meses */
+            acumulado_12_meses: string | null;
+            /**
+             * Mes Final
+             * Format: date
+             */
+            mes_final: string;
         };
         /** ItemBuscaSaida */
         ItemBuscaSaida: {
@@ -3852,6 +3879,46 @@ export interface operations {
             };
             /** @description Conflito com os dados atuais. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    ipca_acumulado: {
+        parameters: {
+            query: {
+                mes: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IpcaAcumuladoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

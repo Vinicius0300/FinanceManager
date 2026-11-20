@@ -123,6 +123,12 @@ class IndicadorFalso:
         return [p for p in self.series.get((tipo, moeda), []) if inicio <= p.data <= fim]
 
 
+def chamadas_de(
+    fonte: IndicadorFalso, tipo: TipoIndicador
+) -> list[tuple[TipoIndicador, str, date, date]]:
+    return [c for c in fonte.chamadas if c[0] is tipo]
+
+
 class Cenario:
     def __init__(self, engine: Engine, inicio: datetime) -> None:
         self.fabrica: sessionmaker[Session] = criar_fabrica_sessoes(engine)
@@ -465,6 +471,44 @@ def test_indicadores_necessarios_pela_carteira(sessao: Session) -> None:
     }
 
 
+def test_indicadores_do_painel_sao_coletados_sem_ativo_que_os_use(cenario: Cenario) -> None:
+    """Carteira vazia: Selic, CDI e dólar nos últimos 120 dias (01/07/2026); IPCA desde
+    01/08/2025 (12 meses do acumulado + 2 de atraso de publicação)."""
+    inicio = date(2026, 7, 1)
+    cenario.sgs.series[(TipoIndicador.CDI, "BRL")] = [
+        PontoIndicador(date(2026, 10, 28), D("13.65"))
+    ]
+    cenario.sgs.series[(TipoIndicador.IPCA, "BRL")] = [PontoIndicador(date(2026, 9, 1), D("0.82"))]
+    cenario.sgs.series[(TipoIndicador.SELIC, "BRL")] = [PontoIndicador(HOJE, D("13.75"))]
+    cenario.sgs.series[(TipoIndicador.CAMBIO, "USD")] = [PontoIndicador(HOJE, D("5.8889"))]
+    resumo = cenario.coletor.executar()
+    assert sorted(cenario.sgs.chamadas) == sorted(
+        [
+            (TipoIndicador.SELIC, "BRL", inicio, HOJE),
+            (TipoIndicador.CDI, "BRL", inicio, HOJE),
+            (TipoIndicador.IPCA, "BRL", date(2025, 8, 1), HOJE),  # 14 meses: acumulado
+            (TipoIndicador.CAMBIO, "USD", inicio, HOJE),
+        ]
+    )
+    assert cenario.indicadores(TipoIndicador.CDI) == [(date(2026, 10, 28), D("13.65"), "bcb_sgs")]
+    assert cenario.indicadores(TipoIndicador.IPCA) == [(date(2026, 9, 1), D("0.82"), "bcb_sgs")]
+    assert cenario.indicadores(TipoIndicador.CAMBIO, "USD")[0] == (HOJE, D("5.8889"), "bcb_sgs")
+    assert resumo.erros == 0
+    estado = cenario.estado(chave_indicador(TipoIndicador.IPCA, "BRL"))
+    assert estado is not None
+    assert estado.historico_desde == date(2025, 8, 1)
+
+    # Valor manual lançado pelo usuário continua intocado nas coletas seguintes.
+    with sessao_transacional(cenario.fabrica) as sessao:
+        registrar_indicador(sessao, TipoIndicador.IPCA, date(2026, 10, 1), D("0.20"))
+    cenario.sgs.series[(TipoIndicador.IPCA, "BRL")].append(
+        PontoIndicador(date(2026, 10, 1), D("0.14"))
+    )
+    cenario.relogio.avancar(days=1)
+    cenario.coletor.executar()
+    assert cenario.indicadores(TipoIndicador.IPCA)[-1] == (date(2026, 10, 1), D("0.20"), "manual")
+
+
 def test_carga_inicial_e_recoleta_diaria_de_indicadores(cenario: Cenario) -> None:
     with sessao_transacional(cenario.fabrica) as sessao:
         rico = instituicao(sessao)
@@ -478,7 +522,10 @@ def test_carga_inicial_e_recoleta_diaria_de_indicadores(cenario: Cenario) -> Non
         PontoIndicador(date(2026, 10, 28), D("13.65")),
     ]
     resumo = cenario.coletor.executar()
-    assert cenario.sgs.chamadas == [(TipoIndicador.CDI, "BRL", date(2025, 12, 29), HOJE)]
+    # O CDB pede o CDI desde 7 dias antes do aporte (mais antigo que a janela do painel).
+    assert chamadas_de(cenario.sgs, TipoIndicador.CDI) == [
+        (TipoIndicador.CDI, "BRL", date(2025, 12, 29), HOJE)
+    ]
     assert cenario.indicadores(TipoIndicador.CDI) == [
         (date(2026, 1, 2), D("15"), "manual"),  # manual prevalece
         (date(2026, 1, 5), D("14.9"), "bcb_sgs"),
@@ -493,12 +540,12 @@ def test_carga_inicial_e_recoleta_diaria_de_indicadores(cenario: Cenario) -> Non
 
     cenario.relogio.avancar(hours=3)
     cenario.coletor.executar()
-    assert len(cenario.sgs.chamadas) == 1  # já coletou hoje
+    assert len(chamadas_de(cenario.sgs, TipoIndicador.CDI)) == 1  # já coletou hoje
     cenario.relogio.avancar(days=1)
     cenario.sgs.series[(TipoIndicador.CDI, "BRL")].append(PontoIndicador(HOJE, D("13.65")))
     cenario.coletor.executar()
     # Dia seguinte: repete os últimos 10 dias (publicações atrasadas).
-    assert cenario.sgs.chamadas[-1] == (
+    assert chamadas_de(cenario.sgs, TipoIndicador.CDI)[-1] == (
         TipoIndicador.CDI,
         "BRL",
         date(2026, 10, 18),
@@ -528,7 +575,7 @@ def test_cambio_usa_yahoo_quando_a_ptax_falha_e_a_ptax_substitui_depois(
     assert estado is not None
     assert estado.provider == "yfinance"  # fallback
     assert estado.ultimo_erro is None
-    assert resumo.erros == 0
+    assert resumo.erros == 3  # só Selic, CDI e IPCA do painel (SGS fora, sem outra fonte)
 
     cenario.sgs.falha = None
     cenario.sgs.series[(TipoIndicador.CAMBIO, "USD")] = [PontoIndicador(ontem, D("5.3655"))]
@@ -558,7 +605,7 @@ def test_todas_as_fontes_do_indicador_falham(cenario: Cenario) -> None:
     assert estado is not None
     assert estado.ultimo_erro == "SGS fora. Yahoo fora."
     assert estado.ultimo_sucesso is None
-    assert resumo.erros == 2  # diário e intradiário
+    assert resumo.erros == 5  # câmbio diário e intradiário + Selic, CDI e IPCA do painel
 
 
 def test_cambio_ao_longo_do_dia_so_grava_hoje(cenario: Cenario) -> None:

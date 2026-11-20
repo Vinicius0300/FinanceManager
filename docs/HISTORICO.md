@@ -298,3 +298,20 @@ Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 6.md`). 
 - **Decisão do dono:** quantidade + valor investido, com o preço calculado. Exemplo comparado: 0,07 título por R$ 1.066,42 grava preço 15.234,57142857 e mantém a quantidade do extrato. A alternativa valor + preço unitário foi descartada porque calcularia 0,07000005 título e deixaria sobra de 0,00000005 ao vender 0,07.
 - **Implementação:** campo de entrada `valor_total` em transações e movimentações; só o preço calculado é gravado, sem mudança de schema. O cálculo fica em `domain/conta_corrente.preco_pelo_valor_total` e recusa combinações em que o caixa não daria o valor informado. Na venda, o rótulo é "Valor recebido". Na edição, o formulário abre em preço unitário, com o valor total já preenchido se o usuário trocar.
 - **Símbolo na fonte:** a fonte do Tesouro usa título + vencimento, então o campo foi escondido (`usa_simbolo_externo = False`) e deixou de pesar na comparação de títulos.
+
+## Indicadores do painel sempre coletados (20/11/2026)
+- **Pedido:** CDI, IPCA e dólar apareciam como "Sem valor nos últimos 120 dias" ou com valor manual, embora a fonte (SGS do Banco Central) respondesse normalmente.
+- **Causa:** a coleta só baixava os indicadores usados pela carteira (`indicadores_necessarios`): a Selic aparecia por causa da poupança, mas sem CDB atrelado ao CDI, título de IPCA ou ativo em USD os demais nunca eram pedidos.
+- **Decisão do dono:** coletar sempre os quatro indicadores do painel (`INDICADORES_DO_PAINEL` em `services/coleta.py`), na mesma janela de 120 dias que o painel consulta (`JANELA_PAINEL`). A função `indicadores_a_coletar` junta essa janela às necessidades da carteira, e vale a data mais antiga. Só o ciclo completo usa essa regra; o ciclo forçado por ativo (painel de status) continua pedindo apenas o que os ativos usam.
+- **Efeitos:** valor manual continua nunca sobrescrito; o dólar passa também a ter a cotação ao longo do dia pelo Yahoo, como já acontecia com ativos em USD. Fontes alternativas avaliadas e não adotadas agora: IBGE SIDRA (IPCA), Olinda/PTAX do BC (dólar) e Boletim Focus (projeções, para a parte de análises).
+
+## IPCA acumulado em 12 meses no painel (20/11/2026)
+- **Pedido:** Selic e CDI aparecem em % a.a. e o IPCA em % no mês, o que impede a comparação direta.
+- **Opções mostradas ao dono (números de out/2026):** A) só o mês (0,14% a.m.); B) acumulado em 12 meses (4,63%, igual à série 13522 do BC); C) mês anualizado (1,69% a.a. em out, mas 10,3% em set e −3,8% em ago: descartada por distorcer). **Decisão:** B em destaque e o mês embaixo, menor ("outubro de 2026: 0,14% no mês").
+- **Cálculo** (`domain/indicadores.ipca_acumulado_12_meses`): `(∏ (1 + v/100) − 1) × 100` com `Decimal`, arredondado a 2 casas (`ROUND_HALF_EVEN`) só no fim; falta de qualquer mês → `None` (sem estimativa), e o card mostra o mês em destaque com aviso. Usa os valores gravados, inclusive os manuais. Exposto em `GET /api/indicadores/ipca-acumulado?mes=AAAA-MM-DD`.
+- **Coleta:** o IPCA do painel passou a ser buscado desde 14 meses atrás (12 do acumulado + 2 de atraso de publicação), em vez de 120 dias. O armazenamento e o accrual dos títulos IPCA+ seguem em % no mês.
+
+## Lista da B3 com erro 400 (20/11/2026)
+- **Sintoma:** "Atualizar lista" da B3 falhava com "B3 recusou a consulta (erro 400)"; a última lista boa era de 04/11/2026.
+- **Causa:** a API `arquivos.b3.com.br/api/download/requestname` passou a responder **400 Bad Request** (antes 404) para datas sem arquivo, e a B3 ficou sem publicar de 13/11 a 20/11. O código só tratava 404 como "sem arquivo" e abortava no primeiro 400, sem tentar dias anteriores; além disso, a janela de 7 dias não chegaria ao último arquivo (12/11).
+- **Correção:** `ClienteHttp.get_json(..., aceitar_400=True)` devolve `None` no 400 (usado só no pedido do token da B3); `DIAS_PARA_TRAS` subiu de 7 para 21. O download pelo token não mudou. Conferido ao vivo: arquivo de 12/11/2026, 2.923 papéis.
