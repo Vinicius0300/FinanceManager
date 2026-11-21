@@ -348,6 +348,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/indicadores/coleta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Situação da coleta automática de cada indicador (última tentativa e erro) */
+        get: operations["estado_coleta_indicadores"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/indicadores/ipca-acumulado": {
         parameters: {
             query?: never;
@@ -1253,6 +1270,18 @@ export interface components {
             detalhes?: components["schemas"]["DetalheErro"][] | null;
             /** Mensagem */
             mensagem: string;
+        };
+        /** EstadoColetaIndicadorSaida */
+        EstadoColetaIndicadorSaida: {
+            /** Moeda */
+            moeda: string;
+            tipo: components["schemas"]["TipoIndicador"];
+            /** Ultima Tentativa */
+            ultima_tentativa: string | null;
+            /** Ultimo Erro */
+            ultimo_erro: string | null;
+            /** Ultimo Sucesso */
+            ultimo_sucesso: string | null;
         };
         /** EventoEntrada */
         EventoEntrada: {
@@ -3893,6 +3922,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    estado_coleta_indicadores: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoColetaIndicadorSaida"][];
                 };
             };
         };

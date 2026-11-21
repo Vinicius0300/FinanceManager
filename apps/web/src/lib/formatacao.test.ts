@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  casasDeExibicao,
   formatarData,
   formatarMesAno,
   formatarMesCurto,
@@ -60,6 +61,30 @@ describe("números, preços e percentuais", () => {
     expect(limpo(formatarPreco("1.23456789"))).toBe("R$ 1,23456789");
     expect(limpo(formatarPreco("17423.15916259", "BRL", { maximo: 2 }))).toBe("R$ 17.423,16");
     expect(limpo(formatarPreco("3062.45", "BRL", { maximo: 2 }))).toBe("R$ 3.062,45");
+  });
+
+  it("casas de exibição: abaixo de 1, conta a partir do primeiro dígito não zero", () => {
+    expect(casasDeExibicao("200.12345678", 3)).toBe(3);
+    expect(casasDeExibicao("1", 2)).toBe(2);
+    expect(casasDeExibicao("0.0005", 3)).toBe(6);
+    expect(casasDeExibicao("-0.5", 2)).toBe(2);
+    expect(casasDeExibicao("0.5712345", 2)).toBe(2);
+    expect(casasDeExibicao("0.000012345", 2)).toBe(6);
+    expect(casasDeExibicao("0.0000000012", 2)).toBe(8); // teto
+    expect(casasDeExibicao("0", 3)).toBe(3);
+    expect(casasDeExibicao("0.000", 3)).toBe(3);
+    expect(casasDeExibicao(null, 3)).toBe(3);
+    expect(
+      limpo(formatarPreco("0.5712345", "BRL", { maximo: casasDeExibicao("0.5712345", 2) })),
+    ).toBe("R$ 0,57");
+    // 0,0005 BTC e um token a R$ 0,000012: aparecem, não viram "0" / "R$ 0,00".
+    expect(formatarNumero("0.0005", { maximo: casasDeExibicao("0.0005", 3) })).toBe("0,0005");
+    expect(
+      limpo(formatarPreco("0.000012", "BRL", { maximo: casasDeExibicao("0.000012", 2) })),
+    ).toBe("R$ 0,000012");
+    expect(
+      limpo(formatarPreco("38.12916259", "BRL", { maximo: casasDeExibicao("38.12916259", 2) })),
+    ).toBe("R$ 38,13");
   });
 
   it("razão da API como percentual", () => {

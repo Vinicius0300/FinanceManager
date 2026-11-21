@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.banco import criar_fabrica_sessoes, sessao_transacional
 from app.domain.enums import OrigemPreco, TipoIndicador, TipoTransacao
+from app.domain.erros import DominioError
 from app.domain.indicadores import PontoIndicador
 from app.providers.base import (
     AlvoCotacao,
@@ -35,6 +36,7 @@ from app.services.coleta import (
     chave_ativo,
     chave_cambio_intradiario,
     chave_indicador,
+    estados_indicadores,
     indicadores_necessarios,
 )
 from app.services.configuracoes import alterar_configuracoes
@@ -497,6 +499,9 @@ def test_indicadores_do_painel_sao_coletados_sem_ativo_que_os_use(cenario: Cenar
     estado = cenario.estado(chave_indicador(TipoIndicador.IPCA, "BRL"))
     assert estado is not None
     assert estado.historico_desde == date(2025, 8, 1)
+    # Sem ativo ou conta em dólar: só a PTAX diária, nada de câmbio ao longo do dia.
+    assert cenario.yahoo_cambio.chamadas == []
+    assert cenario.estado(chave_cambio_intradiario("USD")) is None
 
     # Valor manual lançado pelo usuário continua intocado nas coletas seguintes.
     with sessao_transacional(cenario.fabrica) as sessao:
@@ -575,7 +580,13 @@ def test_cambio_usa_yahoo_quando_a_ptax_falha_e_a_ptax_substitui_depois(
     assert estado is not None
     assert estado.provider == "yfinance"  # fallback
     assert estado.ultimo_erro is None
-    assert resumo.erros == 3  # só Selic, CDI e IPCA do painel (SGS fora, sem outra fonte)
+    # Selic, CDI e IPCA (SGS fora, sem outra fonte) são só do painel: não contam no ciclo
+    # nem geram aviso na barra superior, mas o erro fica no estado (diagnóstico).
+    assert resumo.erros == 0
+    assert [e for e in cenario.eventos if e.tipo == "erro_provider"] == []
+    selic = cenario.estado(chave_indicador(TipoIndicador.SELIC, "BRL"))
+    assert selic is not None
+    assert selic.ultimo_erro is not None
 
     cenario.sgs.falha = None
     cenario.sgs.series[(TipoIndicador.CAMBIO, "USD")] = [PontoIndicador(ontem, D("5.3655"))]
@@ -592,6 +603,10 @@ def test_cambio_usa_yahoo_quando_a_ptax_falha_e_a_ptax_substitui_depois(
     intradiario = cenario.estado(chave_cambio_intradiario("USD"))
     assert intradiario is not None
     assert intradiario.ultimo_sucesso == cenario.relogio.agora
+    # O estado do câmbio ao longo do dia não aparece como mais um indicador no painel.
+    with sessao_transacional(cenario.fabrica) as sessao:
+        cambios = [e for e in estados_indicadores(sessao) if e.tipo is TipoIndicador.CAMBIO]
+    assert [e.moeda for e in cambios] == ["USD"]
 
 
 def test_todas_as_fontes_do_indicador_falham(cenario: Cenario) -> None:
@@ -605,7 +620,40 @@ def test_todas_as_fontes_do_indicador_falham(cenario: Cenario) -> None:
     assert estado is not None
     assert estado.ultimo_erro == "SGS fora. Yahoo fora."
     assert estado.ultimo_sucesso is None
-    assert resumo.erros == 5  # câmbio diário e intradiário + Selic, CDI e IPCA do painel
+    assert resumo.erros == 2  # câmbio diário e intradiário (Selic/CDI/IPCA só do painel)
+
+
+def test_erro_de_indicador_do_painel_avisa_na_atualizacao_forcada(cenario: Cenario) -> None:
+    # Ciclo automático: falha só do painel fica no estado, sem aviso. Atualização pedida pelo
+    # usuário ("atualizar agora"): ele precisa saber que Selic, CDI e IPCA falharam.
+    cenario.sgs.falha = FonteIndisponivelError("SGS fora.")
+    assert cenario.coletor.executar().erros == 0
+    resumo = cenario.coletor.executar(forcar=True)
+    assert resumo.erros == 3  # Selic, CDI e IPCA (o dólar cai no Yahoo)
+    alvos = {e.dados["alvo"] for e in cenario.eventos if e.tipo == "erro_provider"}
+    assert chave_indicador(TipoIndicador.SELIC, "BRL") in alvos
+
+    # O painel de Configurações lê o erro pelo estado da coleta.
+    with sessao_transacional(cenario.fabrica) as sessao:
+        estados = {(e.tipo, e.moeda): e for e in estados_indicadores(sessao)}
+    assert estados[(TipoIndicador.SELIC, "BRL")].ultimo_erro == "SGS fora."
+    assert estados[(TipoIndicador.CAMBIO, "USD")].ultimo_erro is None
+    assert all(e.tipo in TipoIndicador for e in estados.values())
+
+
+def test_falha_ao_gravar_indicador_do_painel_sempre_avisa(
+    cenario: Cenario, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A regra "só do painel não avisa" vale para a fonte fora do ar, não para erro no banco.
+    def recusar(*_args: object, **_kwargs: object) -> int:
+        raise DominioError("Valor de indicador inválido.")
+
+    monkeypatch.setattr("app.services.coleta.gravar_indicadores_automaticos", recusar)
+    cenario.sgs.series[(TipoIndicador.SELIC, "BRL")] = [PontoIndicador(HOJE, D("15"))]
+    resumo = cenario.coletor.executar()
+    assert resumo.erros >= 1
+    mensagens = [e.dados["mensagem"] for e in cenario.eventos if e.tipo == "erro_provider"]
+    assert "Valor de indicador inválido." in mensagens
 
 
 def test_cambio_ao_longo_do_dia_so_grava_hoje(cenario: Cenario) -> None:

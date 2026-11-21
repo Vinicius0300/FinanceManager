@@ -41,6 +41,14 @@ class LimiteRequisicoesError(FonteIndisponivelError):
     """A fonte recusou por excesso de requisições (HTTP 429)."""
 
 
+class ConsultaRecusadaError(ProviderError):
+    """A fonte recusou o pedido (HTTP 4xx que não é 404 aceito nem 429); ``status`` diz qual."""
+
+    def __init__(self, mensagem: str, status: int) -> None:
+        super().__init__(mensagem)
+        self.status = status
+
+
 class SimboloNaoEncontradoError(ProviderError):
     """A fonte não conhece o ativo (símbolo, id, CNPJ ou título)."""
 

@@ -302,8 +302,8 @@ Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 6.md`). 
 ## Indicadores do painel sempre coletados (20/11/2026)
 - **Pedido:** CDI, IPCA e dólar apareciam como "Sem valor nos últimos 120 dias" ou com valor manual, embora a fonte (SGS do Banco Central) respondesse normalmente.
 - **Causa:** a coleta só baixava os indicadores usados pela carteira (`indicadores_necessarios`): a Selic aparecia por causa da poupança, mas sem CDB atrelado ao CDI, título de IPCA ou ativo em USD os demais nunca eram pedidos.
-- **Decisão do dono:** coletar sempre os quatro indicadores do painel (`INDICADORES_DO_PAINEL` em `services/coleta.py`), na mesma janela de 120 dias que o painel consulta (`JANELA_PAINEL`). A função `indicadores_a_coletar` junta essa janela às necessidades da carteira, e vale a data mais antiga. Só o ciclo completo usa essa regra; o ciclo forçado por ativo (painel de status) continua pedindo apenas o que os ativos usam.
-- **Efeitos:** valor manual continua nunca sobrescrito; o dólar passa também a ter a cotação ao longo do dia pelo Yahoo, como já acontecia com ativos em USD. Fontes alternativas avaliadas e não adotadas agora: IBGE SIDRA (IPCA), Olinda/PTAX do BC (dólar) e Boletim Focus (projeções, para a parte de análises).
+- **Decisão do dono:** coletar sempre os quatro indicadores do painel (`INDICADORES_DO_PAINEL` em `services/coleta.py`), na mesma janela de 120 dias que o painel consulta (`JANELA_PAINEL`). A função `com_indicadores_do_painel` junta essa janela às necessidades da carteira, e vale a data mais antiga. Só o ciclo completo usa essa regra; o ciclo forçado por ativo (painel de status) continua pedindo apenas o que os ativos usam.
+- **Efeitos:** valor manual continua nunca sobrescrito. Fontes alternativas avaliadas e não adotadas agora: IBGE SIDRA (IPCA), Olinda/PTAX do BC (dólar) e Boletim Focus (projeções, para a parte de análises).
 
 ## IPCA acumulado em 12 meses no painel (20/11/2026)
 - **Pedido:** Selic e CDI aparecem em % a.a. e o IPCA em % no mês, o que impede a comparação direta.
@@ -314,4 +314,19 @@ Dúvidas resolvidas com o dono antes do código (registradas no `Prompt 6.md`). 
 ## Lista da B3 com erro 400 (20/11/2026)
 - **Sintoma:** "Atualizar lista" da B3 falhava com "B3 recusou a consulta (erro 400)"; a última lista boa era de 04/11/2026.
 - **Causa:** a API `arquivos.b3.com.br/api/download/requestname` passou a responder **400 Bad Request** (antes 404) para datas sem arquivo, e a B3 ficou sem publicar de 13/11 a 20/11. O código só tratava 404 como "sem arquivo" e abortava no primeiro 400, sem tentar dias anteriores; além disso, a janela de 7 dias não chegaria ao último arquivo (12/11).
-- **Correção:** `ClienteHttp.get_json(..., aceitar_400=True)` devolve `None` no 400 (usado só no pedido do token da B3); `DIAS_PARA_TRAS` subiu de 7 para 21. O download pelo token não mudou. Conferido ao vivo: arquivo de 12/11/2026, 2.923 papéis.
+- **Correção:** o 400 no pedido do token da B3 conta como dia sem arquivo (ver ajuste abaixo); `DIAS_PARA_TRAS` subiu de 7 para 21. O download pelo token não mudou. Conferido ao vivo: arquivo de 12/11/2026, 2.923 papéis.
+
+## Ajustes após revisão de código (20/11/2026)
+- **Carteira:** Qtd. (3 casas) e Preço médio (2 casas) arredondavam para zero frações de cripto (0,0005 BTC → "0") e tokens de centavos (R$ 0,000012 → "R$ 0,00"). Agora `casasDeExibicao` (`lib/formatacao.ts`) mantém até 8 casas quando |valor| < 1; a regra vale para qualquer tipo, sem depender do slug.
+- **Dólar ao longo do dia:** entrar no painel fazia toda instalação consultar o câmbio no Yahoo a cada poucos minutos. Agora a cotação intradiária só é pedida quando a carteira (ativo ou conta em USD) precisa; o painel fica só com a PTAX diária.
+- **Erros do painel:** indicador pedido só pelo painel (`TarefaIndicador.do_painel`) que falha não conta em `erros` do ciclo nem publica `erro_provider` (nada na barra superior); o erro fica no log e no `ultimo_erro` do estado.
+- **Lista da B3, 400 em toda a janela:** tratar todo 400 como "sem arquivo" esconderia uma mudança real na API (21 pedidos e um "sem arquivo" enganoso). O `aceitar_400` do `ClienteHttp` saiu; 4xx agora sobe como `ConsultaRecusadaError` (subclasse de `ProviderError`, com `status`). A fonte da B3 converte só o 400 em "dia sem arquivo"; se os 21 dias vierem com 400, o erro diz "a B3 recusou a consulta (erro 400) em todos os últimos 21 dias. A API pode ter mudado". Outro 4xx (ex.: 403) sobe na hora.
+- **IPCA acumulado com erro:** o card usa `EstadoErro` com "Tentar novamente" e mostra o mês de referência junto do valor mensal.
+
+## Segunda revisão de código (21/11/2026)
+- **Erro do painel invisível:** silenciar indicador só do painel deixava o usuário sem nenhum sinal (o painel não mostrava falha de coleta). Agora `GET /api/indicadores/coleta` (`estados_indicadores` em `services/coleta.py`) expõe última tentativa, sucesso e erro de cada indicador, e o cartão em Configurações mostra "Última coleta automática falhou: …". Na atualização forçada pelo usuário, a falha do painel volta a contar e a gerar `erro_provider`.
+- **Falha ao gravar:** o silêncio vale só para a fonte fora do ar; erro ao gravar no banco (`DominioError` ou inesperado) sempre conta e publica evento.
+- **Dólar ao longo do dia que sobrou:** sem mudança. O ponto do Yahoo gravado antes da mudança é de hoje (data e fonte aparecem no cartão) e a PTAX, de prioridade maior, o substitui quando sai ou na recoleta do dia seguinte.
+- **B3:** 400 no download pelo token também conta como dia sem arquivo (antes abortava a busca). Com 400 em parte da janela, a mensagem final diz quantos dias foram recusados, e o erro privado `_DiaRecusadoError` não sai da fonte.
+- **Retry do IPCA:** `EstadoErro` ganhou `tentando` (botão desabilitado com indicador durante a nova tentativa).
+- **Casas de exibição:** até 8 casas para todo valor abaixo de 1 alongava preços como R$ 0,5712345. Agora as casas (3 na Qtd., 2 no Preço médio) contam a partir do primeiro dígito não zero: 0,57 → "R$ 0,57"; 0,000012 → "R$ 0,000012"; 0,0005 BTC → "0,0005"; teto de 8.

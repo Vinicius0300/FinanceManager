@@ -24,6 +24,7 @@ from app.domain.listas import (
     simbolo_yahoo_eua,
 )
 from app.providers.base import (
+    ConsultaRecusadaError,
     FonteIndisponivelError,
     ListaBaixada,
     ProviderError,
@@ -317,6 +318,59 @@ def test_fonte_b3_baixa_em_dois_passos_e_volta_dias_sem_arquivo() -> None:
     assert lista.status_arquivo == "Parcial"
     assert len(lista.itens) == 13
     assert any("token=T" in p for p in pedidos)
+
+
+def test_fonte_b3_com_400_em_todos_os_dias_avisa_possivel_mudanca_na_api() -> None:
+    pedidos: list[str] = []
+
+    def recusar(pedido: httpx2.Request) -> httpx2.Response:
+        pedidos.append(pedido.url.params["date"])
+        return httpx2.Response(400, json={"title": "Bad Request", "status": 400})
+
+    with pytest.raises(RespostaInvalidaError, match="erro 400\\) em todos os últimos 21 dias"):
+        FonteListaB3(cliente(recusar)).baixar(date(2026, 11, 20))
+    assert len(pedidos) == 21
+
+    # Um único 404 na janela já indica que a API responde: vale o "sem arquivo" de sempre.
+    def quase_tudo_400(pedido: httpx2.Request) -> httpx2.Response:
+        if pedido.url.params["date"] == "2026-11-15":
+            return httpx2.Response(404)
+        return httpx2.Response(400)
+
+    with pytest.raises(
+        SimboloNaoEncontradoError, match=r"sem arquivo nos últimos 21 dias \(20 recusados"
+    ) as erro:
+        FonteListaB3(cliente(quase_tudo_400)).baixar(date(2026, 11, 20))
+    assert type(erro.value) is SimboloNaoEncontradoError  # o erro privado não vaza
+
+
+def test_fonte_b3_400_no_download_conta_como_dia_sem_arquivo() -> None:
+    dias: list[str] = []
+
+    def responder(pedido: httpx2.Request) -> httpx2.Response:
+        if "date" in pedido.url.params:
+            dias.append(pedido.url.params["date"])
+            return httpx2.Response(200, json={"token": pedido.url.params["date"]})
+        if pedido.url.params["token"] == "2026-11-20":
+            return httpx2.Response(400)  # token do dia gerado, mas o arquivo ainda não saiu
+        return httpx2.Response(200, content=csv_b3(LINHAS_REAIS))
+
+    lista = FonteListaB3(cliente(responder)).baixar(date(2026, 11, 20))
+    assert dias == ["2026-11-20", "2026-11-19"]
+    assert lista.data_arquivo == date(2026, 11, 19)
+
+
+def test_fonte_b3_outro_erro_4xx_sobe_na_hora() -> None:
+    pedidos: list[str] = []
+
+    def proibido(pedido: httpx2.Request) -> httpx2.Response:
+        pedidos.append(pedido.url.params["date"])
+        return httpx2.Response(403)
+
+    with pytest.raises(ConsultaRecusadaError, match="erro 403") as erro:
+        FonteListaB3(cliente(proibido)).baixar(date(2026, 11, 20))
+    assert erro.value.status == 403
+    assert len(pedidos) == 1
 
 
 def test_fonte_b3_sem_arquivo_na_semana_e_rede_fora() -> None:

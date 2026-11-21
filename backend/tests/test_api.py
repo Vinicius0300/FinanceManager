@@ -69,7 +69,12 @@ def preparar(api: TestClient) -> tuple[int, int]:
 
 def test_todas_as_rotas_exigem_token(app_api: FastAPI) -> None:
     with TestClient(app_api) as sem_token:
-        for caminho in ("/api/instituicoes", "/api/portfolio/resumo", "/api/eventos"):
+        for caminho in (
+            "/api/instituicoes",
+            "/api/portfolio/resumo",
+            "/api/eventos",
+            "/api/indicadores/coleta",
+        ):
             resposta = sem_token.get(caminho)
             assert resposta.status_code == 401
             assert resposta.json()["codigo"] == "nao_autorizado"
@@ -393,6 +398,7 @@ def test_indicadores(api: TestClient) -> None:
     assert [(i["valor"], i["moeda"]) for i in cambio] == [("5.3655", "USD")]
     assert api.delete(f"/api/indicadores/{cdi['id']}").status_code == 204
     assert len(api.get("/api/indicadores").json()) == 1
+    assert api.get("/api/indicadores/coleta").json() == []  # nenhuma coleta tentada
 
 
 IPCA_12_MESES = [  # nov/2025 a out/2026 (SGS 433); oficial em 12 meses: 4,63%

@@ -132,7 +132,7 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 **Tipos de ativo** (Partes 2, 3 e 4.1)
 - Tipo é texto validado pelo registry (sem CHECK); registro único em `asset_types/catalogo.py`. 10 tipos hoje, incluindo `tesouro_direto`, `fundo_listado` (FII, Fiagro, FI-Infra), `etf_br`, `etf_us`.
 - Tipo identificado pela **lista oficial** (B3 `InstrumentsConsolidatedFile`, NASDAQ), nunca pelo texto do ticker; categoria não mapeada fica fora e vai para o log.
-- Lista da B3: HTTP 400 ou 404 no pedido do token = "sem arquivo no dia"; volta até 21 dias corridos procurando o mais recente (a B3 já ficou 8 dias sem publicar).
+- Lista da B3: HTTP 400 ou 404 no pedido do token = "sem arquivo no dia"; volta até 21 dias corridos procurando o mais recente (a B3 já ficou 8 dias sem publicar); 400 (no token ou no download) em **todos** os 21 dias vira erro "a API pode ter mudado"; 400 em parte da janela aparece na mensagem final ("N recusados com erro 400"). `ClienteHttp` sobe 4xx como `ConsultaRecusadaError` (com `status`) e cada fonte decide o que o código significa.
 - Deduplicação no handler (`mesma_identidade`/`semelhante`); renda fixa igual a uma existente → 409 `ativo_semelhante` (somar ou criar separado).
 - O ativo nasce na própria movimentação (`POST /api/movimentacoes`, atômica): só compra e aporte criam ativo.
 - Vencimento pelo handler (`vencimento(metadados)`), usado em "Próximos vencimentos".
@@ -144,7 +144,8 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 - Um preço por dia por ativo; manual vence automático; indicador manual nunca é sobrescrito; PTAX vence Yahoo.
 - Agenda pura em `domain/agenda.py`: ações e cripto a cada 1–15 min (padrão 5); fora do pregão só até pegar o fechamento (+30 min); diárias uma vez por dia.
 - Histórico inicial de até 1 ano; depois só completa lacunas.
-- Indicadores do painel (Selic, CDI, IPCA, dólar PTAX) são coletados sempre, nos últimos 120 dias (IPCA: 14 meses), mesmo sem ativo que os use; a carteira pode pedir histórico mais antigo.
+- Indicadores do painel (Selic, CDI, IPCA, dólar PTAX) são coletados sempre, nos últimos 120 dias (IPCA: 14 meses), mesmo sem ativo que os use; a carteira pode pedir histórico mais antigo. Falha **da fonte** de indicador só do painel não conta como erro do ciclo automático (fica no log e no estado) e aparece no cartão do indicador em Configurações (`GET /api/indicadores/coleta`); na atualização forçada ("atualizar agora") e em falha ao gravar no banco, avisa normalmente. Dólar ao longo do dia só se a carteira usa USD.
+- Carteira: Qtd. exibida com até 3 casas e Preço médio com 2; abaixo de 1, as mesmas casas contadas a partir do primeiro dígito não zero, até 8 (`casasDeExibicao`), para frações não virarem zero.
 - IPCA continua gravado e usado como % no mês; o painel mostra em destaque o acumulado em 12 meses (composto, 2 casas, `GET /api/indicadores/ipca-acumulado`) e, menor, a variação do último mês.
 - Ciclo: rede sem sessão aberta, gravação por alvo; um `asyncio.Lock` único para coleta, listas e restauração (atualização simultânea → 409). `FINANCAS_SEM_ATUALIZACAO=1` desliga a automática.
 - Tempo real por SSE em `GET /api/eventos` lido com `fetch` (o token não vai na URL).

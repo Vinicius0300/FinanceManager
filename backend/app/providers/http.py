@@ -20,9 +20,9 @@ from typing import IO
 import httpx2
 
 from app.providers.base import (
+    ConsultaRecusadaError,
     FonteIndisponivelError,
     LimiteRequisicoesError,
-    ProviderError,
     RespostaInvalidaError,
 )
 
@@ -83,16 +83,13 @@ class ClienteHttp:
         *,
         ttl: float = 0,
         aceitar_404: bool = False,
-        aceitar_400: bool = False,
     ) -> object:
-        """JSON da resposta; ``None`` se 404 e ``aceitar_404`` (ou 400 e ``aceitar_400``).
+        """JSON da resposta; ``None`` se 404 e ``aceitar_404``.
 
-        ``aceitar_400`` serve a fontes que respondem "Bad Request" quando o recurso não
-        existe (ex.: B3 sem arquivo no dia), para o chamador tratar como "não encontrado".
+        Outro 4xx sobe como :class:`ConsultaRecusadaError` (com o ``status``), para o
+        chamador decidir se aquele código significa "não encontrado" na fonte dele.
         """
-        return self._com_cache(
-            url, params, ttl, lambda: self._json(url, params, aceitar_404, aceitar_400)
-        )
+        return self._com_cache(url, params, ttl, lambda: self._json(url, params, aceitar_404))
 
     def get_texto(
         self,
@@ -154,10 +151,8 @@ class ClienteHttp:
             self._cache[chave] = (self._relogio() + ttl, resultado)
         return resultado
 
-    def _json(
-        self, url: str, params: Parametros | None, aceitar_404: bool, aceitar_400: bool = False
-    ) -> object:
-        resposta = self._requisitar(url, params, aceitar_404, aceitar_400=aceitar_400)
+    def _json(self, url: str, params: Parametros | None, aceitar_404: bool) -> object:
+        resposta = self._requisitar(url, params, aceitar_404)
         if resposta is None:
             return None
         try:
@@ -173,8 +168,6 @@ class ClienteHttp:
         params: Parametros | None,
         aceitar_404: bool,
         timeout: float | None = None,
-        *,
-        aceitar_400: bool = False,
     ) -> httpx2.Response | None:
         for tentativa in range(1, self._tentativas + 1):
             self._respeitar_intervalo()
@@ -191,8 +184,6 @@ class ClienteHttp:
                 self._esperar(tentativa)
                 continue
             if resposta.status_code == 404 and aceitar_404:
-                return None
-            if resposta.status_code == 400 and aceitar_400:
                 return None
             if self._deve_repetir(resposta.status_code) and tentativa < self._tentativas:
                 logger.warning(
@@ -220,7 +211,7 @@ class ClienteHttp:
                 f"{self.fonte} está fora do ar no momento (erro {status} no servidor)."
             )
         if status >= 400:
-            raise ProviderError(f"{self.fonte} recusou a consulta (erro {status}).")
+            raise ConsultaRecusadaError(f"{self.fonte} recusou a consulta (erro {status}).", status)
 
     def _erro_de_rede(self, erro: httpx2.TransportError) -> FonteIndisponivelError:
         if isinstance(erro, httpx2.TimeoutException):

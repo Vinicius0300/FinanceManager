@@ -48,14 +48,19 @@ export function EstadoVazio({
   );
 }
 
-/** Erro compreensível em pt-BR, com "Tentar novamente" quando houver como refazer. */
+/**
+ * Erro compreensível em pt-BR, com "Tentar novamente" quando houver como refazer.
+ * ``tentando``: a nova tentativa está em andamento (botão desabilitado, com indicador).
+ */
 export function EstadoErro({
   erro,
   aoTentarNovamente,
+  tentando = false,
   className,
 }: {
   erro: unknown;
   aoTentarNovamente?: () => void;
+  tentando?: boolean;
   className?: string;
 }) {
   return (
@@ -66,9 +71,9 @@ export function EstadoErro({
       <AlertTriangle aria-hidden className="size-6 text-perigo" />
       <p className="max-w-md text-sm">{mensagemDeErro(erro)}</p>
       {aoTentarNovamente && (
-        <Button variant="outline" size="sm" onClick={aoTentarNovamente}>
-          <RotateCcw aria-hidden />
-          Tentar novamente
+        <Button variant="outline" size="sm" onClick={aoTentarNovamente} disabled={tentando}>
+          {tentando ? <Loader2 aria-hidden className="animate-spin" /> : <RotateCcw aria-hidden />}
+          {tentando ? "Tentando…" : "Tentar novamente"}
         </Button>
       )}
     </div>

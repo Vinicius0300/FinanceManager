@@ -8,9 +8,12 @@ A primeira linha é ``Status do Arquivo: ...`` (ex.: "Parcial" na versão da man
 traz o mercado à vista completo); o cabeçalho vem na segunda. O arquivo vai para um
 temporário e é lido em streaming; só as linhas classificadas ficam na memória. Sem arquivo
 na data (fim de semana, feriado, ainda não publicado), tenta os dias anteriores. A B3
-responde 404 **ou 400** ("Bad Request") para data sem arquivo; os dois contam como "sem
-arquivo". A publicação às vezes atrasa mais de uma semana (nov/2026: 8 dias sem arquivo),
-por isso a janela de busca é de ``DIAS_PARA_TRAS`` dias corridos.
+responde 404 **ou 400** ("Bad Request") para data sem arquivo, no pedido do token ou no
+download; os dois contam como "sem arquivo". Se **todos** os dias da janela vierem com 400,
+o erro é outro (provável mudança na API) e a mensagem diz isso; se só parte vier com 400, a
+mensagem final diz quantos foram recusados. A publicação às vezes atrasa mais de uma semana
+(nov/2026: 8 dias sem arquivo), por isso a janela de busca é de ``DIAS_PARA_TRAS`` dias
+corridos.
 """
 
 import csv
@@ -22,6 +25,7 @@ from typing import IO
 
 from app.domain.listas import BOLSA_B3, FormatoListaError, classificar_b3
 from app.providers.base import (
+    ConsultaRecusadaError,
     ListaBaixada,
     ProviderError,
     RespostaInvalidaError,
@@ -66,6 +70,17 @@ def ler_arquivo_b3(arquivo: IO[bytes], dia: date) -> ListaBaixada:
     )
 
 
+class _DiaRecusadoError(SimboloNaoEncontradoError):
+    """B3 respondeu 400 (token ou download): tratado como dia sem arquivo."""
+
+
+def _recusado(erro: ConsultaRecusadaError, dia: date) -> _DiaRecusadoError:
+    """400 vira "dia sem arquivo"; outro 4xx sobe como está (problema de verdade)."""
+    if erro.status != 400:
+        raise erro
+    return _DiaRecusadoError(f"{ROTULO}: sem arquivo em {dia:%d/%m/%Y} (erro 400).")
+
+
 class FonteListaB3:
     bolsa = BOLSA_B3
     rotulo = ROTULO
@@ -74,12 +89,12 @@ class FonteListaB3:
         self._http = http
 
     def _token(self, dia: date) -> str | None:
-        dados = self._http.get_json(
-            URL_TOKEN,
-            {"fileName": NOME_ARQUIVO, "date": dia.isoformat()},
-            aceitar_404=True,
-            aceitar_400=True,
-        )
+        try:
+            dados = self._http.get_json(
+                URL_TOKEN, {"fileName": NOME_ARQUIVO, "date": dia.isoformat()}, aceitar_404=True
+            )
+        except ConsultaRecusadaError as erro:
+            raise _recusado(erro, dia) from erro
         token = dados.get("token") if isinstance(dados, dict) else None
         return token if isinstance(token, str) and token else None
 
@@ -88,14 +103,19 @@ class FonteListaB3:
         if token is None:
             raise SimboloNaoEncontradoError(f"{ROTULO}: sem arquivo em {dia:%d/%m/%Y}.")
         with tempfile.TemporaryFile() as temporario:
-            if not self._http.baixar_arquivo(
-                f"{URL_DOWNLOAD}?token={token}", temporario, aceitar_404=True
-            ):
+            try:
+                baixado = self._http.baixar_arquivo(
+                    f"{URL_DOWNLOAD}?token={token}", temporario, aceitar_404=True
+                )
+            except ConsultaRecusadaError as erro:
+                raise _recusado(erro, dia) from erro
+            if not baixado:
                 raise SimboloNaoEncontradoError(f"{ROTULO}: sem arquivo em {dia:%d/%m/%Y}.")
             return ler_arquivo_b3(temporario, dia)
 
     def baixar(self, hoje: date) -> ListaBaixada:
         ultimo: ProviderError | None = None
+        recusados = 0
         for atras in range(DIAS_PARA_TRAS):
             dia = hoje - timedelta(days=atras)
             try:
@@ -105,4 +125,18 @@ class FonteListaB3:
                 # rede (FonteIndisponivelError) sobe na hora: os outros dias também falhariam.
                 logger.info("%s", erro.mensagem)
                 ultimo = erro
+                recusados += isinstance(erro, _DiaRecusadoError)
+        if recusados == DIAS_PARA_TRAS:
+            logger.warning("%s: erro 400 em todos os %d dias consultados", ROTULO, recusados)
+            raise RespostaInvalidaError(
+                f"{ROTULO}: a B3 recusou a consulta (erro 400) em todos os últimos "
+                f"{DIAS_PARA_TRAS} dias. A API pode ter mudado; tente de novo mais tarde."
+            )
+        if recusados:
+            # Parte da janela com 400: a mensagem diz quantos, para não esconder uma API
+            # que começou a recusar pedidos (o erro privado não sai daqui).
+            raise SimboloNaoEncontradoError(
+                f"{ROTULO}: sem arquivo nos últimos {DIAS_PARA_TRAS} dias "
+                f"({recusados} recusados com erro 400)."
+            )
         raise ultimo or SimboloNaoEncontradoError(f"{ROTULO}: nenhum arquivo recente.")

@@ -29,6 +29,7 @@ const ROTAS = {
   "GET /api/configuracoes": { intervalo_atualizacao_min: 5 },
   "PUT /api/configuracoes": (c: Chamada) => c.corpo,
   "GET /api/indicadores": (c: Chamada) => INDICADORES[c.query.get("tipo") ?? ""] ?? [],
+  "GET /api/indicadores/coleta": [],
   "GET /api/indicadores/ipca-acumulado": (c: Chamada) => ({
     mes_final: c.query.get("mes"),
     acumulado_12_meses: "4.63",
@@ -142,6 +143,76 @@ describe("Configurações", () => {
     expect(
       chamadas.find((c) => c.caminho === "/api/indicadores/ipca-acumulado")?.query.get("mes"),
     ).toBe("2026-10-01");
+  });
+
+  it("falha da coleta automática de um indicador aparece no cartão dele", async () => {
+    renderizar(<TelaConfiguracoes agora={AGORA} />, {
+      rotas: {
+        ...ROTAS,
+        "GET /api/indicadores/coleta": [
+          {
+            tipo: "selic",
+            moeda: "BRL",
+            ultima_tentativa: "2026-10-29T15:00:00Z",
+            ultimo_sucesso: null,
+            ultimo_erro: "Banco Central (SGS) não respondeu a tempo.",
+          },
+          {
+            tipo: "cdi",
+            moeda: "BRL",
+            ultima_tentativa: "2026-10-29T15:00:00Z",
+            ultimo_sucesso: "2026-10-29T15:00:00Z",
+            ultimo_erro: null,
+          },
+        ],
+      },
+    });
+    const selic = await screen.findByRole("region", { name: "Selic" });
+    expect(
+      await within(selic).findByText(
+        "Última coleta automática falhou: Banco Central (SGS) não respondeu a tempo.",
+      ),
+    ).toBeInTheDocument();
+    const cdi = screen.getByRole("region", { name: "CDI" });
+    expect(within(cdi).queryByText(/Última coleta automática falhou/)).not.toBeInTheDocument();
+  });
+
+  it("IPCA: erro no acumulado mostra o mês, a mensagem e permite tentar de novo", async () => {
+    let falhar = true;
+    const { usuario } = renderizar(<TelaConfiguracoes agora={AGORA} />, {
+      rotas: {
+        ...ROTAS,
+        "GET /api/indicadores": (c: Chamada) =>
+          c.query.get("tipo") === "ipca"
+            ? [
+                {
+                  id: 4,
+                  tipo: "ipca",
+                  moeda: "BRL",
+                  data: "2026-10-01",
+                  valor: "0.14",
+                  fonte: "bcb_sgs",
+                },
+              ]
+            : [],
+        "GET /api/indicadores/ipca-acumulado": () =>
+          falhar
+            ? {
+                status: 500,
+                corpo: { codigo: "erro_interno", mensagem: "Erro inesperado no serviço interno." },
+              }
+            : { mes_final: "2026-10-01", acumulado_12_meses: "4.63" },
+      },
+    });
+    const ipca = await screen.findByRole("region", { name: "IPCA" });
+    expect(
+      await within(ipca).findByText("Erro inesperado no serviço interno."),
+    ).toBeInTheDocument();
+    expect(within(ipca).getByText("0,14% no mês")).toBeInTheDocument();
+    expect(within(ipca).getByText("outubro de 2026")).toBeInTheDocument();
+    falhar = false;
+    await usuario.click(within(ipca).getByRole("button", { name: /Tentar novamente/ }));
+    expect(await within(ipca).findByText("4,63% em 12 meses")).toBeInTheDocument();
   });
 
   it("IPCA sem os 12 meses: mostra o mês e avisa que falta o acumulado", async () => {

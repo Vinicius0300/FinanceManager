@@ -59,6 +59,18 @@ function useUltimoIndicador(def: DefinicaoIndicador, agora: Date) {
   });
 }
 
+/**
+ * Situação da coleta automática de cada indicador. Falha de indicador que só o painel usa
+ * não vira aviso na barra superior; é aqui que o usuário a vê.
+ */
+function useEstadoColeta() {
+  const { cliente } = useClienteApi();
+  return useQuery({
+    queryKey: ["indicadores", "coleta"],
+    queryFn: async ({ signal }) => exigir(await cliente.GET("/api/indicadores/coleta", { signal })),
+  });
+}
+
 /** Acumulado em 12 meses até o mês do último IPCA (calculado no backend, com Decimal). */
 function useIpcaAcumulado(mes: string) {
   const { cliente } = useClienteApi();
@@ -99,6 +111,10 @@ export function SecaoIndicadores({ agora }: { agora: Date }) {
 
 function CartaoIndicador({ def, agora }: { def: DefinicaoIndicador; agora: Date }) {
   const ultimo = useUltimoIndicador(def, agora);
+  const coleta = useEstadoColeta();
+  const erroColeta = coleta.data?.find(
+    (e) => e.tipo === def.tipo && e.moeda === def.moeda,
+  )?.ultimo_erro;
   const [dialogo, setDialogo] = useState<"novo" | "editar" | null>(null);
   return (
     <section aria-label={def.nome} className="flex flex-col gap-1 rounded-lg border p-3">
@@ -123,6 +139,9 @@ function CartaoIndicador({ def, agora }: { def: DefinicaoIndicador; agora: Date 
         </>
       ) : (
         <p className="text-sm text-aviso-texto">Sem valor nos últimos {DIAS_JANELA} dias.</p>
+      )}
+      {erroColeta && (
+        <p className="text-xs text-aviso-texto">Última coleta automática falhou: {erroColeta}</p>
       )}
       <div className="mt-1 flex gap-1">
         <Button
@@ -175,11 +194,19 @@ function ValorIpca({ def, ultimo }: { def: DefinicaoIndicador; ultimo: Indicador
     return (
       <>
         <p className="tabular text-lg font-semibold">{formatarIndicador(def, ultimo.valor)}</p>
-        <p className="text-xs text-aviso-texto">
-          {acumulado.isError
-            ? "Não foi possível calcular o acumulado em 12 meses."
-            : "Acumulado em 12 meses indisponível: falta o IPCA de algum mês."}
-        </p>
+        <p className="text-xs text-muted-foreground">{formatarMesAno(ultimo.data)}</p>
+        {acumulado.isError ? (
+          <EstadoErro
+            erro={acumulado.error}
+            aoTentarNovamente={() => void acumulado.refetch()}
+            tentando={acumulado.isFetching}
+            className="py-2"
+          />
+        ) : (
+          <p className="text-xs text-aviso-texto">
+            Acumulado em 12 meses indisponível: falta o IPCA de algum mês.
+          </p>
+        )}
       </>
     );
   }

@@ -109,6 +109,9 @@ def _sem_publicacao(_: EventoColeta) -> None:
     return None
 
 
+VALORES_TIPO_INDICADOR = frozenset(t.value for t in TipoIndicador)
+
+
 def chave_ativo(ativo_id: int) -> str:
     return f"ativo:{ativo_id}"
 
@@ -119,6 +122,37 @@ def chave_indicador(tipo: TipoIndicador, moeda: str) -> str:
 
 def chave_cambio_intradiario(moeda: str) -> str:
     return f"indicador:cambio_intradiario:{moeda}"
+
+
+@dataclass(frozen=True)
+class EstadoIndicador:
+    """Situação da coleta diária de um indicador (o painel mostra a última falha)."""
+
+    tipo: TipoIndicador
+    moeda: str
+    ultima_tentativa: datetime | None
+    ultimo_sucesso: datetime | None
+    ultimo_erro: str | None
+
+
+def estados_indicadores(sessao: Session) -> list[EstadoIndicador]:
+    """Estado da coleta de cada indicador já tentado (sem o câmbio ao longo do dia)."""
+    estados: list[EstadoIndicador] = []
+    for estado in RepositorioEstadosColeta(sessao).listar():
+        prefixo, _, resto = estado.chave.partition(":")
+        valor, _, moeda = resto.partition(":")
+        if prefixo != "indicador" or valor not in VALORES_TIPO_INDICADOR or not moeda:
+            continue
+        estados.append(
+            EstadoIndicador(
+                tipo=TipoIndicador(valor),
+                moeda=moeda,
+                ultima_tentativa=estado.ultima_tentativa,
+                ultimo_sucesso=estado.ultimo_sucesso,
+                ultimo_erro=estado.ultimo_erro,
+            )
+        )
+    return estados
 
 
 def _texto_erro(mensagem: str) -> str:
@@ -143,6 +177,9 @@ class TarefaIndicador:
     moeda: str
     inicio: date
     completo: bool  # True: primeira carga (ou início mais antigo que o já baixado)
+    do_painel: bool = False
+    """Só o painel de Configurações usa (nenhum ativo ou conta precisa): falha não conta
+    como erro do ciclo nem vira aviso na barra superior; fica só no log e no estado."""
 
 
 @dataclass
@@ -248,15 +285,16 @@ def indicadores_necessarios(
     return necessidades
 
 
-def indicadores_a_coletar(
-    sessao: Session, hoje: date, registro: RegistroTiposAtivo = REGISTRO_PADRAO
+def com_indicadores_do_painel(
+    da_carteira: dict[tuple[TipoIndicador, str], date], hoje: date
 ) -> dict[tuple[TipoIndicador, str], date]:
     """Ciclo completo: os da carteira mais os do painel (últimos :data:`JANELA_PAINEL`;
     IPCA desde :data:`MESES_PAINEL_IPCA` meses atrás, para o acumulado em 12 meses).
 
     Quando a carteira já precisa de um histórico mais longo, vale a data mais antiga.
+    Não altera ``da_carteira`` (o chamador ainda precisa saber o que é só do painel).
     """
-    necessidades = indicadores_necessarios(sessao, hoje, registro)
+    necessidades = dict(da_carteira)
     for tipo, moeda in INDICADORES_DO_PAINEL:
         inicio = (
             somar_meses(primeiro_dia_do_mes(hoje), -MESES_PAINEL_IPCA)
@@ -322,26 +360,32 @@ def montar_plano(
         return plano  # ativo recém-cadastrado: só ele, sem indicadores
 
     # Forçada só para alguns ativos (painel de status): também os indicadores deles.
-    necessarios = (
-        indicadores_a_coletar(sessao, hoje, registro)
-        if filtro is None
-        else indicadores_necessarios(sessao, hoje, registro, ativo_ids=filtro)
-    )
+    da_carteira = indicadores_necessarios(sessao, hoje, registro, ativo_ids=filtro)
+    necessarios = com_indicadores_do_painel(da_carteira, hoje) if filtro is None else da_carteira
     indicadores = RepositorioIndicadores(sessao)
     for (tipo, moeda), inicio in sorted(necessarios.items()):
+        do_painel = (tipo, moeda) not in da_carteira
         estado = estados.obter(chave_indicador(tipo, moeda))
         desde = estado.historico_desde if estado else None
         completo = desde is None or inicio < desde
         sucesso = estado.ultimo_sucesso if estado else None
         if completo:
-            plano.indicadores.append(TarefaIndicador(tipo, moeda, inicio, True))
+            plano.indicadores.append(TarefaIndicador(tipo, moeda, inicio, True, do_painel))
         elif forcar or precisa_coletar(AGENDA_DIARIA, sucesso, agora, intervalo):
             recoleta = RECOLETA_IPCA if tipo is TipoIndicador.IPCA else RECOLETA_INDICADOR
             ultima = indicadores.ultima_data(tipo, moeda) or hoje
             plano.indicadores.append(
-                TarefaIndicador(tipo, moeda, max(min(ultima, hoje) - recoleta, inicio), False)
+                TarefaIndicador(
+                    tipo, moeda, max(min(ultima, hoje) - recoleta, inicio), False, do_painel
+                )
             )
-        if tipo is TipoIndicador.CAMBIO and providers.cambio_intradiario is not None:
+        # Câmbio ao longo do dia só para quem tem ativo ou conta na moeda (o painel mostra
+        # a PTAX diária; não vale consultar a cada poucos minutos sem uso na carteira).
+        if (
+            tipo is TipoIndicador.CAMBIO
+            and not do_painel
+            and providers.cambio_intradiario is not None
+        ):
             intradiario = estados.obter(chave_cambio_intradiario(moeda))
             ultimo = intradiario.ultimo_sucesso if intradiario else None
             if forcar or precisa_coletar(AGENDA_CONTINUA, ultimo, agora, intervalo):
@@ -533,6 +577,8 @@ class Coletor:
                 ),
                 pedido.inicio if pedido.completo else None,
                 contagem,
+                # Atualização pedida pelo usuário: ele quer saber o que falhou, mesmo só do painel.
+                avisar_erro=forcar or not pedido.do_painel,
             )
         for moeda, resultado in rede.cambio_intradiario.items():
             if self._cancelado.is_set():
@@ -716,8 +762,14 @@ class Coletor:
         resultado: tuple[str, list[PontoIndicador]] | ProviderError,
         historico_desde: date | None,
         contagem: dict[str, int],
+        *,
+        avisar_erro: bool = True,
     ) -> None:
+        """Grava o resultado e o estado da coleta. ``avisar_erro=False`` (indicador só do
+        painel): a falha **da fonte** fica no estado e no log, mas não conta no ciclo nem gera
+        evento. Falha ao gravar no banco sempre conta e gera evento."""
         mensagem: str | None = resultado.mensagem if isinstance(resultado, ProviderError) else None
+        falha_ao_gravar = False
         gravados = 0
         fonte: str | None = None
         try:
@@ -736,10 +788,11 @@ class Coletor:
                         )
                 estado.ultimo_erro = _texto_erro(mensagem) if mensagem else None
         except (DominioError, ProviderError) as falha:
-            mensagem, gravados = falha.mensagem, 0
+            mensagem, gravados, falha_ao_gravar = falha.mensagem, 0, True
         except Exception:
             logger.exception("Erro inesperado ao gravar %s", chave)
             mensagem, gravados = "Erro inesperado ao gravar o indicador. Detalhes no log.", 0
+            falha_ao_gravar = True
         contagem["indicadores"] += gravados
         if gravados:
             self._publicar(
@@ -748,7 +801,9 @@ class Coletor:
                     {"tipo": tipo.value, "moeda": moeda, "fonte": fonte, "gravados": gravados},
                 )
             )
-        if mensagem:
+        if mensagem and not avisar_erro and not falha_ao_gravar:
+            logger.warning("Coleta de %s (só do painel): %s", chave, mensagem)
+        elif mensagem:
             contagem["erros"] += 1
             logger.warning("Coleta de %s: %s", chave, mensagem)
             self._publicar(

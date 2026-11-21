@@ -747,6 +747,62 @@
         "title": "ErroApi",
         "type": "object"
       },
+      "EstadoColetaIndicadorSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "moeda": {
+            "title": "Moeda",
+            "type": "string"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoIndicador"
+          },
+          "ultima_tentativa": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultima Tentativa"
+          },
+          "ultimo_erro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultimo Erro"
+          },
+          "ultimo_sucesso": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ultimo Sucesso"
+          }
+        },
+        "required": [
+          "tipo",
+          "moeda",
+          "ultima_tentativa",
+          "ultimo_sucesso",
+          "ultimo_erro"
+        ],
+        "title": "EstadoColetaIndicadorSaida",
+        "type": "object"
+      },
       "EventoEntrada": {
         "additionalProperties": false,
         "properties": {
@@ -6421,6 +6477,36 @@
           }
         ],
         "summary": "Lança um indicador manualmente",
+        "tags": [
+          "indicadores"
+        ]
+      }
+    },
+    "/api/indicadores/coleta": {
+      "get": {
+        "operationId": "estado_coleta_indicadores",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EstadoColetaIndicadorSaida"
+                  },
+                  "title": "Response Estado Coleta Indicadores",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Situação da coleta automática de cada indicador (última tentativa e erro)",
         "tags": [
           "indicadores"
         ]

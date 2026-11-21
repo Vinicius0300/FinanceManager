@@ -19,6 +19,7 @@ import {
   formatarData,
   formatarDataHora,
   formatarMoeda,
+  casasDeExibicao,
   formatarQuantidade,
   formatarPreco,
 } from "@/lib/formatacao";
@@ -164,15 +165,21 @@ function Posicoes({
         header: "Qtd.",
         sortingFn: ordenarDecimal,
         meta: { numerica: true },
-        // Exibição arredondada a até 3 casas (o cálculo usa o valor exato do backend).
-        cell: ({ getValue }) => formatarQuantidade(getValue(), { maximo: 3 }),
+        // Exibição arredondada a até 3 casas (o cálculo usa o valor exato do backend);
+        // abaixo de 1 (fração de cripto), 3 a partir do primeiro dígito não zero.
+        cell: ({ getValue }) =>
+          formatarQuantidade(getValue(), { maximo: casasDeExibicao(getValue(), 3) }),
       }),
       coluna.accessor("preco_medio", {
         header: "Preço médio",
         sortingFn: ordenarDecimal,
         meta: { numerica: true },
-        // Exibição arredondada a 2 casas (o cálculo usa o valor exato do backend).
-        cell: ({ getValue, row }) => formatarPreco(getValue(), row.original.moeda, { maximo: 2 }),
+        // Exibição arredondada a 2 casas (o cálculo usa o valor exato do backend);
+        // abaixo de 1 (token de centavos), 2 a partir do primeiro dígito não zero.
+        cell: ({ getValue, row }) =>
+          formatarPreco(getValue(), row.original.moeda, {
+            maximo: casasDeExibicao(getValue(), 2),
+          }),
       }),
       coluna.accessor("preco_atual", {
         header: "Preço atual",

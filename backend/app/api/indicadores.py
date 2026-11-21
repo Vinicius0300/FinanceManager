@@ -4,7 +4,7 @@ Unidades: Selic e CDI em % ao ano; IPCA em % no mês (data = dia 1º); câmbio e
 unidade da moeda. Registro manual (ou editado) nunca é sobrescrito pela coleta automática.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, status
 
@@ -14,6 +14,7 @@ from app.domain.enums import TipoIndicador
 from app.domain.moedas import MOEDA_BASE
 from app.repositories import modelos as m
 from app.services import mercado
+from app.services.coleta import estados_indicadores
 
 router = APIRouter(prefix="/api", tags=["indicadores"], dependencies=PROTEGIDO)
 
@@ -42,6 +43,15 @@ class IpcaAcumuladoSaida(Modelo):
     mes_final: date
     acumulado_12_meses: Numero | None
     """% acumulado nos 12 meses até ``mes_final``; ``None`` se faltar algum mês."""
+
+
+class EstadoColetaIndicadorSaida(Modelo):
+    tipo: TipoIndicador
+    moeda: str
+    ultima_tentativa: datetime | None
+    ultimo_sucesso: datetime | None
+    ultimo_erro: str | None
+    """Mensagem da última tentativa que falhou; ``None`` se a última deu certo."""
 
 
 def _indicador(indicador: m.Indicador) -> IndicadorSaida:
@@ -82,6 +92,24 @@ def ipca_acumulado(sessao: SessaoDep, mes: date) -> IpcaAcumuladoSaida:
         mes_final=mes.replace(day=1),
         acumulado_12_meses=mercado.ipca_acumulado_12_meses(sessao, mes),
     )
+
+
+@router.get(
+    "/indicadores/coleta",
+    response_model=list[EstadoColetaIndicadorSaida],
+    summary="Situação da coleta automática de cada indicador (última tentativa e erro)",
+)
+def estado_coleta_indicadores(sessao: SessaoDep) -> list[EstadoColetaIndicadorSaida]:
+    return [
+        EstadoColetaIndicadorSaida(
+            tipo=e.tipo,
+            moeda=e.moeda,
+            ultima_tentativa=e.ultima_tentativa,
+            ultimo_sucesso=e.ultimo_sucesso,
+            ultimo_erro=e.ultimo_erro,
+        )
+        for e in estados_indicadores(sessao)
+    ]
 
 
 @router.post(

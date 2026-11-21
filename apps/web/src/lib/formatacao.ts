@@ -4,7 +4,7 @@
  * perde precisão. Datas da API ("2026-10-29") são datas de calendário: formatamos sem
  * passar por fuso horário.
  */
-import { absoluto, ehDecimal, moverVirgula, sinal } from "./decimal";
+import { absoluto, comparar, ehDecimal, moverVirgula, sinal } from "./decimal";
 import { MASCARA_VALOR, valoresOcultos } from "./valores-ocultos";
 
 type TextoNumerico = Intl.StringNumericLiteral;
@@ -123,6 +123,24 @@ export function formatarQuantidade(
 ): string {
   if (valor === null || valor === undefined || !ehDecimal(valor)) return TRACO;
   return valoresOcultos() ? MASCARA_VALOR : formatarNumero(valor, opcoes);
+}
+
+/** Teto de casas ao exibir frações pequenas (mesmo limite padrão de `formatarPreco`). */
+const MAXIMO_CASAS_EXIBICAO = 8;
+
+/**
+ * Máximo de casas para exibir um valor arredondado na tabela: `casas` quando |valor| ≥ 1;
+ * abaixo de 1, `casas` contadas a partir do primeiro dígito não zero (até 8), para frações
+ * (0,0005 BTC) e preços de centavos (0,000012) não virarem 0 sem alongar 0,57 → 0,5712345.
+ */
+export function casasDeExibicao(valor: string | null | undefined, casas: number): number {
+  if (!valor || !ehDecimal(valor)) return casas;
+  const modulo = absoluto(valor);
+  if (comparar(modulo, "1") >= 0) return casas;
+  const fracao = modulo.split(".")[1] ?? "";
+  const zeros = fracao.search(/[1-9]/);
+  if (zeros < 0) return casas; // zero
+  return Math.min(Math.max(casas, zeros + casas), Math.max(casas, MAXIMO_CASAS_EXIBICAO));
 }
 
 /**
