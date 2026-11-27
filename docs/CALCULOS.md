@@ -154,3 +154,28 @@ Funções puras em `backend/app/domain/historico.py`; consulta em `services/hist
 - **Situação do ativo**: posição (ativo + instituição) aberta enquanto tem quantidade/lotes. Com filtro de instituição, vale a posição daquela instituição; sem ele, o ativo está aberto se qualquer instituição ainda tiver posição. Ex.: PETR4 com 100 na XP e zerada na RICO → "ainda na carteira" sem filtro; "encerrada" filtrando RICO.
 - **Resumo do filtro**: totais em BRL somados sem arredondar e arredondados a centavos na saída; série mensal do início do filtro (ou da operação mais antiga) até o fim (ou hoje), com os meses sem operação zerados; visão por ativo com os mesmos totais por instituição.
 - **Exportação Excel**: números gravados como número (arredondados como na tela) e datas como data `AAAA-MM-DD`; o Excel mostra o separador decimal do Windows.
+
+## 13. Rebalanceamento por metas (Parte 10)
+Funções puras em `backend/app/domain/rebalanceamento.py`; leitura das posições, do caixa e das metas em `services/rebalanceamento.py`. O plano é informativo: o app nunca executa ordens.
+
+- **Base:** T = soma do valor atual em BRL das posições abertas (Análise Geral, **sem caixa**); A = aporte (padrão: o caixa de todas as instituições, a centavos); N = T + A. Posição sem valor atual (sem câmbio) fica fora de T, com aviso.
+- **Desvio** da classe = % atual (sobre T) − meta, em **pontos percentuais**, com 2 casas. **Fora da banda** se |desvio| > tolerância (padrão 5 p.p.). **Desvio total** = Σ |desvio| ÷ 2 (quanto da carteira está fora do lugar).
+- **Só com aportes:** déficit_i = max(0, meta_i × N − atual_i). Se Σ déficits ≥ A, A é dividido na proporção dos déficits; senão, cada déficit é preenchido e a sobra vai pelas metas. Com as metas somando 100%, Σ (meta_i × N − atual_i) = A, então Σ déficits ≥ A sempre; o segundo ramo só aparece no limite Σ déficits = A (nenhuma classe acima da meta), quando cada déficit é preenchido exatamente.
+- **Completo:** diferença_i = meta_i × N − atual_i (positivo compra, negativo vende); Σ diferenças = A.
+- **Dentro da classe com pesos:** o mesmo algoritmo entre os ativos da classe, com o valor que a classe recebe no lugar de A e os pesos no lugar das metas (ativo sem peso = 0%). No modo só com aportes, classe que recebe 0 não divide nada.
+- **Arredondamento:** cada sugestão em centavos (`ROUND_HALF_EVEN`); a diferença para fechar exatamente o total vai, centavo a centavo, para quem perdeu mais no arredondamento (**maior resto**; empate pela ordem de apresentação: maior valor atual, maior meta, slug). Vale para as classes (fecha A) e para os ativos de uma classe (fecha a sugestão da classe). Ex.: 100,00 entre três déficits iguais → 33,34 / 33,33 / 33,33. Sugestão abaixo de R$ 0,01 vira "manter".
+- **Venda estimada** (modo completo, ativo com peso): quantidade ≈ venda ÷ preço atual (= venda × quantidade ÷ valor, preço implícito em BRL) e **lucro estimado** = venda − quantidade × preço médio (= venda × (valor − custo) ÷ valor). Renda fixa (sem quantidade): só o lucro, pela proporção. Ex.: PETR4 100 ações, valor 5.000 (preço 50), custo 4.000 (PM 40); vender 2.000 → 40 ações, lucro 2.000 − 40 × 40 = **400**. O app não calcula IR (aviso fixo).
+
+**Exemplo (conferido à mão e em teste):** RF 42.000, Ações BR 28.000, Tesouro 15.000, Ações US 9.000, FII 4.000, Cripto 2.000 (T = 100.000); metas 35/25/15/15/7/3; A = 5.000; N = 105.000.
+
+| Classe | Atual | Meta | Desvio | Alvo (meta × N) | Déficit | Só com aportes | Completo |
+|---|---|---|---|---|---|---|---|
+| Renda fixa | 42.000 (42%) | 35% | +7 p.p. | 36.750 | 0 | 0,00 | −5.250,00 |
+| Ações BR | 28.000 (28%) | 25% | +3 p.p. | 26.250 | 0 | 0,00 | −1.750,00 |
+| Tesouro | 15.000 (15%) | 15% | 0 | 15.750 | 750 | 312,50 | +750,00 |
+| Ações US | 9.000 (9%) | 15% | −6 p.p. | 15.750 | 6.750 | 2.812,50 | +6.750,00 |
+| FII | 4.000 (4%) | 7% | −3 p.p. | 7.350 | 3.350 | 1.395,83 | +3.350,00 |
+| Cripto | 2.000 (2%) | 3% | −1 p.p. | 3.150 | 1.150 | 479,17 | +1.150,00 |
+| **Total** | 100.000 | 100% | | | 12.000 | **5.000,00** | **5.000,00** |
+
+Só com aportes: Σ déficits 12.000 > 5.000 → proporcional (5.000 × 750 / 12.000 = 312,50; 3.350 → 1.395,833… → 1.395,83; 1.150 → 479,166… → 479,17). Fora da banda de 5 p.p.: Renda fixa (+7) e Ações US (−6). Desvio total = (7 + 3 + 0 + 6 + 3 + 1) ÷ 2 = 10 p.p.

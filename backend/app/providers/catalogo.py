@@ -30,6 +30,15 @@ INTERVALO_YAHOO_S = 0.3
 INTERVALO_PADRAO_S = 0.2
 TIMEOUT_PESQUISA_S = 5.0  # a pesquisa responde enquanto o usuário digita
 INTERVALO_PESQUISA_COINGECKO_S = 1.0
+ENDERECO_LOCAL_IPV4 = "0.0.0.0"  # noqa: S104 - origem de conexões de saída, não um servidor
+"""Liga o socket a um endereço IPv4: a conexão sai só por IPv4.
+
+Usado na CoinGecko: em redes com IPv6 que não alcança a fonte, cada conexão nova esperava
+~21 s (timeout de TCP do Windows) antes de tentar o IPv4 (diagnóstico de 26/11/2026)."""
+
+
+def transporte_ipv4() -> httpx2.HTTPTransport:
+    return httpx2.HTTPTransport(local_address=ENDERECO_LOCAL_IPV4)
 
 
 def criar_registro_providers(
@@ -41,11 +50,13 @@ def criar_registro_providers(
 ) -> RegistroProviders:
     """Cria o registro padrão. ``transporte``/``dormir``/``relogio``/``hoje`` são para testes."""
 
-    def cliente(fonte: str, intervalo: float, *, pesquisa: bool = False) -> ClienteHttp:
+    def cliente(
+        fonte: str, intervalo: float, *, pesquisa: bool = False, so_ipv4: bool = False
+    ) -> ClienteHttp:
         # Pesquisa: uma tentativa e timeout curto (sem retry enquanto o usuário espera).
         http = ClienteHttp(
             fonte,
-            transporte=transporte,
+            transporte=transporte or (transporte_ipv4() if so_ipv4 else None),
             intervalo_minimo=intervalo,
             dormir=dormir,
             relogio=relogio,
@@ -58,7 +69,9 @@ def criar_registro_providers(
     registro = RegistroProviders()
     yahoo = ProviderYahoo(cliente("Yahoo Finance", INTERVALO_YAHOO_S))
     registro.registrar_cotacao(yahoo)
-    registro.registrar_cotacao(ProviderCoinGecko(cliente("CoinGecko", INTERVALO_COINGECKO_S)))
+    registro.registrar_cotacao(
+        ProviderCoinGecko(cliente("CoinGecko", INTERVALO_COINGECKO_S, so_ipv4=True))
+    )
     registro.registrar_cotacao(ProviderTesouro(cliente("Tesouro Transparente", INTERVALO_PADRAO_S)))
     registro.registrar_cotacao(
         ProviderCvm(cliente("CVM", INTERVALO_PADRAO_S), hoje=hoje, relogio=relogio)
@@ -71,6 +84,8 @@ def criar_registro_providers(
     registro.registrar_lista(FonteListaNasdaq(cliente("NASDAQ", INTERVALO_PADRAO_S)))
     registro.registrar_busca(BuscaYahoo(cliente("Yahoo Finance", INTERVALO_YAHOO_S, pesquisa=True)))
     registro.registrar_busca(
-        BuscaCoinGecko(cliente("CoinGecko", INTERVALO_PESQUISA_COINGECKO_S, pesquisa=True))
+        BuscaCoinGecko(
+            cliente("CoinGecko", INTERVALO_PESQUISA_COINGECKO_S, pesquisa=True, so_ipv4=True)
+        )
     )
     return registro

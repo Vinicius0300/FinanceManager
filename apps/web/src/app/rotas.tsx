@@ -4,6 +4,7 @@ import { TelaConfiguracoes } from "@/features/configuracoes/TelaConfiguracoes";
 import { TelaDashboard } from "@/features/dashboard/TelaDashboard";
 import { TelaMovimentacoes } from "@/features/movimentacoes/TelaMovimentacoes";
 import { TelaReceitasDespesas } from "@/features/receitas-despesas/TelaReceitasDespesas";
+import { TelaRebalanceamento } from "@/features/rebalanceamento/TelaRebalanceamento";
 import { ErroGlobal } from "./ErroGlobal";
 import { GlossarioSobDemanda } from "./GlossarioSobDemanda";
 import { LayoutApp } from "./LayoutApp";
@@ -16,6 +17,7 @@ export const ROTAS: RouteObject[] = [
     children: [
       { index: true, element: <TelaDashboard /> },
       { path: "carteira", element: <TelaCarteira /> },
+      { path: "rebalanceamento", element: <TelaRebalanceamento /> },
       { path: "movimentacoes", element: <TelaMovimentacoes /> },
       { path: "receitas-despesas", element: <TelaReceitasDespesas /> },
       { path: "glossario/:termo?", element: <GlossarioSobDemanda /> },

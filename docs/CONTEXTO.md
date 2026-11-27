@@ -20,7 +20,7 @@ App desktop instalável para Windows (ícone e janela próprios, sem navegador n
 - no futuro, previsão e sugestão de investimentos (só a estrutura em `analytics/`, nada de IA por enquanto).
 
 Uso single-user. Dados 100% locais: sem login, nuvem ou sincronização.
-Telas: Dashboard, Carteira, Movimentações, Receitas e Despesas, Glossário, Configurações.
+Telas: Dashboard, Carteira, Rebalanceamento, Movimentações, Receitas e Despesas, Glossário, Configurações.
 
 ## 2. Roadmap (cada parte validada pelo dono antes da próxima)
 | Parte | Conteúdo | Situação |
@@ -36,6 +36,7 @@ Telas: Dashboard, Carteira, Movimentações, Receitas e Despesas, Glossário, Co
 | 7 | Glossário: grafo de termos (estilo Obsidian), conteúdo fixo em Markdown, busca, filtro, verbetes com exemplo. Só frontend | **Validada** (61 termos) |
 | 8 | Receitas e Despesas por instituição (movimentam o caixa), transferências entre instituições com tarifa, filtro e resumo por instituição | **Entregue (aguardando validação)** |
 | 9 | Histórico de operações: operações de cada ativo por instituição (visão Por ativo), quantidade por página (10/25/50/100) nas duas visões e filtro por ativo exato. Só frontend | **Entregue (aguardando validação)** |
+| 10 | Rebalanceamento: metas de alocação por classe (e pesos opcionais por ativo), desvios com banda de tolerância, divisão do aporte ou rebalanceamento completo com lucro estimado, gráfico atual × meta, cartão no Dashboard | **Entregue (aguardando validação)** |
 
 **Versão atual:** 1.0.0 (fonte única: `"version"` do `package.json` da raiz).
 
@@ -70,7 +71,7 @@ apps/desktop/src-tauri/       lib.rs (plugins/comandos), backend.rs (sidecar), j
 apps/web/src/
   app/                        rotas, layout, barra superior (chip e painel de status das cotações, Atualizar,
                               ocultar valores, tema)
-  features/                   uma pasta por tela: dashboard, carteira, movimentacoes, receitas-despesas,
+  features/                   uma pasta por tela: dashboard, carteira, rebalanceamento, movimentacoes, receitas-despesas,
                               configuracoes, glossario; status-backend (portão); tempo-real (SSE)
   components/                 compartilhados (CartaoMetrica, TabelaDados, Estados, ValorFinanceiro,
                               Segmentos, graficos/...); ui/ (shadcn)
@@ -180,6 +181,17 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 - Filtros continuam só no painel do topo (vale para cartões, gráfico e as duas visões). Filtros dentro da tabela e rodapé de totais foram descartados.
 - Quantidade por página 10/25/50/100, **padrão 10**, separada por visão e guardada na URL (`itens`, `pagina`, `itens_ativos`, `pagina_ativos`); mudar filtro, ordem ou tamanho volta à página 1. Em Por ativo a página conta ativos.
 - Filtro por ativo exato (`ativo=<id>` na URL, etiqueta "Ativo: PETR4"), usado pelo link "Ver em Operações com este filtro".
+
+**Rebalanceamento** (Parte 10)
+- Metas em dois níveis: **classe** (tipo de ativo do registry, % da carteira, somando exatamente 100%) e, opcional, **peso por ativo** dentro da classe (somando 100%). Classe com posição e sem meta = 0%; ativo sem peso numa classe com pesos = 0%. Até 2 casas. Tabelas `metas_classe` e `metas_ativo` (FK `ativos` com CASCADE).
+- Pesos gravados que deixam de somar 100% (ativo com peso excluído): o plano ignora os pesos da classe e avisa.
+- Dois modos: **só com aportes** (padrão, nunca vende) e **completo** (compra e vende até as metas). Determinístico, em `domain/rebalanceamento.py`; o app nunca executa ordens.
+- T = posições abertas sem caixa; o **caixa pré-preenche o aporte** (editável, inclusive para mais) e não tem meta. Aporte negativo ou com mais de 2 casas é recusado.
+- Banda: tolerância única de **5 p.p.** (1 a 20, inteira) em `configuracoes.rebalanceamento_tolerancia_pp`; fora da banda se |desvio| > tolerância.
+- Sugestões em centavos fechando exatamente o aporte (maior resto), nas classes e nos ativos de cada classe.
+- Venda por ativo mostra quantidade aproximada, **lucro estimado** e o aviso fixo de IR; o app **não calcula IR**.
+- Só Análise Geral (sem filtro por instituição); nada é gravado em `sugestoes`.
+- Metas e pesos são editados **na própria tabela** "Desvio por classe" (lápis no cabeçalho da coluna Meta abre a coluna inteira, com soma ao vivo e Salvar/Cancelar); sem metas, a tabela já abre em edição. Não há diálogo nem botão "Editar metas".
 
 **Glossário** (Parte 7)
 - Conteúdo fixo e só leitura: um `.md` por termo em `features/glossario/conteudo/`, sem backend nem contrato. Termo novo pela skill `novo-termo-glossario`.

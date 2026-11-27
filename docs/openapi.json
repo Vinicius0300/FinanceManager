@@ -1,6 +1,15 @@
 {
   "components": {
     "schemas": {
+      "AcaoSugerida": {
+        "enum": [
+          "aportar",
+          "vender",
+          "manter"
+        ],
+        "title": "AcaoSugerida",
+        "type": "string"
+      },
       "AlteracaoValor": {
         "additionalProperties": false,
         "properties": {
@@ -122,6 +131,131 @@
           "nome"
         ],
         "title": "AtivoEntrada",
+        "type": "object"
+      },
+      "AtivoPlanoSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "acao": {
+            "$ref": "#/components/schemas/AcaoSugerida"
+          },
+          "ativo_id": {
+            "title": "Ativo Id",
+            "type": "integer"
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "defasado": {
+            "title": "Defasado",
+            "type": "boolean"
+          },
+          "lucro_estimado": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lucro Estimado"
+          },
+          "nome": {
+            "title": "Nome",
+            "type": "string"
+          },
+          "peso": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peso"
+          },
+          "quantidade_estimada": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantidade Estimada"
+          },
+          "simbolo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Simbolo"
+          },
+          "sugestao": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sugestao"
+          },
+          "valor_atual": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Valor Atual",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ativo_id",
+          "simbolo",
+          "nome",
+          "valor_atual",
+          "peso",
+          "sugestao",
+          "acao",
+          "quantidade_estimada",
+          "lucro_estimado",
+          "defasado",
+          "aviso"
+        ],
+        "title": "AtivoPlanoSaida",
         "type": "object"
       },
       "AtivoSaida": {
@@ -621,6 +755,108 @@
           "tipo"
         ],
         "title": "CategoriaSaida",
+        "type": "object"
+      },
+      "ClassePlanoSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "acao": {
+            "$ref": "#/components/schemas/AcaoSugerida"
+          },
+          "ativos": {
+            "items": {
+              "$ref": "#/components/schemas/AtivoPlanoSaida"
+            },
+            "title": "Ativos",
+            "type": "array"
+          },
+          "desvio_pp": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desvio Pp"
+          },
+          "fora_da_banda": {
+            "title": "Fora Da Banda",
+            "type": "boolean"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta"
+          },
+          "percentual_atual": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Percentual Atual",
+            "type": "string"
+          },
+          "sugestao": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sugestao"
+          },
+          "tipo_ativo": {
+            "title": "Tipo Ativo",
+            "type": "string"
+          },
+          "usa_pesos": {
+            "title": "Usa Pesos",
+            "type": "boolean"
+          },
+          "valor_atual": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Valor Atual",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo_ativo",
+          "valor_atual",
+          "percentual_atual",
+          "meta",
+          "desvio_pp",
+          "fora_da_banda",
+          "sugestao",
+          "acao",
+          "usa_pesos",
+          "ativos"
+        ],
+        "title": "ClassePlanoSaida",
         "type": "object"
       },
       "ConfiguracoesEntrada": {
@@ -1696,6 +1932,59 @@
         "title": "ListaSimbolosSaida",
         "type": "object"
       },
+      "MetaClasseEsquema": {
+        "additionalProperties": false,
+        "properties": {
+          "percentual": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Percentual",
+            "type": "string"
+          },
+          "tipo_ativo": {
+            "title": "Tipo Ativo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo_ativo",
+          "percentual"
+        ],
+        "title": "MetaClasseEsquema",
+        "type": "object"
+      },
+      "MetasEsquema": {
+        "additionalProperties": false,
+        "properties": {
+          "ativos": {
+            "items": {
+              "$ref": "#/components/schemas/PesoAtivoEsquema"
+            },
+            "title": "Ativos",
+            "type": "array"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/MetaClasseEsquema"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
+          "tolerancia_pp": {
+            "title": "Tolerancia Pp",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "classes",
+          "ativos",
+          "tolerancia_pp"
+        ],
+        "title": "MetasEsquema",
+        "type": "object"
+      },
       "MetricasSaida": {
         "additionalProperties": false,
         "properties": {
@@ -1808,6 +2097,14 @@
         ],
         "title": "MetricasSaida",
         "type": "object"
+      },
+      "ModoPlano": {
+        "enum": [
+          "aportes",
+          "completo"
+        ],
+        "title": "ModoPlano",
+        "type": "string"
       },
       "MovimentacaoEntrada": {
         "additionalProperties": false,
@@ -2348,6 +2645,121 @@
           "deslocamento"
         ],
         "title": "Pagina[TransferenciaSaida]",
+        "type": "object"
+      },
+      "PesoAtivoEsquema": {
+        "additionalProperties": false,
+        "properties": {
+          "ativo_id": {
+            "title": "Ativo Id",
+            "type": "integer"
+          },
+          "peso": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Peso",
+            "type": "string"
+          },
+          "tipo_ativo": {
+            "title": "Tipo Ativo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo_ativo",
+          "ativo_id",
+          "peso"
+        ],
+        "title": "PesoAtivoEsquema",
+        "type": "object"
+      },
+      "PlanoSaida": {
+        "additionalProperties": false,
+        "properties": {
+          "aporte": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Aporte",
+            "type": "string"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "caixa_disponivel": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Caixa Disponivel",
+            "type": "string"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/ClassePlanoSaida"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
+          "classes_fora_da_banda": {
+            "title": "Classes Fora Da Banda",
+            "type": "integer"
+          },
+          "desvio_total_pp": {
+            "anyOf": [
+              {
+                "examples": [
+                  "10.50"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desvio Total Pp"
+          },
+          "modo": {
+            "$ref": "#/components/schemas/ModoPlano"
+          },
+          "patrimonio_considerado": {
+            "examples": [
+              "10.50"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Patrimonio Considerado",
+            "type": "string"
+          },
+          "tem_metas": {
+            "title": "Tem Metas",
+            "type": "boolean"
+          },
+          "tolerancia_pp": {
+            "title": "Tolerancia Pp",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tem_metas",
+          "patrimonio_considerado",
+          "caixa_disponivel",
+          "aporte",
+          "modo",
+          "tolerancia_pp",
+          "desvio_total_pp",
+          "classes_fora_da_banda",
+          "classes",
+          "avisos"
+        ],
+        "title": "PlanoSaida",
         "type": "object"
       },
       "PontoEvolucao": {
@@ -8862,6 +9274,179 @@
         "summary": "Exclui um preço manual (a coleta automática volta a valer)",
         "tags": [
           "preços e cotações"
+        ]
+      }
+    },
+    "/api/rebalanceamento/metas": {
+      "get": {
+        "operationId": "obter_metas",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetasEsquema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Metas de alocação por classe, pesos por ativo e tolerância da banda",
+        "tags": [
+          "rebalanceamento"
+        ]
+      },
+      "put": {
+        "description": "As metas das classes somam exatamente 100%; os pesos dos ativos de uma classe também. Metas e pesos com no máximo 2 casas; tolerância inteira de 1 a 20 p.p.",
+        "operationId": "gravar_metas",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetasEsquema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetasEsquema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Dados inválidos ou regra de negócio violada."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Substitui todas as metas (lista vazia de classes apaga as metas)",
+        "tags": [
+          "rebalanceamento"
+        ]
+      }
+    },
+    "/api/rebalanceamento/plano": {
+      "get": {
+        "description": "Sugestão informativa; o app nunca executa ordens. Sem `aporte`, usa o caixa disponível de todas as instituições.",
+        "operationId": "obter_plano",
+        "parameters": [
+          {
+            "description": "Valor a aportar em BRL (padrão: o caixa disponível).",
+            "in": "query",
+            "name": "aporte",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "examples": [
+                    "10.50"
+                  ],
+                  "pattern": "^-?\\d+(\\.\\d+)?$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Valor a aportar em BRL (padrão: o caixa disponível).",
+              "title": "Aporte"
+            }
+          },
+          {
+            "description": "aportes (só compra) ou completo (compra e venda).",
+            "in": "query",
+            "name": "modo",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ModoPlano",
+              "default": "aportes",
+              "description": "aportes (só compra) ou completo (compra e venda)."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanoSaida"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Token de sessão ausente ou inválido."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErroApi"
+                }
+              }
+            },
+            "description": "Dados inválidos ou regra de negócio violada."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Desvios das metas e sugestão de aporte (ou de compra e venda)",
+        "tags": [
+          "rebalanceamento"
         ]
       }
     },

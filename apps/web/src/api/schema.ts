@@ -754,6 +754,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rebalanceamento/metas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Metas de alocação por classe, pesos por ativo e tolerância da banda */
+        get: operations["obter_metas"];
+        /**
+         * Substitui todas as metas (lista vazia de classes apaga as metas)
+         * @description As metas das classes somam exatamente 100%; os pesos dos ativos de uma classe também. Metas e pesos com no máximo 2 casas; tolerância inteira de 1 a 20 p.p.
+         */
+        put: operations["gravar_metas"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rebalanceamento/plano": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Desvios das metas e sugestão de aporte (ou de compra e venda)
+         * @description Sugestão informativa; o app nunca executa ordens. Sem `aporte`, usa o caixa disponível de todas as instituições.
+         */
+        get: operations["obter_plano"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/resumo-mensal": {
         parameters: {
             query?: never;
@@ -1044,6 +1085,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AcaoSugerida
+         * @enum {string}
+         */
+        AcaoSugerida: "aportar" | "vender" | "manter";
         /** AlteracaoValor */
         AlteracaoValor: {
             /**
@@ -1079,6 +1125,33 @@ export interface components {
             simbolo_externo?: string | null;
             /** Tipo */
             tipo: string;
+        };
+        /** AtivoPlanoSaida */
+        AtivoPlanoSaida: {
+            acao: components["schemas"]["AcaoSugerida"];
+            /** Ativo Id */
+            ativo_id: number;
+            /** Aviso */
+            aviso: string | null;
+            /** Defasado */
+            defasado: boolean;
+            /** Lucro Estimado */
+            lucro_estimado: string | null;
+            /** Nome */
+            nome: string;
+            /** Peso */
+            peso: string | null;
+            /** Quantidade Estimada */
+            quantidade_estimada: string | null;
+            /** Simbolo */
+            simbolo: string | null;
+            /** Sugestao */
+            sugestao: string | null;
+            /**
+             * Valor Atual
+             * @example 10.50
+             */
+            valor_atual: string;
         };
         /** AtivoSaida */
         AtivoSaida: {
@@ -1223,6 +1296,34 @@ export interface components {
             /** Nome */
             nome: string;
             tipo: components["schemas"]["TipoLancamento"];
+        };
+        /** ClassePlanoSaida */
+        ClassePlanoSaida: {
+            acao: components["schemas"]["AcaoSugerida"];
+            /** Ativos */
+            ativos: components["schemas"]["AtivoPlanoSaida"][];
+            /** Desvio Pp */
+            desvio_pp: string | null;
+            /** Fora Da Banda */
+            fora_da_banda: boolean;
+            /** Meta */
+            meta: string | null;
+            /**
+             * Percentual Atual
+             * @example 10.50
+             */
+            percentual_atual: string;
+            /** Sugestao */
+            sugestao: string | null;
+            /** Tipo Ativo */
+            tipo_ativo: string;
+            /** Usa Pesos */
+            usa_pesos: boolean;
+            /**
+             * Valor Atual
+             * @example 10.50
+             */
+            valor_atual: string;
         };
         /** ConfiguracoesEntrada */
         ConfiguracoesEntrada: {
@@ -1608,6 +1709,25 @@ export interface components {
             /** Ultimo Erro */
             ultimo_erro: string | null;
         };
+        /** MetaClasseEsquema */
+        MetaClasseEsquema: {
+            /**
+             * Percentual
+             * @example 10.50
+             */
+            percentual: string;
+            /** Tipo Ativo */
+            tipo_ativo: string;
+        };
+        /** MetasEsquema */
+        MetasEsquema: {
+            /** Ativos */
+            ativos: components["schemas"]["PesoAtivoEsquema"][];
+            /** Classes */
+            classes: components["schemas"]["MetaClasseEsquema"][];
+            /** Tolerancia Pp */
+            tolerancia_pp: number;
+        };
         /** MetricasSaida */
         MetricasSaida: {
             /**
@@ -1655,6 +1775,11 @@ export interface components {
             /** Valorizacao */
             valorizacao: string | null;
         };
+        /**
+         * ModoPlano
+         * @enum {string}
+         */
+        ModoPlano: "aportes" | "completo";
         /** MovimentacaoEntrada */
         MovimentacaoEntrada: {
             /**
@@ -1843,6 +1968,49 @@ export interface components {
             limite: number;
             /** Total */
             total: number;
+        };
+        /** PesoAtivoEsquema */
+        PesoAtivoEsquema: {
+            /** Ativo Id */
+            ativo_id: number;
+            /**
+             * Peso
+             * @example 10.50
+             */
+            peso: string;
+            /** Tipo Ativo */
+            tipo_ativo: string;
+        };
+        /** PlanoSaida */
+        PlanoSaida: {
+            /**
+             * Aporte
+             * @example 10.50
+             */
+            aporte: string;
+            /** Avisos */
+            avisos: string[];
+            /**
+             * Caixa Disponivel
+             * @example 10.50
+             */
+            caixa_disponivel: string;
+            /** Classes */
+            classes: components["schemas"]["ClassePlanoSaida"][];
+            /** Classes Fora Da Banda */
+            classes_fora_da_banda: number;
+            /** Desvio Total Pp */
+            desvio_total_pp: string | null;
+            modo: components["schemas"]["ModoPlano"];
+            /**
+             * Patrimonio Considerado
+             * @example 10.50
+             */
+            patrimonio_considerado: string;
+            /** Tem Metas */
+            tem_metas: boolean;
+            /** Tolerancia Pp */
+            tolerancia_pp: number;
         };
         /** PontoEvolucao */
         PontoEvolucao: {
@@ -5375,6 +5543,120 @@ export interface operations {
             };
             /** @description Registro não encontrado. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_metas: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetasEsquema"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    gravar_metas: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetasEsquema"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetasEsquema"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+            /** @description Dados inválidos ou regra de negócio violada. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroApi"];
+                };
+            };
+        };
+    };
+    obter_plano: {
+        parameters: {
+            query?: {
+                /** @description Valor a aportar em BRL (padrão: o caixa disponível). */
+                aporte?: string | null;
+                /** @description aportes (só compra) ou completo (compra e venda). */
+                modo?: components["schemas"]["ModoPlano"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanoSaida"];
+                };
+            };
+            /** @description Token de sessão ausente ou inválido. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

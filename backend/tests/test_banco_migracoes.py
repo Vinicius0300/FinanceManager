@@ -47,6 +47,8 @@ TABELAS = {
     "instituicoes",
     "lancamentos",
     "listas_simbolos",
+    "metas_ativo",
+    "metas_classe",
     "movimentos_conta",
     "precos",
     "simbolos_listados",
@@ -78,7 +80,7 @@ def test_migra_banco_novo_ate_a_head_sem_backup(banco: Path, pasta_backups: Path
     banco.parent.mkdir(parents=True)
     resultado = migrar_banco(banco, pasta_backups)
     assert resultado.revisao_anterior is None
-    assert resultado.revisao_atual == "0005_lancamentos_instituicao_transferencias"
+    assert resultado.revisao_atual == "0006_metas_rebalanceamento"
     assert resultado.migrou
     assert resultado.backup is None
     assert tabelas(banco) == TABELAS
@@ -293,6 +295,35 @@ def test_migracao_0004_tira_o_tipo_de_papel_etf_sem_mudar_o_tipo(banco: Path) ->
         (2, "acao_br", {"tipo_papel": "PN"}),
         (3, "acao_us", {"bolsa": "OUTRA"}),
     ]
+
+
+def test_migracao_0006_cria_as_metas_com_cascade_e_volta(banco: Path) -> None:
+    # Banco da Parte 9 com um ativo: a 0006 cria as tabelas de metas sem tocar nos dados;
+    # o peso some com o ativo (ON DELETE CASCADE); o downgrade tira só as tabelas novas.
+    banco.parent.mkdir(parents=True)
+    configuracao = configuracao_alembic(banco)
+    command.upgrade(configuracao, "0005_lancamentos_instituicao_transferencias")
+    with closing(sqlite3.connect(banco)) as conexao:
+        conexao.execute(
+            "INSERT INTO ativos VALUES (1, 'acao_br', 'PETR4', 'P', 'BRL', NULL, NULL, '{}', "
+            "'2025-01-01')"
+        )
+        conexao.commit()
+    command.upgrade(configuracao, "head")
+    with closing(sqlite3.connect(banco)) as conexao:
+        conexao.execute("PRAGMA foreign_keys = ON")
+        conexao.execute("INSERT INTO metas_classe VALUES ('acao_br', '100', '2026-11-26')")
+        conexao.execute("INSERT INTO metas_ativo VALUES (1, '100', '2026-11-26')")
+        with pytest.raises(sqlite3.IntegrityError):
+            conexao.execute("INSERT INTO metas_classe VALUES ('cripto', '100.01', '2026-11-26')")
+        with pytest.raises(sqlite3.IntegrityError):
+            conexao.execute("INSERT INTO metas_ativo VALUES (99, '10', '2026-11-26')")
+        conexao.execute("DELETE FROM ativos WHERE id = 1")
+        conexao.commit()
+        assert conexao.execute("SELECT count(*) FROM metas_ativo").fetchone() == (0,)
+        assert conexao.execute("SELECT tipo_ativo FROM metas_classe").fetchall() == [("acao_br",)]
+    command.downgrade(configuracao, "0005_lancamentos_instituicao_transferencias")
+    assert tabelas(banco) == TABELAS - {"metas_classe", "metas_ativo"}
 
 
 def test_estado_coleta_e_removido_com_o_ativo(sessao: Session) -> None:

@@ -37,6 +37,7 @@ import {
 import { GraficoAlocacao, GraficoEvolucao } from "./graficos";
 import { separarAltasEBaixas } from "./variacoes";
 import { useValoresOcultos } from "@/lib/valores-ocultos";
+import { CartaoRebalanceamento } from "@/features/rebalanceamento/CartaoRebalanceamento";
 
 /**
  * Visão geral (Parte 5A): cartões de métrica (patrimônio com sparkline), evolução com
@@ -53,6 +54,7 @@ export function TelaDashboard({ agora = new Date() }: { agora?: Date }) {
     <div className="flex flex-col gap-3.5">
       <CabecalhoPagina titulo="Dashboard" acoes={<SeletorAnalise />} />
       <Metricas instituicaoId={instituicaoId} agora={agora} evolucao={evolucao.data} />
+      <CartaoRebalanceamento />
       <div className="grid gap-3.5 lg:grid-cols-3">
         <EvolucaoPatrimonio
           consulta={evolucao}

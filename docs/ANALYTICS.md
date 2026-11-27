@@ -57,3 +57,6 @@ Serão criadas por uma migração Alembic própria quando a funcionalidade for p
 Índice: `(data_referencia, status)`.
 
 Sugestões são **apenas informativas**: o app nunca executa ordens nem altera transações a partir delas.
+
+## Rebalanceamento por metas (Parte 10)
+O rebalanceamento da tela Rebalanceamento **não** é um modelo: é regra determinística em `backend/app/domain/rebalanceamento.py`, a partir das metas que o próprio usuário define (fórmulas em `CALCULOS.md`, seção 13). Não usa `Predictor` nem grava em `sugestoes`. No futuro pode ser exposto como uma `Strategy` (ex.: `nome = "metas"`) que devolve as sugestões do plano, sem mudar as regras.

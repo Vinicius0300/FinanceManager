@@ -426,6 +426,35 @@ def test_cripto_grava_o_id_descoberto_em_simbolo_externo(cenario: Cenario) -> No
     assert cenario.precos(btc.id)[-1][3] == "coingecko"
 
 
+def test_cancelar_no_meio_do_ciclo_preserva_as_fontes_ja_consultadas(
+    cenario: Cenario, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """App fechado enquanto a 2ª fonte responde: o que a 1ª trouxe já está gravado."""
+    from app.services.cadastros import NovoAtivo, criar_ativo
+
+    petr = preparar(cenario)["petr"]
+    with sessao_transacional(cenario.fabrica) as sessao:
+        btc = criar_ativo(sessao, NovoAtivo(tipo="cripto", nome="Bitcoin", simbolo="BTC")).id
+    cenario.yahoo.precos[petr] = D("52.2")
+    cenario.gecko.precos[btc] = D("426934")
+    cotacoes_gecko = cenario.gecko.cotacoes
+
+    def cotacoes_e_fecha_o_app(alvos: Sequence[AlvoCotacao]) -> dict[int, ResultadoCotacao]:
+        cenario.coletor.cancelar()  # o usuário fecha o app durante a consulta lenta
+        return cotacoes_gecko(alvos)
+
+    monkeypatch.setattr(cenario.gecko, "cotacoes", cotacoes_e_fecha_o_app)
+    cenario.coletor.executar()
+
+    assert cenario.precos(petr)[-1][:2] == (HOJE, D("52.2"))
+    estado_petr = cenario.estado(chave_ativo(petr))
+    assert estado_petr is not None
+    assert estado_petr.ultimo_sucesso == cenario.relogio.agora
+    assert cenario.precos(btc) == []  # a fonte interrompida não grava nada
+    assert cenario.estado(chave_ativo(btc)) is None
+    assert cenario.sgs.chamadas == []  # nem consulta as fontes seguintes
+
+
 def test_ativo_com_provider_nao_registrado(cenario: Cenario) -> None:
     with sessao_transacional(cenario.fabrica) as sessao:
         fundo = sessao.merge(

@@ -845,6 +845,27 @@ def test_registro_padrao_de_providers() -> None:
     registro.fechar()
 
 
+def _endereco_local(cliente: object) -> object:
+    """Endereço local do pool de conexões do cliente HTTP (``None``: IPv4 ou IPv6)."""
+    transporte = cliente._cliente._transport  # type: ignore[attr-defined]
+    return transporte._pool._local_address
+
+
+def test_coingecko_conecta_so_por_ipv4_e_as_demais_fontes_nao_mudam() -> None:
+    """IPv6 da CoinGecko inalcançável custava ~21 s por conexão nova (diagnóstico 26/11)."""
+    from app.providers.catalogo import ENDERECO_LOCAL_IPV4
+
+    registro = criar_registro_providers()
+    try:
+        gecko, yahoo = registro.cotacao("coingecko"), registro.cotacao("yfinance")
+        assert gecko is not None
+        assert yahoo is not None
+        assert _endereco_local(gecko._http) == ENDERECO_LOCAL_IPV4  # type: ignore[attr-defined]
+        assert _endereco_local(yahoo._http) is None  # type: ignore[attr-defined]
+    finally:
+        registro.fechar()
+
+
 def test_tipos_de_ativo_cotados_tem_provider_registrado() -> None:
     from app.asset_types.base import HandlerCotado
     from app.asset_types.catalogo import REGISTRO_PADRAO

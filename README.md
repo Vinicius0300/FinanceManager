@@ -80,6 +80,9 @@ A atualização automática de cotações começa ao abrir; para depurar sem ace
 - Todo lançamento de **Receitas e Despesas** pertence a uma instituição e movimenta o caixa dela. Lance primeiro as receitas do mês e depois as despesas: o caixa nunca fica negativo, e uma despesa sem saldo pede um ajuste de saldo.
 - **Salário é receita; dinheiro passado entre bancos é transferência** (Movimentações → Caixa → Transferência). Depósito e saque ficam para o saldo inicial e acertos com o extrato. Cartão de crédito: lance a despesa na data da cobrança, na instituição que pagou.
 
+### Rebalanceamento
+- Aba **Rebalanceamento** no menu: defina metas por classe (somando 100%) e, se quiser, pesos para os ativos de uma classe. A tela mostra o desvio de cada classe, as que estão fora da banda (tolerância de 5 p.p., ajustável) e como dividir o aporte (pré-preenchido com o caixa). O modo **Completo (com vendas)** mostra também o que vender, com lucro estimado; o app não calcula IR e nunca executa ordens.
+
 ### Glossário
 - Aba **Glossário** no menu: grafo de termos de finanças e investimentos. Clique numa bolinha, busque pelo nome ou use a lista para abrir a explicação, com exemplo numérico e termos relacionados.
 - O conteúdo é fixo e vem dentro do app (um arquivo por termo em `apps/web/src/features/glossario/conteudo/*.md`); não é editável pela tela. Para acrescentar um termo, crie o `.md` no modelo dos outros, ligue com `[[slug]]` e rode `npm test` (a validação aponta link quebrado, seção faltando ou tamanho fora do modelo). Detalhes em `docs/HISTORICO.md` (Parte 7).

@@ -1,10 +1,13 @@
 """Atualização automática de cotações e indicadores (um ciclo de coleta).
 
-Um ciclo tem três fases, para não segurar o banco durante a rede:
+Um ciclo não segura o banco durante a rede:
 1. **plano** (transação curta): lê ativos, estados e configurações e decide o que coletar
    (regras de ``domain/agenda.py``; ``forcar`` ignora o intervalo);
-2. **rede** (sem sessão aberta): chama os providers;
-3. **gravação** (uma transação por alvo): grava preços/indicadores e o estado da coleta.
+2. para cada fonte de cotação (todos os ativos dela de uma vez) e depois para cada
+   indicador: **rede** (sem sessão aberta) e, em seguida, **gravação** (uma transação por
+   alvo) dos preços/indicadores e do estado da coleta. Gravar fonte a fonte garante que
+   fechar o app no meio de um ciclo lento (ex.: lacunas de histórico depois de dias
+   parado) preserve o que as fontes anteriores já trouxeram.
 
 Falhas nunca derrubam o ciclo: erro de rede, de provider ou inesperado vira ``ultimo_erro``
 daquele alvo (com log em arquivo) e os demais continuam. Cada mudança é publicada como
@@ -401,12 +404,6 @@ class ResultadosRede:
     cotacoes: dict[int, ResultadoCotacao] = field(default_factory=dict)
     historicos: dict[int, ResultadoHistorico] = field(default_factory=dict)
     identificadores: dict[int, str] = field(default_factory=dict)
-    indicadores: dict[
-        tuple[TipoIndicador, str], tuple[str, list[PontoIndicador]] | ProviderError
-    ] = field(default_factory=dict)
-    cambio_intradiario: dict[str, tuple[str, list[PontoIndicador]] | ProviderError] = field(
-        default_factory=dict
-    )
 
 
 def _chamar(funcao: Callable[[], T], descricao: str) -> T | ProviderError:
@@ -436,52 +433,45 @@ def _buscar_indicador(
     return ProviderError(" ".join(erros))
 
 
-def _nunca() -> bool:
-    return False
-
-
-def consultar_rede(
-    plano: Plano, providers: RegistroProviders, cancelado: Callable[[], bool] = _nunca
-) -> ResultadosRede:
-    """Chama os providers (sem sessão aberta). Para no próximo alvo se ``cancelado()``."""
-    resultados = ResultadosRede()
+def tarefas_por_provider(plano: Plano) -> dict[str, list[TarefaAtivo]]:
+    """Ativos do plano agrupados por fonte (na ordem em que aparecem)."""
     por_provider: dict[str, list[TarefaAtivo]] = defaultdict(list)
     for tarefa in plano.ativos:
         por_provider[tarefa.provider].append(tarefa)
-    for nome, tarefas in por_provider.items():
-        if cancelado():
-            return resultados
-        provider = providers.cotacao(nome)
-        if provider is None:  # pragma: no cover - o plano já filtra
-            continue
-        _consultar_ativos(provider, tarefas, plano.hoje, resultados)
-    for pedido in plano.indicadores:
-        if cancelado():
-            return resultados
-        resultados.indicadores[(pedido.tipo, pedido.moeda)] = _buscar_indicador(
-            providers.fontes_indicador(pedido.tipo, pedido.moeda),
-            pedido.tipo,
-            pedido.moeda,
-            pedido.inicio,
-            plano.hoje,
-        )
+    return dict(por_provider)
+
+
+def consultar_indicador(
+    plano: Plano, providers: RegistroProviders, pedido: TarefaIndicador
+) -> tuple[str, list[PontoIndicador]] | ProviderError:
+    """Série de um indicador do plano (fontes em ordem de fallback), sem sessão aberta."""
+    return _buscar_indicador(
+        providers.fontes_indicador(pedido.tipo, pedido.moeda),
+        pedido.tipo,
+        pedido.moeda,
+        pedido.inicio,
+        plano.hoje,
+    )
+
+
+def consultar_cambio_intradiario(
+    plano: Plano, providers: RegistroProviders, moeda: str
+) -> tuple[str, list[PontoIndicador]] | ProviderError | None:
+    """Dólar (ou outra moeda) de hoje ao longo do dia; ``None`` sem fonte registrada."""
     intradiario = providers.cambio_intradiario
-    if intradiario is not None:
-        for moeda in plano.cambio_intradiario:
-            resultado = _buscar_indicador(
-                [intradiario],
-                TipoIndicador.CAMBIO,
-                moeda,
-                plano.hoje - timedelta(days=DIAS_CAMBIO_INTRADIARIO),
-                plano.hoje,
-            )
-            # Só o valor de hoje: dias anteriores ficam com a PTAX (ou a reserva diária).
-            resultados.cambio_intradiario[moeda] = (
-                resultado
-                if isinstance(resultado, ProviderError)
-                else (resultado[0], [p for p in resultado[1] if p.data == plano.hoje])
-            )
-    return resultados
+    if intradiario is None:
+        return None
+    resultado = _buscar_indicador(
+        [intradiario],
+        TipoIndicador.CAMBIO,
+        moeda,
+        plano.hoje - timedelta(days=DIAS_CAMBIO_INTRADIARIO),
+        plano.hoje,
+    )
+    if isinstance(resultado, ProviderError):
+        return resultado
+    # Só o valor de hoje: dias anteriores ficam com a PTAX (ou a reserva diária).
+    return resultado[0], [p for p in resultado[1] if p.data == plano.hoje]
 
 
 def _consultar_ativos(
@@ -550,7 +540,6 @@ class Coletor:
                 ativo_ids=ativo_ids,
                 registro=self._registro,
             )
-        rede = consultar_rede(plano, self._providers, self._cancelado.is_set)
         contagem = {"precos": 0, "indicadores": 0, "erros": 0}
         for ativo_id, provider in plano.sem_provider:
             self._erro_ativo(
@@ -560,28 +549,40 @@ class Coletor:
                 f"Fonte de cotação {provider!r} não disponível.",
                 contagem,
             )
-        for tarefa in plano.ativos:
-            if self._cancelado.is_set():
+        # Cada fonte é gravada logo depois da sua consulta: fechar o app no meio do ciclo
+        # (ou uma fonte lenta) não descarta o que as fontes anteriores já trouxeram.
+        cancelado = self._cancelado.is_set
+        for nome, tarefas in tarefas_por_provider(plano).items():
+            if cancelado():
                 break
-            self._gravar_ativo(plano, tarefa, rede, contagem)
+            provider_cotacao = self._providers.cotacao(nome)
+            if provider_cotacao is None:  # pragma: no cover - o plano já filtra
+                continue
+            rede = ResultadosRede()
+            _consultar_ativos(provider_cotacao, tarefas, plano.hoje, rede)
+            for tarefa in tarefas:
+                if cancelado():
+                    break
+                self._gravar_ativo(plano, tarefa, rede, contagem)
         for pedido in plano.indicadores:
-            if self._cancelado.is_set():
+            if cancelado():
                 break
             self._gravar_indicador(
                 plano,
                 chave_indicador(pedido.tipo, pedido.moeda),
                 pedido.tipo,
                 pedido.moeda,
-                rede.indicadores.get(
-                    (pedido.tipo, pedido.moeda), ProviderError("Coleta interrompida.")
-                ),
+                consultar_indicador(plano, self._providers, pedido),
                 pedido.inicio if pedido.completo else None,
                 contagem,
                 # Atualização pedida pelo usuário: ele quer saber o que falhou, mesmo só do painel.
                 avisar_erro=forcar or not pedido.do_painel,
             )
-        for moeda, resultado in rede.cambio_intradiario.items():
-            if self._cancelado.is_set():
+        for moeda in plano.cambio_intradiario:
+            if cancelado():
+                break
+            resultado = consultar_cambio_intradiario(plano, self._providers, moeda)
+            if resultado is None:
                 break
             self._gravar_indicador(
                 plano,

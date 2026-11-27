@@ -196,7 +196,7 @@ def test_erros_de_dominio_viram_respostas_em_pt_br(
 
 def test_inicializacao_migra_o_banco_e_abre_a_engine(cliente: TestClient, app: FastAPI) -> None:
     assert paths.caminho_banco().exists()
-    assert revisao_do_banco(paths.caminho_banco()) == "0005_lancamentos_instituicao_transferencias"
+    assert revisao_do_banco(paths.caminho_banco()) == "0006_metas_rebalanceamento"
     with app.state.engine.connect() as conexao:
         assert conexao.execute(text("PRAGMA foreign_keys")).scalar() == 1
     with app.state.fabrica_sessoes() as sessao:

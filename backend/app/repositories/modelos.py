@@ -450,6 +450,35 @@ class Configuracao(Base):
     atualizado_em: Mapped[datetime] = mapped_column(default=agora_utc, onupdate=agora_utc)
 
 
+_PERCENTUAL_VALIDO = "CAST({c} AS NUMERIC) >= 0 AND CAST({c} AS NUMERIC) <= 100"
+
+
+class MetaClasse(Base):
+    """Meta de alocação de uma classe (tipo de ativo do registry), em % da carteira."""
+
+    __tablename__ = "metas_classe"
+    __table_args__ = (
+        CheckConstraint(_PERCENTUAL_VALIDO.format(c="percentual"), name="percentual"),
+    )
+
+    tipo_ativo: Mapped[str] = mapped_column(String(40), primary_key=True)  # slug do registry
+    percentual: Mapped[Decimal]
+    atualizado_em: Mapped[datetime] = mapped_column(default=agora_utc, onupdate=agora_utc)
+
+
+class MetaAtivo(Base):
+    """Peso opcional de um ativo dentro da sua classe, em % da classe."""
+
+    __tablename__ = "metas_ativo"
+    __table_args__ = (CheckConstraint(_PERCENTUAL_VALIDO.format(c="peso"), name="peso"),)
+
+    ativo_id: Mapped[int] = mapped_column(
+        ForeignKey("ativos.id", ondelete="CASCADE"), primary_key=True
+    )
+    peso: Mapped[Decimal]
+    atualizado_em: Mapped[datetime] = mapped_column(default=agora_utc, onupdate=agora_utc)
+
+
 class ListaSimbolos(Base):
     """Situação da lista oficial de tickers de uma bolsa (``B3`` ou ``EUA``)."""
 
