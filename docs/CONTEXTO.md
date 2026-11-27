@@ -38,7 +38,7 @@ Telas: Dashboard, Carteira, Rebalanceamento, Movimentações, Receitas e Despesa
 | 9 | Histórico de operações: operações de cada ativo por instituição (visão Por ativo), quantidade por página (10/25/50/100) nas duas visões e filtro por ativo exato. Só frontend | **Entregue (aguardando validação)** |
 | 10 | Rebalanceamento: metas de alocação por classe (e pesos opcionais por ativo), desvios com banda de tolerância, divisão do aporte ou rebalanceamento completo com lucro estimado, gráfico atual × meta, cartão no Dashboard | **Entregue (aguardando validação)** |
 
-**Versão atual:** 1.0.0 (fonte única: `"version"` do `package.json` da raiz).
+**Versão atual:** 1.1.0 (instalador gerado em 27/11/2026; fonte única: `"version"` do `package.json` da raiz).
 
 ## 3. Arquitetura
 - **Desktop:** Tauri 2 (WebView2). Rust mínimo: inicialização, ciclo de vida do backend, plugins (dialog, single-instance, window-state).
@@ -162,7 +162,7 @@ Detalhes e motivos em `HISTORICO.md` (parte indicada) e `CALCULOS.md`.
 - NSIS em pt-BR, `currentUser` (sem administrador, em `%LOCALAPPDATA%\Financas`), atalhos no menu Iniciar e na área de trabalho, WebView2 por `embedBootstrapper`, sem assinatura de código.
 - **Desinstalar nunca apaga `%APPDATA%\Financas`.** A caixa "apagar dados" só remove estado da janela e cache do WebView2.
 - Versão com fonte única: `scripts/versao.py` propaga o número; `--verificar` falha se divergir. Release nova: mudar o `package.json` da raiz e rodar `npm run instalador`.
-- `scripts/3_gerar_instalador.bat` roda versão, testes, lints, contrato, Rust, PyInstaller, smoke test e `tauri build`, parando no primeiro erro.
+- `scripts/3_gerar_instalador.bat` roda versão, testes, lints, contrato, Rust, PyInstaller, smoke test e `tauri build`, parando no primeiro erro. Vitest com `--maxWorkers=4` no build (memória). Rotina e falhas conhecidas na skill `build-instalador-windows`.
 - O `tauri build` do instalador usa `CARGO_TARGET_DIR=%LOCALAPPDATA%\FinancasBuild\target` (fora do OneDrive; respeita a variável se já definida) e copia o `.exe` para `apps\desktop\src-tauri\target\release\bundle\nsis\`.
 - Distribuição: o `.exe` gerado e testado localmente é anexado à mão a uma Release do GitHub (tag `vX.Y.Z`); o README aponta para `releases/latest`. Sem build no CI (lançamentos esporádicos). Roteiro no `README.md`.
 

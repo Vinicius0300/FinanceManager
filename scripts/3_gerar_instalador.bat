@@ -52,7 +52,9 @@ call npm run contrato:verificar || goto :falha
 
 echo.
 echo === [4/8] Frontend: testes, lint, tipos e formatação ===
-call npm test || goto :falha
+rem Limita os workers do vitest: com um por núcleo (cada um com jsdom), máquinas com pouca
+rem memória livre derrubam os workers com "JavaScript heap out of memory".
+call npm test -- --maxWorkers=4 || goto :falha
 call npm run lint || goto :falha
 call npm run typecheck || goto :falha
 call npm run format:check || goto :falha

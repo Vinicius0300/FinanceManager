@@ -1,7 +1,7 @@
 {
   "name": "financas",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Finanças: app desktop local de finanças pessoais (Tauri + React + FastAPI)",
   "workspaces": [
     "apps/web",
